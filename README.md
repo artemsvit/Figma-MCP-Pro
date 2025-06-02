@@ -13,12 +13,25 @@ A powerful, professional Model Context Protocol (MCP) server that provides AI-op
 - **Design Token Extraction**: Automatic extraction of colors, typography, spacing, and other design tokens
 
 ### Advanced Features
-- **CSS Generation**: Automatic CSS property generation from Figma properties
+- **CSS Generation**: Automatic CSS property generation from Figma properties with comprehensive effects support
 - **Accessibility Enhancement**: ARIA labels, roles, and accessibility information
 - **Component Variant Detection**: Automatic detection of component states and variants
 - **Interaction State Generation**: Hover, focus, and active state definitions
 - **Responsive Breakpoint Analysis**: Detection and optimization for different screen sizes
 - **Performance Optimization**: Caching, rate limiting, and request optimization
+
+### Latest Updates (v1.3.12)
+- **MCP JSON Protocol Fix**: Resolved stdout interference issues for clean MCP communication
+- **Comprehensive Figma Effects Support**: Full support for all Figma layer effects
+  - Inner shadows (up to 8 per element)
+  - Multiple drop shadows (up to 8 per element) 
+  - Layer blur effects (`filter: blur()`)
+  - Background blur effects (`backdrop-filter: blur()`)
+  - Individual corner radius for each corner
+  - Stroke/border properties with proper alignment handling
+  - Individual stroke weights per side
+  - Basic stroke dash support
+  - Shadow and border design token extraction
 
 ## 📦 Installation
 
@@ -97,7 +110,7 @@ Add to your Cursor MCP configuration:
     "figma-mcp-pro": {
       "command": "npx",
       "args": [
-        "-y",
+        "--yes",
         "figma-mcp-pro",
         "--stdio"
       ],
@@ -118,7 +131,7 @@ Add to `claude_desktop_config.json`:
     "figma-mcp-pro": {
       "command": "npx",
       "args": [
-        "-y",
+        "--yes",
         "figma-mcp-pro",
         "--stdio"
       ],
@@ -160,85 +173,44 @@ Add to `claude_desktop_config.json`:
 ### Available Tools
 
 #### 1. `get_figma_data`
-Fetch and process Figma design data with AI-optimized context enhancement.
+Fetch and process Figma design data with AI-optimized context enhancement. Use nodeId from a Figma selection link to analyze only the selected element, or omit nodeId to analyze the full document.
 
 **Parameters:**
 - `fileKey` (string): The Figma file key
-- `nodeId` (string, optional): **Specific node ID to fetch - USE THIS for selected elements!**
+- `nodeId` (string, optional): Specific node ID to fetch (use for selected elements)
 - `depth` (number, 1-10, default: 5): Maximum depth to traverse
 - `framework` (enum, optional): Target framework ('react', 'vue', 'angular', 'svelte', 'html')
 - `includeImages` (boolean, default: false): Whether to include image URLs
 - `customRules` (object, optional): Custom processing rules
 
-**Selection vs Full Document:**
-```javascript
-// ✅ ANALYZE SELECTED ELEMENT (recommended)
-{
-  "fileKey": "ABC123DEF456",
-  "nodeId": "123:456",  // Include this for selections!
-  "framework": "react",
-  "depth": 3
-}
-
-// ❌ ANALYZE ENTIRE DOCUMENT (slow, large response)
-{
-  "fileKey": "ABC123DEF456",
-  // nodeId omitted = processes entire document
-  "framework": "react"
-}
-```
-
-**Response Metadata:**
-The response includes metadata to confirm selection handling:
-```json
-{
-  "data": { /* enhanced node data */ },
-  "metadata": {
-    "isSpecificSelection": true,  // true when nodeId provided
-    "selectionType": "user_selection",  // vs "full_document"
-    "nodeId": "123:456",
-    "processingStats": {
-      "nodesProcessed": 15  // much smaller for selections
-    }
-  }
-}
-```
-
 #### 2. `download_figma_images`
-Download images from Figma nodes based on their export settings. This tool respects the original export settings configured in Figma's export panel, including format (PNG, JPG, SVG, PDF), scale (1x, 2x, etc.), and custom suffixes.
+Download images from Figma nodes directly. Downloads any node as an image using the node's actual name as the filename (e.g., "EPAM Systems.svg"). Does not require export settings to be configured in Figma.
 
 **Parameters:**
 - `fileKey` (string): The Figma file key
-- `nodeIds` (array): Array of node IDs to check for export settings
-- `localPath` (string): Local directory path to save images
+- `nodeIds` (array): Array of node IDs to download as images
+- `localPath` (string): Local directory path to save images (will be created if it does not exist)
+- `scale` (number, 0.5-4, default: 2): Export scale for images
+- `format` (enum, default: 'svg'): Image format ('jpg', 'png', 'svg', 'pdf')
 
 **Example:**
 ```json
 {
   "fileKey": "abc123",
   "nodeIds": ["1:2", "1:3"],
-  "localPath": "./downloads"
+  "localPath": "./downloads",
+  "scale": 2,
+  "format": "svg"
 }
 ```
 
 **Key Features:**
-- **Export Settings Respect**: Only downloads nodes with export settings configured in Figma
-- **Format Preservation**: Maintains original format (PNG, JPG, SVG, PDF) as set in Figma
-- **Scale Handling**: Properly handles SCALE, WIDTH, and HEIGHT constraints from Figma export settings
-- **SVG Limitation Handling**: Automatically uses 1x scale for SVG (Figma API limitation)
-- **Custom Suffixes**: Preserves custom suffixes defined in export settings
-- **Original Naming**: Uses actual node names as filenames (e.g., "EPAM Systems.svg")
-- **Recursive Search**: Automatically finds export settings in child nodes
-- **Batch Processing**: Efficiently groups downloads by format and scale for optimal API usage
-- **Smart Naming**: Generates filenames based on node names and export settings
-
-**Constraint Types Supported:**
-- **SCALE**: Uses the scale value directly (e.g., 2x, 3x)
-- **WIDTH**: Uses scale 1, lets Figma API handle width constraint
-- **HEIGHT**: Uses scale 1, lets Figma API handle height constraint
-
-**Output:**
-Returns detailed information about each download attempt, including success/failure status, file paths, and export settings used.
+- **Direct Downloads**: Downloads any node as an image, no export settings required
+- **Original Naming**: Uses actual node names as filenames with proper sanitization
+- **Format Support**: PNG, JPG, SVG, PDF formats
+- **Scale Options**: 0.5x to 4x scaling (SVG limited to 1x per Figma API)
+- **Batch Processing**: Efficiently processes multiple nodes
+- **Smart Naming**: Sanitizes special characters in filenames
 
 #### 3. `get_server_stats`
 Get server performance and usage statistics.
@@ -323,14 +295,19 @@ Automatically detects and categorizes UI elements:
 - Images and media
 - Containers and layout elements
 
-### CSS Generation
-Converts Figma properties to CSS:
+### Enhanced CSS Generation
+Converts Figma properties to CSS with comprehensive effects support:
 - Layout properties (width, height, position)
 - Flexbox and Grid layouts
 - Colors and backgrounds
 - Typography styles
-- Shadows and effects
-- Border radius and borders
+- **Advanced Effects Support**:
+  - Multiple drop shadows and inner shadows
+  - Layer blur and background blur effects
+  - Individual corner radius per corner
+  - Stroke alignment (inside/center/outside)
+  - Individual stroke weights per side
+  - Stroke dash patterns
 
 ### Accessibility Enhancement
 Generates accessibility information:
@@ -344,8 +321,9 @@ Automatically extracts design tokens:
 - Color palettes
 - Typography scales
 - Spacing systems
-- Shadow definitions
+- Shadow definitions (including inner shadows)
 - Border radius values
+- Border/stroke properties
 
 ### Component Variant Detection
 Identifies component states:
@@ -389,6 +367,8 @@ src/
 │   └── figma-api.ts      # Figma API service
 ├── types/
 │   └── figma.ts          # TypeScript type definitions
+├── docs/
+│   └── FIGMA_EFFECTS_HANDLING.md  # Effects handling documentation
 └── index.ts              # Main server entry point
 ```
 
