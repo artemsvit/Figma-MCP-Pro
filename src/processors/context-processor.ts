@@ -248,9 +248,55 @@ export class ContextProcessor {
       }
     }
 
-    // Border radius
-    if (node.cornerRadius) {
+    // Border radius - support individual corners and cornerSmoothing
+    if (node.cornerRadius !== undefined) {
       css.borderRadius = `${node.cornerRadius}px`;
+    } else if (node.rectangleCornerRadii) {
+      // Support for individual corner radii
+      const [topLeft, topRight, bottomRight, bottomLeft] = node.rectangleCornerRadii;
+      css.borderRadius = `${topLeft}px ${topRight}px ${bottomRight}px ${bottomLeft}px`;
+    }
+
+    // Strokes (borders)
+    if (node.strokes && node.strokes.length > 0) {
+      const stroke = node.strokes[0]; // Use first stroke
+      if (stroke && stroke.type === 'SOLID' && stroke.color) {
+        const strokeWeight = node.strokeWeight || 1;
+        const strokeColor = this.colorToCSS(stroke.color);
+        
+        // Handle stroke alignment
+        if (node.strokeAlign === 'INSIDE') {
+          // Use box-shadow inset to simulate inside stroke
+          css.boxShadow = `inset 0 0 0 ${strokeWeight}px ${strokeColor}`;
+        } else if (node.strokeAlign === 'OUTSIDE') {
+          // Use box-shadow to simulate outside stroke
+          css.boxShadow = `0 0 0 ${strokeWeight}px ${strokeColor}`;
+        } else {
+          // CENTER (default) - use regular border
+          css.border = `${strokeWeight}px solid ${strokeColor}`;
+        }
+      }
+    }
+
+    // Individual strokes per side
+    if (node.individualStrokeWeights) {
+      const { top, right, bottom, left } = node.individualStrokeWeights;
+      if (node.strokes && node.strokes.length > 0) {
+        const stroke = node.strokes[0];
+        if (stroke && stroke.type === 'SOLID' && stroke.color) {
+          const strokeColor = this.colorToCSS(stroke.color);
+          css.borderTop = top > 0 ? `${top}px solid ${strokeColor}` : 'none';
+          css.borderRight = right > 0 ? `${right}px solid ${strokeColor}` : 'none';
+          css.borderBottom = bottom > 0 ? `${bottom}px solid ${strokeColor}` : 'none';
+          css.borderLeft = left > 0 ? `${left}px solid ${strokeColor}` : 'none';
+        }
+      }
+    }
+
+    // Stroke dashes
+    if (node.strokeDashes && node.strokeDashes.length > 0) {
+      css.borderStyle = 'dashed';
+      // Note: CSS doesn't support custom dash patterns like Figma
     }
 
     // Opacity
@@ -273,21 +319,70 @@ export class ContextProcessor {
       }
     }
 
-    // Effects (shadows)
+    // Effects (shadows and blurs)
     if (node.effects && node.effects.length > 0) {
-      const shadows = node.effects
-        .filter(effect => effect.type === 'DROP_SHADOW' && effect.visible !== false)
-        .map(effect => {
-          const x = effect.offset?.x || 0;
-          const y = effect.offset?.y || 0;
-          const blur = effect.radius || 0;
-          const spread = effect.spread || 0;
-          const color = effect.color ? this.colorToCSS(effect.color) : 'rgba(0,0,0,0.25)';
-          return `${x}px ${y}px ${blur}px ${spread}px ${color}`;
-        });
+      const dropShadows: string[] = [];
+      const innerShadows: string[] = [];
+      let layerBlur: number | undefined;
+      let backgroundBlur: number | undefined;
       
-      if (shadows.length > 0) {
-        css.boxShadow = shadows.join(', ');
+      // Process all effects
+      node.effects.forEach(effect => {
+        if (effect.visible === false) return; // Skip invisible effects
+        
+        switch (effect.type) {
+          case 'DROP_SHADOW':
+            const x = effect.offset?.x || 0;
+            const y = effect.offset?.y || 0;
+            const blur = effect.radius || 0;
+            const spread = effect.spread || 0;
+            const color = effect.color ? this.colorToCSS(effect.color) : 'rgba(0,0,0,0.25)';
+            dropShadows.push(`${x}px ${y}px ${blur}px ${spread}px ${color}`);
+            break;
+            
+          case 'INNER_SHADOW':
+            const ix = effect.offset?.x || 0;
+            const iy = effect.offset?.y || 0;
+            const iblur = effect.radius || 0;
+            const ispread = effect.spread || 0;
+            const icolor = effect.color ? this.colorToCSS(effect.color) : 'rgba(0,0,0,0.25)';
+            innerShadows.push(`inset ${ix}px ${iy}px ${iblur}px ${ispread}px ${icolor}`);
+            break;
+            
+          case 'LAYER_BLUR':
+            layerBlur = effect.radius || 0;
+            break;
+            
+          case 'BACKGROUND_BLUR':
+            backgroundBlur = effect.radius || 0;
+            break;
+        }
+      });
+      
+      // Combine all shadows into box-shadow
+      const allShadows = [...innerShadows, ...dropShadows];
+      if (allShadows.length > 0) {
+        // Check if we already have stroke shadows
+        if (css.boxShadow) {
+          css.boxShadow = `${css.boxShadow}, ${allShadows.join(', ')}`;
+        } else {
+          css.boxShadow = allShadows.join(', ');
+        }
+      }
+      
+      // Apply blur effects
+      if (layerBlur !== undefined || backgroundBlur !== undefined) {
+        const filters: string[] = [];
+        if (layerBlur !== undefined) {
+          filters.push(`blur(${layerBlur}px)`);
+        }
+        if (backgroundBlur !== undefined) {
+          // backdrop-filter for background blur
+          css.backdropFilter = `blur(${backgroundBlur}px)`;
+        }
+        if (filters.length > 0) {
+          css.filter = filters.join(' ');
+        }
       }
     }
 
@@ -409,6 +504,65 @@ export class ContextProcessor {
         value: padding.map(p => `${p}px`).join(' '),
         type: 'spacing',
         category: 'padding'
+      });
+    }
+    
+    // Shadow tokens
+    if (node.effects && node.effects.length > 0) {
+      const dropShadows = node.effects.filter(e => e.type === 'DROP_SHADOW' && e.visible !== false);
+      const innerShadows = node.effects.filter(e => e.type === 'INNER_SHADOW' && e.visible !== false);
+      
+      dropShadows.forEach((shadow, index) => {
+        const x = shadow.offset?.x || 0;
+        const y = shadow.offset?.y || 0;
+        const blur = shadow.radius || 0;
+        const spread = shadow.spread || 0;
+        const color = shadow.color ? this.colorToCSS(shadow.color) : 'rgba(0,0,0,0.25)';
+        
+        tokens.push({
+          name: `${node.name}-drop-shadow-${index}`,
+          value: `${x}px ${y}px ${blur}px ${spread}px ${color}`,
+          type: 'shadow',
+          category: 'drop-shadow'
+        });
+      });
+      
+      innerShadows.forEach((shadow, index) => {
+        const x = shadow.offset?.x || 0;
+        const y = shadow.offset?.y || 0;
+        const blur = shadow.radius || 0;
+        const spread = shadow.spread || 0;
+        const color = shadow.color ? this.colorToCSS(shadow.color) : 'rgba(0,0,0,0.25)';
+        
+        tokens.push({
+          name: `${node.name}-inner-shadow-${index}`,
+          value: `inset ${x}px ${y}px ${blur}px ${spread}px ${color}`,
+          type: 'shadow',
+          category: 'inner-shadow'
+        });
+      });
+    }
+    
+    // Border tokens
+    if (node.strokes && node.strokes.length > 0 && node.strokeWeight) {
+      const stroke = node.strokes[0];
+      if (stroke && stroke.type === 'SOLID' && stroke.color) {
+        tokens.push({
+          name: `${node.name}-border`,
+          value: `${node.strokeWeight}px solid ${this.colorToCSS(stroke.color)}`,
+          type: 'border',
+          category: 'stroke'
+        });
+      }
+    }
+    
+    // Border radius tokens
+    if (node.cornerRadius !== undefined) {
+      tokens.push({
+        name: `${node.name}-border-radius`,
+        value: `${node.cornerRadius}px`,
+        type: 'border',
+        category: 'radius'
       });
     }
     

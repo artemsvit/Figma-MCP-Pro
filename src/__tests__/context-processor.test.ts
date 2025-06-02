@@ -236,4 +236,240 @@ describe('ContextProcessor', () => {
       expect(stats.warnings.length).toBe(0);
     });
   });
+
+  describe('Advanced Effects', () => {
+    it('should handle multiple shadow effects', async () => {
+      const nodeWithMultipleShadows: FigmaNode = {
+        id: '1:10',
+        name: 'Card',
+        type: 'FRAME',
+        visible: true,
+        locked: false,
+        effects: [
+          {
+            type: 'INNER_SHADOW',
+            visible: true,
+            color: { r: 0, g: 0, b: 0, a: 0.1 },
+            offset: { x: 0, y: -1 },
+            radius: 2,
+            spread: 0
+          },
+          {
+            type: 'DROP_SHADOW',
+            visible: true,
+            color: { r: 0, g: 0, b: 0, a: 0.15 },
+            offset: { x: 0, y: 4 },
+            radius: 8,
+            spread: -2
+          },
+          {
+            type: 'DROP_SHADOW',
+            visible: true,
+            color: { r: 0, g: 0, b: 0, a: 0.1 },
+            offset: { x: 0, y: 10 },
+            radius: 20,
+            spread: -5
+          }
+        ]
+      };
+
+      const context: ProcessingContext = {
+        fileKey: 'test-file',
+        depth: 0,
+        siblingIndex: 0,
+        totalSiblings: 1
+      };
+
+      const result = await processor.processNode(nodeWithMultipleShadows, context);
+
+      expect(result.cssProperties?.boxShadow).toContain('inset');
+      expect(result.cssProperties?.boxShadow).toContain('0px -1px 2px 0px');
+      expect(result.cssProperties?.boxShadow).toContain('0px 4px 8px -2px');
+      expect(result.cssProperties?.boxShadow).toContain('0px 10px 20px -5px');
+    });
+
+    it('should handle stroke properties with different alignments', async () => {
+      const nodeWithInsideStroke: FigmaNode = {
+        id: '1:11',
+        name: 'Border Box',
+        type: 'RECTANGLE',
+        visible: true,
+        locked: false,
+        strokes: [{
+          type: 'SOLID',
+          color: { r: 0.8, g: 0.8, b: 0.8, a: 1 },
+          visible: true
+        }],
+        strokeWeight: 2,
+        strokeAlign: 'INSIDE'
+      };
+
+      const context: ProcessingContext = {
+        fileKey: 'test-file',
+        depth: 0,
+        siblingIndex: 0,
+        totalSiblings: 1
+      };
+
+      const result = await processor.processNode(nodeWithInsideStroke, context);
+
+      // Inside stroke should use box-shadow inset
+      expect(result.cssProperties?.boxShadow).toBe('inset 0 0 0 2px rgb(204, 204, 204)');
+      expect(result.cssProperties?.border).toBeUndefined();
+    });
+
+    it('should handle outside stroke alignment', async () => {
+      const nodeWithOutsideStroke: FigmaNode = {
+        id: '1:12',
+        name: 'Outline Box',
+        type: 'RECTANGLE',
+        visible: true,
+        locked: false,
+        strokes: [{
+          type: 'SOLID',
+          color: { r: 1, g: 0, b: 0, a: 1 },
+          visible: true
+        }],
+        strokeWeight: 3,
+        strokeAlign: 'OUTSIDE'
+      };
+
+      const context: ProcessingContext = {
+        fileKey: 'test-file',
+        depth: 0,
+        siblingIndex: 0,
+        totalSiblings: 1
+      };
+
+      const result = await processor.processNode(nodeWithOutsideStroke, context);
+
+      expect(result.cssProperties?.boxShadow).toBe('0 0 0 3px rgb(255, 0, 0)');
+    });
+
+    it('should handle individual stroke weights', async () => {
+      const nodeWithIndividualStrokes: FigmaNode = {
+        id: '1:13',
+        name: 'Custom Borders',
+        type: 'RECTANGLE',
+        visible: true,
+        locked: false,
+        strokes: [{
+          type: 'SOLID',
+          color: { r: 0, g: 0, b: 0, a: 1 },
+          visible: true
+        }],
+        individualStrokeWeights: {
+          top: 1,
+          right: 2,
+          bottom: 3,
+          left: 0
+        }
+      };
+
+      const context: ProcessingContext = {
+        fileKey: 'test-file',
+        depth: 0,
+        siblingIndex: 0,
+        totalSiblings: 1
+      };
+
+      const result = await processor.processNode(nodeWithIndividualStrokes, context);
+
+      expect(result.cssProperties?.borderTop).toBe('1px solid rgb(0, 0, 0)');
+      expect(result.cssProperties?.borderRight).toBe('2px solid rgb(0, 0, 0)');
+      expect(result.cssProperties?.borderBottom).toBe('3px solid rgb(0, 0, 0)');
+      expect(result.cssProperties?.borderLeft).toBe('none');
+    });
+
+    it('should handle blur effects', async () => {
+      const nodeWithBlur: FigmaNode = {
+        id: '1:14',
+        name: 'Blurred Container',
+        type: 'FRAME',
+        visible: true,
+        locked: false,
+        effects: [
+          {
+            type: 'LAYER_BLUR',
+            visible: true,
+            radius: 10
+          },
+          {
+            type: 'BACKGROUND_BLUR',
+            visible: true,
+            radius: 20
+          }
+        ]
+      };
+
+      const context: ProcessingContext = {
+        fileKey: 'test-file',
+        depth: 0,
+        siblingIndex: 0,
+        totalSiblings: 1
+      };
+
+      const result = await processor.processNode(nodeWithBlur, context);
+
+      expect(result.cssProperties?.filter).toBe('blur(10px)');
+      expect(result.cssProperties?.backdropFilter).toBe('blur(20px)');
+    });
+
+    it('should handle individual corner radii', async () => {
+      const nodeWithAsymmetricCorners: FigmaNode = {
+        id: '1:15',
+        name: 'Asymmetric Corners',
+        type: 'RECTANGLE',
+        visible: true,
+        locked: false,
+        rectangleCornerRadii: [10, 20, 30, 40]
+      };
+
+      const context: ProcessingContext = {
+        fileKey: 'test-file',
+        depth: 0,
+        siblingIndex: 0,
+        totalSiblings: 1
+      };
+
+      const result = await processor.processNode(nodeWithAsymmetricCorners, context);
+
+      expect(result.cssProperties?.borderRadius).toBe('10px 20px 30px 40px');
+    });
+
+    it('should extract shadow design tokens', async () => {
+      const nodeWithShadow: FigmaNode = {
+        id: '1:16',
+        name: 'Shadow Card',
+        type: 'FRAME',
+        visible: true,
+        locked: false,
+        effects: [
+          {
+            type: 'DROP_SHADOW',
+            visible: true,
+            color: { r: 0, g: 0, b: 0, a: 0.2 },
+            offset: { x: 0, y: 4 },
+            radius: 16,
+            spread: -4
+          }
+        ]
+      };
+
+      const context: ProcessingContext = {
+        fileKey: 'test-file',
+        depth: 0,
+        siblingIndex: 0,
+        totalSiblings: 1
+      };
+
+      const result = await processor.processNode(nodeWithShadow, context);
+
+      expect(result.designTokens).toBeDefined();
+      const shadowToken = result.designTokens?.find(t => t.type === 'shadow');
+      expect(shadowToken).toBeDefined();
+      expect(shadowToken?.name).toBe('Shadow Card-drop-shadow-0');
+      expect(shadowToken?.value).toBe('0px 4px 16px -4px rgba(0, 0, 0, 0.2)');
+    });
+  });
 }); 

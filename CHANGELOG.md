@@ -5,6 +5,38 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.3.12] - 2024-12-19
+
+### Added
+- **Comprehensive Figma Effects Support**: Major enhancement to handle all Figma layer effects
+  - Inner shadows support (up to 8 per element)
+  - Multiple drop shadows support (up to 8 per element)
+  - Layer blur effects (`filter: blur()`)
+  - Background blur effects (`backdrop-filter: blur()`)
+  - Individual corner radius for each corner
+  - Stroke/border properties with proper alignment handling
+  - Individual stroke weights per side
+  - Basic stroke dash support
+  - Shadow and border design token extraction
+
+### Enhanced
+- **CSS Generation**: Improved CSS property generation for all Figma effects
+  - Smart stroke alignment handling (inside/center/outside)
+  - Combined multiple shadows into single `box-shadow` declaration
+  - Proper handling of effect visibility states
+  - Better color conversion with alpha support
+
+### Fixed
+- **Stroke Position Mismatch**: Solved the common Figma-to-CSS border position issue
+  - Inside strokes use `box-shadow: inset` to maintain layout
+  - Outside strokes use regular `box-shadow` to extend beyond bounds
+  - Center strokes use standard CSS `border` property
+
+### Documentation
+- Added comprehensive effects handling documentation in `docs/FIGMA_EFFECTS_HANDLING.md`
+- Enhanced TypeScript types for all new properties
+- Added extensive test coverage for effects handling
+
 ## [1.3.11] - 2024-12-19
 
 ### Fixed

@@ -43,7 +43,14 @@ export interface FigmaNode {
   strokeAlign?: FigmaStrokeAlign;
   strokeDashes?: number[];
   cornerRadius?: number;
+  rectangleCornerRadii?: [number, number, number, number]; // [topLeft, topRight, bottomRight, bottomLeft]
   cornerSmoothing?: number;
+  individualStrokeWeights?: {
+    top: number;
+    right: number;
+    bottom: number;
+    left: number;
+  };
   
   // Text properties
   characters?: string;
@@ -478,8 +485,14 @@ export interface CSSProperties {
   fontFamily?: string;
   fontWeight?: string;
   lineHeight?: string;
+  letterSpacing?: string;
   borderRadius?: string;
   border?: string;
+  borderTop?: string;
+  borderRight?: string;
+  borderBottom?: string;
+  borderLeft?: string;
+  borderStyle?: string;
   boxShadow?: string;
   transform?: string;
   opacity?: string;
@@ -490,6 +503,8 @@ export interface CSSProperties {
   gap?: string;
   gridTemplateColumns?: string;
   gridTemplateRows?: string;
+  filter?: string;
+  backdropFilter?: string;
   [key: string]: string | undefined;
 }
 

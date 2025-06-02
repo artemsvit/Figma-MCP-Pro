@@ -101,7 +101,7 @@ export class FigmaApiService {
     // Request interceptor for logging and rate limiting
     this.client.interceptors.request.use(
       (config) => {
-        console.log(`[Figma API] ${config.method?.toUpperCase()} ${config.url}`);
+        console.error(`[Figma API] ${config.method?.toUpperCase()} ${config.url}`);
         return config;
       },
       (error) => {
@@ -113,7 +113,7 @@ export class FigmaApiService {
     // Response interceptor for error handling
     this.client.interceptors.response.use(
       (response) => {
-        console.log(`[Figma API] Response ${response.status} for ${response.config.url}`);
+        console.error(`[Figma API] Response ${response.status} for ${response.config.url}`);
         return response;
       },
       (error) => {
@@ -157,7 +157,7 @@ export class FigmaApiService {
     if (useCache) {
       const cached = this.cache.get<T>(cacheKey);
       if (cached) {
-        console.log(`[Figma API] Cache hit for ${endpoint}`);
+        console.error(`[Figma API] Cache hit for ${endpoint}`);
         return cached;
       }
     }
@@ -415,7 +415,7 @@ export class FigmaApiService {
    */
   clearCache(): void {
     this.cache.flushAll();
-    console.log('[Figma API] Cache cleared');
+    console.error('[Figma API] Cache cleared');
   }
 
   /**
@@ -428,7 +428,7 @@ export class FigmaApiService {
 
     this.config.apiKey = apiKey;
     this.client.defaults.headers['X-Figma-Token'] = apiKey;
-    console.log('[Figma API] API key updated');
+    console.error('[Figma API] API key updated');
   }
 
   /**
@@ -567,7 +567,7 @@ export class FigmaApiService {
         const filePath = path.join(localPath, filename);
 
         // Debug logging to understand the filename issue
-        console.log(`[Figma API] Debug - Node ID: ${nodeId}, Node Name: "${nodeName}", Filename: "${filename}"`);
+        console.error(`[Figma API] Debug - Node ID: ${nodeId}, Node Name: "${nodeName}", Filename: "${filename}"`);
 
         try {
           // Download the image
@@ -589,7 +589,7 @@ export class FigmaApiService {
             success: true
           });
 
-          console.log(`[Figma API] Downloaded: ${filename} (${(downloadResponse.data.byteLength / 1024).toFixed(1)}KB)`);
+          console.error(`[Figma API] Downloaded: ${filename} (${(downloadResponse.data.byteLength / 1024).toFixed(1)}KB)`);
 
         } catch (downloadError) {
           results.push({
@@ -622,7 +622,7 @@ export class FigmaApiService {
       failed: results.filter(r => !r.success).length
     };
 
-    console.log(`[Figma API] Download summary: ${summary.successful}/${summary.total} successful`);
+    console.error(`[Figma API] Download summary: ${summary.successful}/${summary.total} successful`);
 
     return { downloaded: results, summary };
   }
@@ -697,7 +697,7 @@ export class FigmaApiService {
       };
     }
 
-    console.log(`[Figma API] Found ${nodesToExport.length} export tasks from ${nodes.length} nodes`);
+    console.error(`[Figma API] Found ${nodesToExport.length} export tasks from ${nodes.length} nodes`);
 
     // Group exports by format and scale to batch API calls efficiently
     const exportGroups = new Map<string, Array<{ node: FigmaNode; exportSetting: FigmaExportSetting }>>();
@@ -729,14 +729,14 @@ export class FigmaApiService {
       exportGroups.get(groupKey)!.push(item);
     }
 
-    console.log(`[Figma API] Grouped exports into ${exportGroups.size} batches by format/scale`);
+    console.error(`[Figma API] Grouped exports into ${exportGroups.size} batches by format/scale`);
 
     // Process each group
     for (const [groupKey, groupItems] of exportGroups) {
       const [format, scaleStr] = groupKey.split('_');
-      const scale = parseFloat(scaleStr);
+      const scale = parseFloat(scaleStr || '1');
       
-      console.log(`[Figma API] Processing group: ${format} at ${scale}x scale (${groupItems.length} items)`);
+      console.error(`[Figma API] Processing group: ${format} at ${scale}x scale (${groupItems.length} items)`);
       
       // Process in smaller batches to avoid API limits
       const batchSize = 10;
@@ -809,7 +809,7 @@ export class FigmaApiService {
                 success: true
               });
 
-              console.log(`[Figma API] Downloaded: ${filename} (${(downloadResponse.data.byteLength / 1024).toFixed(1)}KB)`);
+              console.error(`[Figma API] Downloaded: ${filename} (${(downloadResponse.data.byteLength / 1024).toFixed(1)}KB)`);
 
             } catch (downloadError) {
               results.push({
@@ -853,7 +853,7 @@ export class FigmaApiService {
       skipped: 0 // We process all nodes with export settings
     };
 
-    console.log(`[Figma API] Download summary: ${summary.successful}/${summary.total} successful`);
+    console.error(`[Figma API] Download summary: ${summary.successful}/${summary.total} successful`);
 
     return { downloaded: results, summary };
   }
