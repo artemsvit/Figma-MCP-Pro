@@ -5,6 +5,46 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.4.0] - 2024-12-19
+
+### Added
+- **🎯 MAJOR**: Figma Comments Integration for Designer Implementation Instructions
+  - NEW: `includeComments` parameter in `get_figma_data` tool
+  - Automatic fetching and analysis of Figma comments attached to design elements
+  - AI-powered comment analysis for detecting implementation instructions
+  - Smart categorization: animation, interaction, behavior, and general comments
+  - Confidence scoring system (0-1) to filter implementation-relevant comments
+  - Support for keywords: animate, transition, hover, click, should, when, etc.
+  - Enhanced node data includes both raw comments and parsed instructions
+  - Seamless integration with AI code generation workflows
+
+### Enhanced
+- **Comment Analysis**: Sophisticated keyword detection and pattern matching
+  - Animation instructions: fade, slide, bounce, scale, rotate, duration, easing
+  - Interaction instructions: hover, click, focus, active, disabled, state
+  - Behavior instructions: toggle, show, hide, expand, collapse, open, close
+  - Technical boost: References to CSS, JavaScript, React increase confidence
+  - Measurement boost: Values like "300ms", "20px" increase confidence
+
+### Integration
+- **Workflow Enhancement**: Bridges design-development gap with actionable instructions
+- **AI-Ready**: Structured comment data optimized for AI coding assistants
+- **Error Handling**: Graceful fallback when comments API is unavailable
+- **Performance**: Comments fetched only when requested, minimal overhead
+- **Rate Limiting**: Respects Figma API limits (300 req/min for comments)
+
+### Documentation
+- Comprehensive documentation in `docs/FIGMA_COMMENTS_INTEGRATION.md`
+- Usage examples and integration patterns
+- Troubleshooting guide for common issues
+- Performance considerations and best practices
+
+### Technical
+- New TypeScript interfaces: `FigmaComment`, `CommentInstruction`, `EnhancedFigmaNodeWithComments`
+- Comment processing methods in `ContextProcessor`
+- Enhanced response metadata with comment statistics
+- Backward compatibility maintained for existing workflows
+
 ## [1.3.14] - 2024-12-19
 
 ### Improved

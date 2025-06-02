@@ -22,7 +22,7 @@ A powerful, professional Model Context Protocol (MCP) server that provides AI-op
 
 ### Latest Updates
 
-#### v1.3.15 - Figma Comments Integration 🎯
+#### v1.4.0 - Figma Comments Integration 🎯
 - **NEW**: Designer comments integration for implementation instructions
 - **Read Figma Comments**: Automatically fetch and analyze designer comments
 - **Smart Analysis**: AI-powered detection of animation, interaction, and behavior instructions
