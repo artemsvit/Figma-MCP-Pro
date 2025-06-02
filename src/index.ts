@@ -98,7 +98,7 @@ class CustomFigmaMcpServer {
         tools: [
           {
             name: 'get_figma_data',
-            description: 'Fetch and process Figma design data with AI-optimized context enhancement',
+            description: 'Fetch and process Figma design data with AI-optimized context enhancement. Use nodeId from a Figma selection link to analyze only the selected element, or omit nodeId to analyze the full document.',
             inputSchema: {
               type: 'object',
               properties: {
@@ -257,9 +257,11 @@ class CustomFigmaMcpServer {
       }
 
       let figmaData;
+      let isSpecificNode = false;
       
       if (nodeId) {
-        // Fetch specific node with depth
+        // Fetch specific node with depth - this is what user selected
+        console.log(chalk.blue(`[Figma MCP] Fetching specific node: ${nodeId}`));
         const nodeResponse = await this.figmaApi.getFileNodes(fileKey, [nodeId], {
           depth: depth,
           use_absolute_bounds: true
@@ -269,8 +271,10 @@ class CustomFigmaMcpServer {
           throw new Error(`Node ${nodeId} not found in file ${fileKey}`);
         }
         figmaData = nodeWrapper.document;
+        isSpecificNode = true;
       } else {
-        // Fetch entire file with depth
+        // Fetch entire file with depth - fallback when no specific selection
+        console.log(chalk.blue(`[Figma MCP] Fetching entire document (no specific selection)`));
         const fileResponse = await this.figmaApi.getFile(fileKey, {
           depth: depth,
           use_absolute_bounds: true
@@ -280,15 +284,22 @@ class CustomFigmaMcpServer {
 
       // Debug: Log the structure we received
       if (this.config.debug) {
-        console.log(chalk.yellow(`[Figma MCP] Raw data structure:`));
-        console.log(chalk.yellow(`- Document ID: ${figmaData.id}`));
-        console.log(chalk.yellow(`- Document Name: ${figmaData.name}`));
-        console.log(chalk.yellow(`- Document Type: ${figmaData.type}`));
+        console.log(chalk.yellow(`[Figma MCP] Raw data structure (${isSpecificNode ? 'SPECIFIC SELECTION' : 'FULL DOCUMENT'}):`));
+        console.log(chalk.yellow(`- Node ID: ${figmaData.id}`));
+        console.log(chalk.yellow(`- Node Name: ${figmaData.name}`));
+        console.log(chalk.yellow(`- Node Type: ${figmaData.type}`));
         console.log(chalk.yellow(`- Has Children: ${figmaData.children ? figmaData.children.length : 0}`));
-        if (figmaData.children) {
-          figmaData.children.forEach((child, i) => {
-            console.log(chalk.yellow(`  - Child ${i}: ${child.name} (${child.type}) - Children: ${child.children ? child.children.length : 0}`));
-          });
+        if (figmaData.children && figmaData.children.length > 0) {
+          const maxChildren = isSpecificNode ? figmaData.children.length : Math.min(5, figmaData.children.length);
+                     for (let i = 0; i < maxChildren; i++) {
+             const child = figmaData.children[i];
+             if (child) {
+               console.log(chalk.yellow(`  - Child ${i}: ${child.name} (${child.type}) - Children: ${child.children ? child.children.length : 0}`));
+             }
+           }
+          if (!isSpecificNode && figmaData.children.length > 5) {
+            console.log(chalk.yellow(`  - ... and ${figmaData.children.length - 5} more children`));
+          }
         }
       }
 
@@ -336,6 +347,8 @@ class CustomFigmaMcpServer {
                 fileKey,
                 nodeId,
                 framework,
+                isSpecificSelection: isSpecificNode,
+                selectionType: isSpecificNode ? 'user_selection' : 'full_document',
                 processingStats: stats,
                 timestamp: new Date().toISOString()
               }

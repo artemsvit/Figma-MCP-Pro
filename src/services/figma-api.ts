@@ -1,14 +1,13 @@
 import axios, { AxiosInstance, AxiosResponse } from 'axios';
 import NodeCache from 'node-cache';
 import pRetry from 'p-retry';
-import pLimit from 'p-limit';
+const pLimit = require('p-limit');
 import {
   FigmaFileResponse,
   FigmaNodeResponse,
   FigmaImageResponse,
   FigmaProjectFilesResponse,
-  FigmaError,
-  FigmaNode
+  FigmaError
 } from '../types/figma.js';
 
 export interface FigmaApiConfig {

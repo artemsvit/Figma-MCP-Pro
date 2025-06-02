@@ -247,7 +247,7 @@ export class ContextProcessor {
     // Background
     if (node.fills && node.fills.length > 0) {
       const fill = node.fills[0];
-      if (fill.type === 'SOLID' && fill.color) {
+      if (fill && fill.type === 'SOLID' && fill.color) {
         css.backgroundColor = this.colorToCSS(fill.color);
       }
     }
@@ -271,7 +271,7 @@ export class ContextProcessor {
       
       if (node.style.fills && node.style.fills.length > 0) {
         const textFill = node.style.fills[0];
-        if (textFill.type === 'SOLID' && textFill.color) {
+        if (textFill && textFill.type === 'SOLID' && textFill.color) {
           css.color = this.colorToCSS(textFill.color);
         }
       }
