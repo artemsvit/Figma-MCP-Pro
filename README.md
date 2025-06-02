@@ -101,8 +101,8 @@ SIMPLIFY_COMPLEX_PATHS=true
 
 ### MCP Client Configuration
 
-#### Cursor
-Add to your Cursor MCP configuration:
+#### Cursor, Windsurf, TRAE, and Claude Desktop
+Add to your MCP configuration file:
 
 ```json
 {
@@ -122,26 +122,11 @@ Add to your Cursor MCP configuration:
 }
 ```
 
-#### Claude Desktop
-Add to `claude_desktop_config.json`:
-
-```json
-{
-  "mcpServers": {
-    "figma-mcp-pro": {
-      "command": "npx",
-      "args": [
-        "--yes",
-        "figma-mcp-pro",
-        "--stdio"
-      ],
-      "env": {
-        "FIGMA_API_KEY": "your_figma_api_key_here"
-      }
-    }
-  }
-}
-```
+**Configuration file locations:**
+- **Cursor**: MCP settings in the application
+- **Windsurf**: MCP settings in the application  
+- **TRAE**: MCP settings in the application
+- **Claude Desktop**: `claude_desktop_config.json`
 
 ## 🛠️ Usage
 
