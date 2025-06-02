@@ -116,7 +116,7 @@ Add to your MCP configuration file:
 ```json
 {
   "mcpServers": {
-    "figma-mcp-pro": {
+    "Figma MCP PRO": {
       "command": "npx",
       "args": ["figma-mcp-pro@latest", "--figma-api-key", "your-api-key-here"],
       "env": {
