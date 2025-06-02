@@ -2,12 +2,16 @@ import axios, { AxiosInstance, AxiosResponse } from 'axios';
 import NodeCache from 'node-cache';
 import pRetry from 'p-retry';
 import pLimit from 'p-limit';
+import fs from 'fs/promises';
+import path from 'path';
 import {
   FigmaFileResponse,
   FigmaNodeResponse,
   FigmaImageResponse,
   FigmaProjectFilesResponse,
-  FigmaError
+  FigmaError,
+  FigmaNode,
+  FigmaExportSetting
 } from '../types/figma.js';
 
 export interface FigmaApiConfig {
@@ -460,5 +464,174 @@ export class FigmaApiService {
       cacheHitRate,
       averageResponseTime: 0 // TODO: Implement response time tracking
     };
+  }
+
+  /**
+   * Download images to local directory based on export settings
+   */
+  async downloadImagesWithExportSettings(
+    fileKey: string,
+    nodes: FigmaNode[],
+    localPath: string
+  ): Promise<{
+    downloaded: Array<{
+      nodeId: string;
+      nodeName: string;
+      filePath: string;
+      exportSetting: FigmaExportSetting;
+      success: boolean;
+      error?: string;
+    }>;
+    summary: {
+      total: number;
+      successful: number;
+      failed: number;
+      skipped: number;
+    };
+  }> {
+    // Ensure local directory exists
+    try {
+      await fs.mkdir(localPath, { recursive: true });
+    } catch (error) {
+      throw new FigmaApiError(`Failed to create directory ${localPath}: ${error}`);
+    }
+
+    const results: Array<{
+      nodeId: string;
+      nodeName: string;
+      filePath: string;
+      exportSetting: FigmaExportSetting;
+      success: boolean;
+      error?: string;
+    }> = [];
+
+    // Find all nodes with export settings
+    const nodesToExport: Array<{ node: FigmaNode; exportSetting: FigmaExportSetting }> = [];
+    
+    const findExportableNodes = (node: FigmaNode) => {
+      if (node.exportSettings && node.exportSettings.length > 0) {
+        // Add each export setting as a separate export task
+        for (const exportSetting of node.exportSettings) {
+          nodesToExport.push({ node, exportSetting });
+        }
+      }
+      
+      // Recursively check children
+      if (node.children) {
+        for (const child of node.children) {
+          findExportableNodes(child);
+        }
+      }
+    };
+
+    // Find all exportable nodes
+    for (const node of nodes) {
+      findExportableNodes(node);
+    }
+
+    if (nodesToExport.length === 0) {
+      return {
+        downloaded: [],
+        summary: { total: 0, successful: 0, failed: 0, skipped: 0 }
+      };
+    }
+
+    console.log(`[Figma API] Found ${nodesToExport.length} export tasks from ${nodes.length} nodes`);
+
+    // Process exports in batches to avoid overwhelming the API
+    const batchSize = 5;
+    for (let i = 0; i < nodesToExport.length; i += batchSize) {
+      const batch = nodesToExport.slice(i, i + batchSize);
+      
+      // Get image URLs for this batch
+      const nodeIds = batch.map(item => item.node.id);
+      
+      try {
+                 const firstExportSetting = batch[0]?.exportSetting;
+         if (!firstExportSetting) continue;
+         
+         const imageResponse = await this.getImages(fileKey, nodeIds, {
+           format: firstExportSetting.format.toLowerCase() as 'jpg' | 'png' | 'svg' | 'pdf',
+           scale: firstExportSetting.constraint?.type === 'SCALE' ? firstExportSetting.constraint.value : 1
+         });
+
+        // Download each image
+        for (const { node, exportSetting } of batch) {
+          const imageUrl = imageResponse.images[node.id];
+          
+          if (!imageUrl) {
+            results.push({
+              nodeId: node.id,
+              nodeName: node.name,
+              filePath: '',
+              exportSetting,
+              success: false,
+              error: 'No image URL returned from Figma API'
+            });
+            continue;
+          }
+
+          // Generate filename based on export settings
+          const sanitizedName = node.name.replace(/[^a-zA-Z0-9-_]/g, '_');
+          const suffix = exportSetting.suffix || '';
+          const extension = exportSetting.format.toLowerCase();
+          const filename = `${sanitizedName}${suffix}.${extension}`;
+          const filePath = path.join(localPath, filename);
+
+          try {
+            // Download the image
+            const imageResponse = await axios.get(imageUrl, {
+              responseType: 'arraybuffer',
+              timeout: 30000
+            });
+
+            // Write to file
+            await fs.writeFile(filePath, imageResponse.data);
+
+            results.push({
+              nodeId: node.id,
+              nodeName: node.name,
+              filePath,
+              exportSetting,
+              success: true
+            });
+
+            console.log(`[Figma API] Downloaded: ${filename}`);
+
+          } catch (downloadError) {
+            results.push({
+              nodeId: node.id,
+              nodeName: node.name,
+              filePath: filePath,
+              exportSetting,
+              success: false,
+              error: `Download failed: ${downloadError instanceof Error ? downloadError.message : String(downloadError)}`
+            });
+          }
+        }
+
+      } catch (batchError) {
+        // Mark all items in this batch as failed
+        for (const { node, exportSetting } of batch) {
+          results.push({
+            nodeId: node.id,
+            nodeName: node.name,
+            filePath: '',
+            exportSetting,
+            success: false,
+            error: `Batch failed: ${batchError instanceof Error ? batchError.message : String(batchError)}`
+          });
+        }
+      }
+    }
+
+    const summary = {
+      total: results.length,
+      successful: results.filter(r => r.success).length,
+      failed: results.filter(r => !r.success).length,
+      skipped: nodes.length - nodesToExport.length
+    };
+
+    return { downloaded: results, summary };
   }
 } 

@@ -5,6 +5,29 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.3.0] - 2024-06-02
+
+### Added
+- **MAJOR**: Proper export settings support - only downloads images marked for export in Figma
+- **MAJOR**: Actual file downloads to local directory instead of just returning URLs
+- **MAJOR**: Respects Figma export settings (format, scale, suffix) from the design file
+- New `downloadImagesWithExportSettings` method in FigmaApiService
+- Automatic directory creation for download paths
+- Batch processing for efficient API usage
+
+### Changed
+- **BREAKING**: `download_figma_images` now requires nodes to have export settings configured in Figma
+- **BREAKING**: Removed manual scale and format parameters - now uses Figma export settings
+- **BREAKING**: Tool now actually downloads files instead of returning URLs
+- Improved error handling and reporting for download operations
+- Better filename generation based on node names and export suffixes
+
+### Technical
+- Added fs/promises for file system operations
+- Enhanced batch processing with proper error handling
+- Improved TypeScript type safety for export settings
+- Added comprehensive logging for download operations
+
 ## [1.2.5] - 2024-06-02
 
 ### Fixed
