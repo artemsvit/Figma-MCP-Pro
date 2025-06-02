@@ -227,11 +227,18 @@ Download images from Figma nodes based on their export settings. This tool respe
 **Key Features:**
 - **Export Settings Respect**: Only downloads nodes with export settings configured in Figma
 - **Format Preservation**: Maintains original format (PNG, JPG, SVG, PDF) as set in Figma
-- **Scale Handling**: Respects scale settings (1x, 2x, 3x, etc.) from export configuration
+- **Scale Handling**: Properly handles SCALE, WIDTH, and HEIGHT constraints from Figma export settings
+- **SVG Limitation Handling**: Automatically uses 1x scale for SVG (Figma API limitation)
 - **Custom Suffixes**: Preserves custom suffixes defined in export settings
+- **Original Naming**: Uses actual node names as filenames (e.g., "EPAM Systems.svg")
 - **Recursive Search**: Automatically finds export settings in child nodes
 - **Batch Processing**: Efficiently groups downloads by format and scale for optimal API usage
 - **Smart Naming**: Generates filenames based on node names and export settings
+
+**Constraint Types Supported:**
+- **SCALE**: Uses the scale value directly (e.g., 2x, 3x)
+- **WIDTH**: Uses scale 1, lets Figma API handle width constraint
+- **HEIGHT**: Uses scale 1, lets Figma API handle height constraint
 
 **Output:**
 Returns detailed information about each download attempt, including success/failure status, file paths, and export settings used.

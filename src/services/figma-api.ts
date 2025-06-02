@@ -514,9 +514,17 @@ export class FigmaApiService {
       });
 
       // Get image URLs for all nodes
+      const format = (options.format || 'svg').toLowerCase();
+      let scale = options.scale || 1;
+      
+      // SVG only supports 1x scale according to Figma documentation
+      if (format === 'svg') {
+        scale = 1;
+      }
+      
       const imageResponse = await this.getImages(fileKey, nodeIds, {
-        format: options.format || 'svg',
-        scale: options.scale || 1,
+        format: format as 'jpg' | 'png' | 'svg' | 'pdf',
+        scale: scale,
         use_absolute_bounds: true
       });
 
@@ -549,7 +557,7 @@ export class FigmaApiService {
 
         // Use the actual node name as filename (preserve original name)
         const nodeName = nodeWrapper.document.name;
-        const extension = (options.format || 'svg').toLowerCase();
+        const extension = format;
         const filename = `${nodeName}.${extension}`;
         const filePath = path.join(localPath, filename);
 
@@ -690,15 +698,22 @@ export class FigmaApiService {
       const { exportSetting } = item;
       let scale = 1;
       
-      // Extract scale from constraint
+      // Extract scale from constraint according to Figma API documentation
       if (exportSetting.constraint) {
         if (exportSetting.constraint.type === 'SCALE') {
           scale = exportSetting.constraint.value;
         }
         // For WIDTH/HEIGHT constraints, we'll use scale 1 and let Figma handle the sizing
+        // The API will respect the width/height values from the constraint
       }
       
-      const groupKey = `${exportSetting.format.toLowerCase()}_${scale}`;
+      // SVG only supports 1x scale according to Figma documentation
+      const format = exportSetting.format.toLowerCase();
+      if (format === 'svg') {
+        scale = 1;
+      }
+      
+      const groupKey = `${format}_${scale}`;
       
       if (!exportGroups.has(groupKey)) {
         exportGroups.set(groupKey, []);
@@ -745,21 +760,21 @@ export class FigmaApiService {
               continue;
             }
 
-            // Generate filename based on export settings
-            const sanitizedName = node.name.replace(/[^a-zA-Z0-9-_\s]/g, '_').replace(/\s+/g, '_');
+            // Generate filename based on export settings - preserve original node name
+            const nodeName = node.name; // Use original name, don't sanitize
             const suffix = exportSetting.suffix || '';
             const extension = exportSetting.format.toLowerCase();
             
             // Build filename with proper suffix handling
             let filename: string;
             if (suffix) {
-              filename = `${sanitizedName}${suffix}.${extension}`;
+              filename = `${nodeName}${suffix}.${extension}`;
             } else {
               // If no suffix but scale > 1, add scale suffix
               if (scale > 1) {
-                filename = `${sanitizedName}@${scale}x.${extension}`;
+                filename = `${nodeName}@${scale}x.${extension}`;
               } else {
-                filename = `${sanitizedName}.${extension}`;
+                filename = `${nodeName}.${extension}`;
               }
             }
             
