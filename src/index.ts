@@ -246,8 +246,9 @@ class CustomFigmaMcpServer {
   private async handleGetFigmaData(args: any) {
     const parsed = GetFigmaDataSchema.parse(args);
     const { fileKey, nodeId, framework, includeImages, customRules } = parsed;
+    const depth = parsed.depth || 5;
 
-    console.log(chalk.blue(`[Figma MCP] Fetching data for file: ${fileKey}`));
+    console.log(chalk.blue(`[Figma MCP] Fetching data for file: ${fileKey} (depth: ${depth})`));
     
     try {
       // Update processor rules if custom rules provided
@@ -258,17 +259,37 @@ class CustomFigmaMcpServer {
       let figmaData;
       
       if (nodeId) {
-        // Fetch specific node
-        const nodeResponse = await this.figmaApi.getFileNodes(fileKey, [nodeId]);
+        // Fetch specific node with depth
+        const nodeResponse = await this.figmaApi.getFileNodes(fileKey, [nodeId], {
+          depth: depth,
+          use_absolute_bounds: true
+        });
         const nodeWrapper = nodeResponse.nodes[nodeId];
         if (!nodeWrapper) {
           throw new Error(`Node ${nodeId} not found in file ${fileKey}`);
         }
         figmaData = nodeWrapper.document;
       } else {
-        // Fetch entire file
-        const fileResponse = await this.figmaApi.getFile(fileKey);
+        // Fetch entire file with depth
+        const fileResponse = await this.figmaApi.getFile(fileKey, {
+          depth: depth,
+          use_absolute_bounds: true
+        });
         figmaData = fileResponse.document;
+      }
+
+      // Debug: Log the structure we received
+      if (this.config.debug) {
+        console.log(chalk.yellow(`[Figma MCP] Raw data structure:`));
+        console.log(chalk.yellow(`- Document ID: ${figmaData.id}`));
+        console.log(chalk.yellow(`- Document Name: ${figmaData.name}`));
+        console.log(chalk.yellow(`- Document Type: ${figmaData.type}`));
+        console.log(chalk.yellow(`- Has Children: ${figmaData.children ? figmaData.children.length : 0}`));
+        if (figmaData.children) {
+          figmaData.children.forEach((child, i) => {
+            console.log(chalk.yellow(`  - Child ${i}: ${child.name} (${child.type}) - Children: ${child.children ? child.children.length : 0}`));
+          });
+        }
       }
 
       // Process the data with context enhancement

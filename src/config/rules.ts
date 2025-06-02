@@ -141,6 +141,8 @@ export const DEFAULT_RULES: ContextRules = {
   
   nodeTypeFilters: {
     include: [
+      'DOCUMENT',
+      'CANVAS',
       'FRAME',
       'GROUP',
       'TEXT',
@@ -159,6 +161,8 @@ export const DEFAULT_RULES: ContextRules = {
       'STICKY'
     ],
     prioritize: [
+      'DOCUMENT',
+      'CANVAS', 
       'FRAME',
       'COMPONENT',
       'INSTANCE',
