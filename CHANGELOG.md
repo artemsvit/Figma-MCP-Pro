@@ -5,6 +5,14 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.3.11] - 2024-12-19
+
+### Fixed
+- **CRITICAL**: Fixed filename sanitization to handle special characters like slashes in node names
+- Nodes with names like "feature/3" will now be saved as "feature-3.svg"
+- Prevents file save errors when node names contain filesystem-incompatible characters
+- Sanitizes: / \ : * ? " < > | characters by replacing with dashes
+
 ## [1.3.10] - 2024-12-19
 
 ### Fixed
