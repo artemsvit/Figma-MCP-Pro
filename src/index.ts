@@ -77,7 +77,7 @@ class CustomFigmaMcpServer {
     this.server = new Server(
       {
         name: 'figma-mcp-pro',
-        version: '1.4.1',
+        version: '1.4.2',
       },
       {
         capabilities: {
@@ -581,7 +581,7 @@ const program = new Command();
 program
   .name('figma-mcp-pro')
   .description('Professional Figma MCP Server with enhanced AI context processing')
-  .version('1.4.0')
+  .version('1.4.2')
   .requiredOption('--figma-api-key <key>', 'Figma API key', process.env.FIGMA_API_KEY)
   .option('--port <port>', 'Server port', process.env.PORT)
   .option('--debug', 'Enable debug mode', process.env.DEBUG === 'true')
