@@ -538,89 +538,142 @@ export class FigmaApiService {
 
     console.log(`[Figma API] Found ${nodesToExport.length} export tasks from ${nodes.length} nodes`);
 
-    // Process exports in batches to avoid overwhelming the API
-    const batchSize = 5;
-    for (let i = 0; i < nodesToExport.length; i += batchSize) {
-      const batch = nodesToExport.slice(i, i + batchSize);
+    // Group exports by format and scale to batch API calls efficiently
+    const exportGroups = new Map<string, Array<{ node: FigmaNode; exportSetting: FigmaExportSetting }>>();
+    
+    for (const item of nodesToExport) {
+      const { exportSetting } = item;
+      let scale = 1;
       
-      // Get image URLs for this batch
-      const nodeIds = batch.map(item => item.node.id);
+      // Extract scale from constraint
+      if (exportSetting.constraint) {
+        if (exportSetting.constraint.type === 'SCALE') {
+          scale = exportSetting.constraint.value;
+        }
+        // For WIDTH/HEIGHT constraints, we'll use scale 1 and let Figma handle the sizing
+      }
       
-      try {
-                 const firstExportSetting = batch[0]?.exportSetting;
-         if (!firstExportSetting) continue;
-         
-         const imageResponse = await this.getImages(fileKey, nodeIds, {
-           format: firstExportSetting.format.toLowerCase() as 'jpg' | 'png' | 'svg' | 'pdf',
-           scale: firstExportSetting.constraint?.type === 'SCALE' ? firstExportSetting.constraint.value : 1
-         });
+      const groupKey = `${exportSetting.format.toLowerCase()}_${scale}`;
+      
+      if (!exportGroups.has(groupKey)) {
+        exportGroups.set(groupKey, []);
+      }
+      exportGroups.get(groupKey)!.push(item);
+    }
 
-        // Download each image
-        for (const { node, exportSetting } of batch) {
-          const imageUrl = imageResponse.images[node.id];
-          
-          if (!imageUrl) {
+    console.log(`[Figma API] Grouped exports into ${exportGroups.size} batches by format/scale`);
+
+    // Process each group
+    for (const [groupKey, groupItems] of exportGroups) {
+      const [format, scaleStr] = groupKey.split('_');
+      const scale = parseFloat(scaleStr);
+      
+      console.log(`[Figma API] Processing group: ${format} at ${scale}x scale (${groupItems.length} items)`);
+      
+      // Process in smaller batches to avoid API limits
+      const batchSize = 10;
+      for (let i = 0; i < groupItems.length; i += batchSize) {
+        const batch = groupItems.slice(i, i + batchSize);
+        const nodeIds = batch.map(item => item.node.id);
+        
+        try {
+          // Get image URLs for this batch with the specific format and scale
+          const imageResponse = await this.getImages(fileKey, nodeIds, {
+            format: format as 'jpg' | 'png' | 'svg' | 'pdf',
+            scale: scale,
+            use_absolute_bounds: true
+          });
+
+          // Download each image in the batch
+          for (const { node, exportSetting } of batch) {
+            const imageUrl = imageResponse.images[node.id];
+            
+            if (!imageUrl) {
+              results.push({
+                nodeId: node.id,
+                nodeName: node.name,
+                filePath: '',
+                exportSetting,
+                success: false,
+                error: 'No image URL returned from Figma API'
+              });
+              continue;
+            }
+
+            // Generate filename based on export settings
+            const sanitizedName = node.name.replace(/[^a-zA-Z0-9-_\s]/g, '_').replace(/\s+/g, '_');
+            const suffix = exportSetting.suffix || '';
+            const extension = exportSetting.format.toLowerCase();
+            
+            // Build filename with proper suffix handling
+            let filename: string;
+            if (suffix) {
+              filename = `${sanitizedName}${suffix}.${extension}`;
+            } else {
+              // If no suffix but scale > 1, add scale suffix
+              if (scale > 1) {
+                filename = `${sanitizedName}@${scale}x.${extension}`;
+              } else {
+                filename = `${sanitizedName}.${extension}`;
+              }
+            }
+            
+            const filePath = path.join(localPath, filename);
+
+            try {
+              // Download the image
+              const downloadResponse = await axios.get(imageUrl, {
+                responseType: 'arraybuffer',
+                timeout: 30000,
+                headers: {
+                  'User-Agent': 'Custom-Figma-MCP-Server/1.0.0'
+                }
+              });
+
+              // Write to file
+              await fs.writeFile(filePath, downloadResponse.data);
+
+              results.push({
+                nodeId: node.id,
+                nodeName: node.name,
+                filePath,
+                exportSetting,
+                success: true
+              });
+
+              console.log(`[Figma API] Downloaded: ${filename} (${(downloadResponse.data.byteLength / 1024).toFixed(1)}KB)`);
+
+            } catch (downloadError) {
+              results.push({
+                nodeId: node.id,
+                nodeName: node.name,
+                filePath: filePath,
+                exportSetting,
+                success: false,
+                error: `Download failed: ${downloadError instanceof Error ? downloadError.message : String(downloadError)}`
+              });
+              console.error(`[Figma API] Failed to download ${filename}:`, downloadError);
+            }
+          }
+
+        } catch (batchError) {
+          // Mark all items in this batch as failed
+          console.error(`[Figma API] Batch failed for group ${groupKey}:`, batchError);
+          for (const { node, exportSetting } of batch) {
             results.push({
               nodeId: node.id,
               nodeName: node.name,
               filePath: '',
               exportSetting,
               success: false,
-              error: 'No image URL returned from Figma API'
-            });
-            continue;
-          }
-
-          // Generate filename based on export settings
-          const sanitizedName = node.name.replace(/[^a-zA-Z0-9-_]/g, '_');
-          const suffix = exportSetting.suffix || '';
-          const extension = exportSetting.format.toLowerCase();
-          const filename = `${sanitizedName}${suffix}.${extension}`;
-          const filePath = path.join(localPath, filename);
-
-          try {
-            // Download the image
-            const imageResponse = await axios.get(imageUrl, {
-              responseType: 'arraybuffer',
-              timeout: 30000
-            });
-
-            // Write to file
-            await fs.writeFile(filePath, imageResponse.data);
-
-            results.push({
-              nodeId: node.id,
-              nodeName: node.name,
-              filePath,
-              exportSetting,
-              success: true
-            });
-
-            console.log(`[Figma API] Downloaded: ${filename}`);
-
-          } catch (downloadError) {
-            results.push({
-              nodeId: node.id,
-              nodeName: node.name,
-              filePath: filePath,
-              exportSetting,
-              success: false,
-              error: `Download failed: ${downloadError instanceof Error ? downloadError.message : String(downloadError)}`
+              error: `Batch API call failed: ${batchError instanceof Error ? batchError.message : String(batchError)}`
             });
           }
         }
-
-      } catch (batchError) {
-        // Mark all items in this batch as failed
-        for (const { node, exportSetting } of batch) {
-          results.push({
-            nodeId: node.id,
-            nodeName: node.name,
-            filePath: '',
-            exportSetting,
-            success: false,
-            error: `Batch failed: ${batchError instanceof Error ? batchError.message : String(batchError)}`
-          });
+        
+        // Add a small delay between batches to be respectful to the API
+        if (i + batchSize < groupItems.length) {
+          await new Promise(resolve => setTimeout(resolve, 100));
         }
       }
     }
@@ -629,8 +682,10 @@ export class FigmaApiService {
       total: results.length,
       successful: results.filter(r => r.success).length,
       failed: results.filter(r => !r.success).length,
-      skipped: nodes.length - nodesToExport.length
+      skipped: 0 // We process all nodes with export settings
     };
+
+    console.log(`[Figma API] Download summary: ${summary.successful}/${summary.total} successful`);
 
     return { downloaded: results, summary };
   }

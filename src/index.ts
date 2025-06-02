@@ -76,7 +76,7 @@ class CustomFigmaMcpServer {
     this.server = new Server(
       {
         name: 'figma-mcp-pro',
-        version: '1.3.0',
+        version: '1.3.2',
       },
       {
         capabilities: {
@@ -145,7 +145,7 @@ class CustomFigmaMcpServer {
           },
           {
             name: 'download_figma_images',
-            description: 'Download images from Figma nodes that have export settings configured. Only nodes with export settings in Figma will be downloaded, using the format, scale, and suffix specified in those settings.',
+            description: 'Download images from Figma nodes based on their export settings. Only nodes with export settings configured in Figma will be downloaded. The tool respects the original export settings including format (PNG, JPG, SVG, PDF), scale (1x, 2x, etc.), and custom suffixes as defined in Figma\'s export panel.',
             inputSchema: {
               type: 'object',
               properties: {
@@ -158,11 +158,11 @@ class CustomFigmaMcpServer {
                   items: {
                     type: 'string'
                   },
-                  description: 'Array of node IDs to check for export settings and download'
+                  description: 'Array of node IDs to check for export settings and download. The tool will recursively check children nodes for export settings.'
                 },
                 localPath: {
                   type: 'string',
-                  description: 'Local directory path to save images (will be created if it does not exist)'
+                  description: 'Local directory path to save images (will be created if it does not exist). Images will be saved with filenames based on node names and export settings.'
                 }
               },
               required: ['fileKey', 'nodeIds', 'localPath']
@@ -566,7 +566,7 @@ const program = new Command();
 program
   .name('figma-mcp-pro')
   .description('Professional Figma MCP Server with enhanced AI context processing')
-  .version('1.3.0')
+  .version('1.3.2')
   .requiredOption('--figma-api-key <key>', 'Figma API key', process.env.FIGMA_API_KEY)
   .option('--port <port>', 'Server port', process.env.PORT)
   .option('--debug', 'Enable debug mode', process.env.DEBUG === 'true')

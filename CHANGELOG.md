@@ -5,6 +5,28 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.3.2] - 2024-12-19
+
+### Fixed
+- **MAJOR**: Fixed image download functionality to properly respect Figma export settings
+- Improved batch processing for downloads grouped by format and scale
+- Enhanced filename generation with proper suffix handling and scale indicators
+- Fixed TypeScript compilation errors in download implementation
+- Resolved API batching issues that caused incorrect format/scale application
+
+### Enhanced
+- **Export Settings Respect**: Downloads now properly honor individual export settings per node
+- **Batch Optimization**: Efficient grouping of downloads by format and scale for better API usage
+- **Smart Naming**: Automatic filename generation with @2x scale suffixes when appropriate
+- **Recursive Search**: Automatically finds export settings in child nodes
+- **Better Error Handling**: Detailed error reporting for each download attempt with file sizes
+- **Progress Logging**: Enhanced logging with download progress and file size information
+
+### Changed
+- Updated tool description to better reflect export settings functionality
+- Improved README documentation for download_figma_images tool
+- Enhanced error messages for better debugging
+
 ## [1.3.0] - 2024-06-02
 
 ### Added

@@ -208,14 +208,33 @@ The response includes metadata to confirm selection handling:
 ```
 
 #### 2. `download_figma_images`
-Download images from Figma nodes to local directory.
+Download images from Figma nodes based on their export settings. This tool respects the original export settings configured in Figma's export panel, including format (PNG, JPG, SVG, PDF), scale (1x, 2x, etc.), and custom suffixes.
 
 **Parameters:**
 - `fileKey` (string): The Figma file key
-- `nodeIds` (array): Array of node IDs to download as images
+- `nodeIds` (array): Array of node IDs to check for export settings
 - `localPath` (string): Local directory path to save images
-- `scale` (number, 0.5-4, default: 2): Export scale for images
-- `format` (enum, default: 'png'): Image format ('png', 'jpg', 'svg', 'pdf')
+
+**Example:**
+```json
+{
+  "fileKey": "abc123",
+  "nodeIds": ["1:2", "1:3"],
+  "localPath": "./downloads"
+}
+```
+
+**Key Features:**
+- **Export Settings Respect**: Only downloads nodes with export settings configured in Figma
+- **Format Preservation**: Maintains original format (PNG, JPG, SVG, PDF) as set in Figma
+- **Scale Handling**: Respects scale settings (1x, 2x, 3x, etc.) from export configuration
+- **Custom Suffixes**: Preserves custom suffixes defined in export settings
+- **Recursive Search**: Automatically finds export settings in child nodes
+- **Batch Processing**: Efficiently groups downloads by format and scale for optimal API usage
+- **Smart Naming**: Generates filenames based on node names and export settings
+
+**Output:**
+Returns detailed information about each download attempt, including success/failure status, file paths, and export settings used.
 
 #### 3. `extract_url_info`
 Extract file key and node ID from Figma URLs.
