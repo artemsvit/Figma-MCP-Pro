@@ -5,6 +5,19 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.2.5] - 2024-06-02
+
+### Fixed
+- **CRITICAL**: Updated README.md with correct MCP configuration format
+- Fixed Cursor and Claude Desktop installation instructions
+- Removed duplicate API key configuration from documentation
+- Updated INSTALL.md to use consistent server naming
+
+### Documentation
+- Corrected MCP configuration to use `npx -y figma-mcp-pro --stdio`
+- Removed outdated node path references for Claude Desktop
+- Updated troubleshooting section with correct version numbers
+
 ## [1.2.4] - 2024-06-02
 
 ### Fixed

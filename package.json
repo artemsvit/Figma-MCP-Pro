@@ -1,6 +1,6 @@
 {
   "name": "figma-mcp-pro",
-  "version": "1.2.4",
+  "version": "1.2.5",
   "description": "Custom Figma MCP Server with enhanced context rules and AI-optimized design data extraction",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",

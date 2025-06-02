@@ -14,7 +14,7 @@
    ```json
    {
      "mcpServers": {
-       "Figma MCP Pro": {
+       "figma-mcp-pro": {
          "command": "npx",
          "args": [
            "-y",
@@ -63,6 +63,6 @@
 
 - **"Tool not found"**: Restart Cursor after adding the MCP configuration
 - **"API key invalid"**: Check your Figma API key is correct and active
-- **"JSON parsing error"**: Make sure you're using version 1.2.2 or later
+- **"JSON parsing error"**: Make sure you're using version 1.2.4 or later
 
 For more details, see the [full README](README.md). 

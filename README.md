@@ -96,7 +96,11 @@ Add to your Cursor MCP configuration:
   "mcpServers": {
     "figma-mcp-pro": {
       "command": "npx",
-      "args": ["figma-mcp-pro", "--figma-api-key", "YOUR_API_KEY", "--stdio"],
+      "args": [
+        "-y",
+        "figma-mcp-pro",
+        "--stdio"
+      ],
       "env": {
         "FIGMA_API_KEY": "your_figma_api_key_here"
       }
@@ -112,8 +116,12 @@ Add to `claude_desktop_config.json`:
 {
   "mcpServers": {
     "figma-mcp-pro": {
-      "command": "node",
-      "args": ["/absolute/path/to/figma-mcp-pro/dist/index.js", "--figma-api-key", "YOUR_API_KEY"],
+      "command": "npx",
+      "args": [
+        "-y",
+        "figma-mcp-pro",
+        "--stdio"
+      ],
       "env": {
         "FIGMA_API_KEY": "your_figma_api_key_here"
       }
