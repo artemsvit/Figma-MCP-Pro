@@ -1,7 +1,7 @@
 import axios, { AxiosInstance, AxiosResponse } from 'axios';
 import NodeCache from 'node-cache';
 import pRetry from 'p-retry';
-const pLimit = require('p-limit');
+import pLimit from 'p-limit';
 import {
   FigmaFileResponse,
   FigmaNodeResponse,
