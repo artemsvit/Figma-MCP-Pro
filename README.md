@@ -20,7 +20,16 @@ A powerful, professional Model Context Protocol (MCP) server that provides AI-op
 - **Responsive Breakpoint Analysis**: Detection and optimization for different screen sizes
 - **Performance Optimization**: Caching, rate limiting, and request optimization
 
-### Latest Updates (v1.3.12)
+### Latest Updates
+
+#### v1.3.15 - Figma Comments Integration 🎯
+- **NEW**: Designer comments integration for implementation instructions
+- **Read Figma Comments**: Automatically fetch and analyze designer comments
+- **Smart Analysis**: AI-powered detection of animation, interaction, and behavior instructions
+- **Confidence Scoring**: Intelligent filtering of implementation-relevant comments
+- **Seamless Integration**: Comments included as structured data for AI code generation
+
+#### v1.3.12 - Comprehensive Effects Support
 - **MCP JSON Protocol Fix**: Resolved stdout interference issues for clean MCP communication
 - **Comprehensive Figma Effects Support**: Full support for all Figma layer effects
   - Inner shadows (up to 8 per element)
@@ -111,7 +120,7 @@ Add to your MCP configuration file:
       "command": "npx",
       "args": [
         "--yes",
-        "figma-mcp-pro",
+        "figma-mcp-pro@latest",
         "--stdio"
       ],
       "env": {
@@ -166,7 +175,25 @@ Fetch and process Figma design data with AI-optimized context enhancement. Use n
 - `depth` (number, 1-10, default: 5): Maximum depth to traverse
 - `framework` (enum, optional): Target framework ('react', 'vue', 'angular', 'svelte', 'html')
 - `includeImages` (boolean, default: false): Whether to include image URLs
+- `includeComments` (boolean, default: false): Whether to include designer comments and implementation instructions
 - `customRules` (object, optional): Custom processing rules
+
+**Example with Comments:**
+```json
+{
+  "fileKey": "ABC123DEF456",
+  "nodeId": "123:456",
+  "includeComments": true,
+  "framework": "react"
+}
+```
+
+**Comments Integration:**
+When `includeComments: true`, the tool automatically:
+- Fetches designer comments attached to processed nodes
+- Analyzes comments for implementation instructions (animations, interactions, behaviors)
+- Provides confidence scores for instruction relevance
+- Includes structured comment data for AI code generation
 
 #### 2. `download_figma_images`
 Download images from Figma nodes directly. Downloads any node as an image using the node's actual name as the filename (e.g., "EPAM Systems.svg"). Does not require export settings to be configured in Figma.

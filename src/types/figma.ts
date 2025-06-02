@@ -562,4 +562,47 @@ export interface LayoutContext {
   position: 'first' | 'middle' | 'last' | 'only';
   gridArea?: string;
   flexOrder?: number;
+}
+
+// Comments API Types
+export interface FigmaComment {
+  id: string;
+  file_key: string;
+  parent_id: string;
+  user: FigmaUser;
+  created_at: string;
+  resolved_at?: string;
+  message: string;
+  client_meta: FigmaCommentClientMeta;
+  order_id: string;
+}
+
+export interface FigmaUser {
+  id: string;
+  handle: string;
+  img_url: string;
+  email?: string;
+}
+
+export interface FigmaCommentClientMeta {
+  node_id?: string;
+  node_offset?: FigmaVector;
+}
+
+export interface FigmaCommentsResponse {
+  comments: FigmaComment[];
+}
+
+// Enhanced node type with comments
+export interface EnhancedFigmaNodeWithComments extends EnhancedFigmaNode {
+  comments?: FigmaComment[];
+  commentInstructions?: CommentInstruction[];
+}
+
+export interface CommentInstruction {
+  type: 'animation' | 'interaction' | 'behavior' | 'general';
+  instruction: string;
+  author: string;
+  timestamp: string;
+  confidence: number; // 0-1 score of how likely this is an implementation instruction
 } 

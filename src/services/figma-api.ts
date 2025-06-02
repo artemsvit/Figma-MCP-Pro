@@ -11,7 +11,10 @@ import {
   FigmaProjectFilesResponse,
   FigmaError,
   FigmaNode,
-  FigmaExportSetting
+  FigmaExportSetting,
+  FigmaCommentsResponse,
+  FigmaComment,
+  CommentInstruction
 } from '../types/figma.js';
 
 export interface FigmaApiConfig {
@@ -856,5 +859,89 @@ export class FigmaApiService {
     console.error(`[Figma API] Download summary: ${summary.successful}/${summary.total} successful`);
 
     return { downloaded: results, summary };
+  }
+
+  /**
+   * Get comments for a Figma file
+   */
+  async getComments(fileKey: string): Promise<FigmaCommentsResponse> {
+    if (!fileKey || typeof fileKey !== 'string') {
+      throw new FigmaApiError('File key is required and must be a string');
+    }
+
+    try {
+      return await this.makeRequest<FigmaCommentsResponse>(`/files/${fileKey}/comments`);
+    } catch (error) {
+      if (error instanceof FigmaApiError) {
+        throw error;
+      }
+      throw new FigmaApiError(`Failed to get comments from file ${fileKey}: ${error}`);
+    }
+  }
+
+  /**
+   * Filter comments by node ID
+   */
+  static filterCommentsByNode(comments: FigmaComment[], nodeId: string): FigmaComment[] {
+    return comments.filter(comment => 
+      comment.client_meta?.node_id === nodeId
+    );
+  }
+
+  /**
+   * Analyze comment for implementation instructions
+   */
+  static analyzeCommentForInstructions(comment: FigmaComment): CommentInstruction | null {
+    const message = comment.message.toLowerCase();
+    
+    // Keywords that suggest implementation instructions
+    const animationKeywords = ['animate', 'animation', 'transition', 'fade', 'slide', 'bounce', 'scale', 'rotate', 'duration', 'easing'];
+    const interactionKeywords = ['hover', 'click', 'tap', 'focus', 'active', 'disabled', 'press', 'interaction', 'state'];
+    const behaviorKeywords = ['behavior', 'behaviour', 'should', 'when', 'if', 'then', 'toggle', 'show', 'hide'];
+    
+    let type: 'animation' | 'interaction' | 'behavior' | 'general' = 'general';
+    let confidence = 0.1; // Base confidence for any comment
+    
+    // Check for animation instructions
+    const animationMatches = animationKeywords.filter(keyword => message.includes(keyword));
+    if (animationMatches.length > 0) {
+      type = 'animation';
+      confidence += animationMatches.length * 0.2;
+    }
+    
+    // Check for interaction instructions
+    const interactionMatches = interactionKeywords.filter(keyword => message.includes(keyword));
+    if (interactionMatches.length > 0) {
+      type = 'interaction';
+      confidence += interactionMatches.length * 0.2;
+    }
+    
+    // Check for behavior instructions
+    const behaviorMatches = behaviorKeywords.filter(keyword => message.includes(keyword));
+    if (behaviorMatches.length > 0) {
+      type = 'behavior';
+      confidence += behaviorMatches.length * 0.15;
+    }
+    
+    // Boost confidence for imperative language
+    if (message.includes('should') || message.includes('must') || message.includes('need')) {
+      confidence += 0.3;
+    }
+    
+    // Cap confidence at 1.0
+    confidence = Math.min(confidence, 1.0);
+    
+    // Only return instruction if confidence is reasonable
+    if (confidence < 0.3) {
+      return null;
+    }
+    
+    return {
+      type,
+      instruction: comment.message,
+      author: comment.user.handle,
+      timestamp: comment.created_at,
+      confidence
+    };
   }
 } 

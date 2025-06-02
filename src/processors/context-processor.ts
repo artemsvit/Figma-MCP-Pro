@@ -9,7 +9,10 @@ import {
   InteractionState,
   LayoutContext,
   FigmaColor,
-  FigmaTypeStyle
+  FigmaTypeStyle,
+  FigmaComment,
+  CommentInstruction,
+  EnhancedFigmaNodeWithComments
 } from '../types/figma.js';
 import {
   ContextRules,
@@ -825,5 +828,157 @@ export class ContextProcessor {
    */
   updateRules(newRules: Partial<ContextRules>): void {
     this.rules = mergeRules(this.rules, newRules);
+  }
+
+  /**
+   * Process comments and associate them with nodes
+   */
+  processCommentsForNode(
+    node: EnhancedFigmaNode, 
+    comments: FigmaComment[]
+  ): EnhancedFigmaNodeWithComments {
+    const nodeComments = comments.filter(comment => 
+      comment.client_meta?.node_id === node.id
+    );
+
+    if (nodeComments.length === 0) {
+      return node as EnhancedFigmaNodeWithComments;
+    }
+
+    // Analyze comments for implementation instructions
+    const commentInstructions: CommentInstruction[] = [];
+    
+    nodeComments.forEach(comment => {
+      const instruction = this.analyzeCommentForInstructions(comment);
+      if (instruction) {
+        commentInstructions.push(instruction);
+      }
+    });
+
+    // Sort instructions by confidence (highest first)
+    commentInstructions.sort((a, b) => b.confidence - a.confidence);
+
+    const enhancedNodeWithComments: EnhancedFigmaNodeWithComments = {
+      ...node,
+      comments: nodeComments,
+      commentInstructions
+    };
+
+    // Process children recursively if they exist
+    if (node.children) {
+      enhancedNodeWithComments.children = node.children.map(child => 
+        this.processCommentsForNode(child as EnhancedFigmaNode, comments)
+      );
+    }
+
+    return enhancedNodeWithComments;
+  }
+
+  /**
+   * Analyze comment for implementation instructions
+   */
+  private analyzeCommentForInstructions(comment: FigmaComment): CommentInstruction | null {
+    const message = comment.message.toLowerCase();
+    
+    // Keywords that suggest implementation instructions
+    const animationKeywords = [
+      'animate', 'animation', 'transition', 'fade', 'slide', 'bounce', 'scale', 'rotate', 
+      'duration', 'easing', 'timing', 'delay', 'spring', 'cubic-bezier', 'ease-in', 'ease-out',
+      'transform', 'opacity', 'translate', 'zoom', 'flip', 'spin'
+    ];
+    
+    const interactionKeywords = [
+      'hover', 'click', 'tap', 'focus', 'active', 'disabled', 'press', 'interaction', 'state',
+      'on-click', 'on-hover', 'on-focus', 'mouse', 'touch', 'gesture', 'trigger', 'event'
+    ];
+    
+    const behaviorKeywords = [
+      'behavior', 'behaviour', 'should', 'when', 'if', 'then', 'toggle', 'show', 'hide',
+      'open', 'close', 'expand', 'collapse', 'reveal', 'display', 'visible', 'hidden',
+      'enable', 'disable', 'activate', 'deactivate'
+    ];
+    
+    const uiPatternKeywords = [
+      'modal', 'dropdown', 'tooltip', 'accordion', 'tab', 'carousel', 'slider', 'sidebar',
+      'menu', 'navigation', 'pagination', 'form', 'validation', 'loading', 'spinner'
+    ];
+
+    let type: 'animation' | 'interaction' | 'behavior' | 'general' = 'general';
+    let confidence = 0.1; // Base confidence for any comment
+    
+    // Check for animation instructions
+    const animationMatches = animationKeywords.filter(keyword => message.includes(keyword));
+    if (animationMatches.length > 0) {
+      type = 'animation';
+      confidence += animationMatches.length * 0.15;
+    }
+    
+    // Check for interaction instructions
+    const interactionMatches = interactionKeywords.filter(keyword => message.includes(keyword));
+    if (interactionMatches.length > 0) {
+      type = 'interaction';
+      confidence += interactionMatches.length * 0.15;
+    }
+    
+    // Check for behavior instructions
+    const behaviorMatches = behaviorKeywords.filter(keyword => message.includes(keyword));
+    if (behaviorMatches.length > 0) {
+      type = 'behavior';
+      confidence += behaviorMatches.length * 0.12;
+    }
+    
+    // Check for UI pattern keywords
+    const patternMatches = uiPatternKeywords.filter(keyword => message.includes(keyword));
+    if (patternMatches.length > 0) {
+      confidence += patternMatches.length * 0.1;
+    }
+    
+    // Boost confidence for imperative language
+    const imperativeWords = ['should', 'must', 'need', 'add', 'create', 'implement', 'make', 'ensure'];
+    const imperativeMatches = imperativeWords.filter(word => message.includes(word));
+    if (imperativeMatches.length > 0) {
+      confidence += 0.25;
+    }
+    
+    // Boost confidence for specific measurements or values
+    if (message.match(/\d+(px|ms|s|%|em|rem)/)) {
+      confidence += 0.2;
+    }
+    
+    // Boost confidence for code-like syntax
+    if (message.includes('css') || message.includes('javascript') || message.includes('js') || message.includes('react')) {
+      confidence += 0.15;
+    }
+    
+    // Cap confidence at 1.0
+    confidence = Math.min(confidence, 1.0);
+    
+    // Only return instruction if confidence is reasonable
+    if (confidence < 0.25) {
+      return null;
+    }
+    
+    return {
+      type,
+      instruction: comment.message,
+      author: comment.user.handle,
+      timestamp: comment.created_at,
+      confidence
+    };
+  }
+
+  /**
+   * Extract all node IDs from a node tree for comment filtering
+   */
+  extractAllNodeIds(node: FigmaNode): string[] {
+    const nodeIds = [node.id];
+    
+    if (node.children) {
+      node.children.forEach(child => {
+        nodeIds.push(...this.extractAllNodeIds(child));
+      });
+    }
+    
+    return nodeIds;
   }
 } 

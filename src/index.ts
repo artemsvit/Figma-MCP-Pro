@@ -26,6 +26,7 @@ const GetFigmaDataSchema = z.object({
   depth: z.number().min(1).max(10).default(5).describe('Maximum depth to traverse'),
   framework: z.enum(['react', 'vue', 'angular', 'svelte', 'html']).optional().describe('Target framework for optimization'),
   includeImages: z.boolean().default(false).describe('Whether to include image URLs'),
+  includeComments: z.boolean().default(false).describe('Whether to include designer comments and implementation instructions'),
   customRules: z.record(z.any()).optional().describe('Custom processing rules')
 });
 
@@ -134,6 +135,11 @@ class CustomFigmaMcpServer {
                   type: 'boolean',
                   default: false,
                   description: 'Whether to include image URLs'
+                },
+                includeComments: {
+                  type: 'boolean',
+                  default: false,
+                  description: 'Whether to include designer comments and implementation instructions'
                 },
                 customRules: {
                   type: 'object',
@@ -249,7 +255,7 @@ class CustomFigmaMcpServer {
       );
     }
     
-    const { fileKey, nodeId, framework, includeImages, customRules } = parsed;
+    const { fileKey, nodeId, framework, includeImages, includeComments, customRules } = parsed;
     const depth = parsed.depth || 5;
 
     this.log(`[Figma MCP] Fetching data for file: ${fileKey} (depth: ${depth})`);
@@ -331,7 +337,34 @@ class CustomFigmaMcpServer {
         framework
       };
 
-      const enhancedData = await this.contextProcessor.processNode(figmaData, processingContext);
+      let enhancedData = await this.contextProcessor.processNode(figmaData, processingContext);
+
+      // Process comments if requested
+      let commentsData = null;
+      if (includeComments) {
+        try {
+          this.log(`[Figma MCP] Fetching comments for file: ${fileKey}`);
+          const commentsResponse = await this.figmaApi.getComments(fileKey);
+          commentsData = commentsResponse.comments;
+          
+          // Filter comments to only those relevant to our processed nodes
+          const allNodeIds = this.contextProcessor.extractAllNodeIds(figmaData);
+          const relevantComments = commentsData.filter(comment => 
+            comment.client_meta?.node_id && allNodeIds.includes(comment.client_meta.node_id)
+          );
+          
+          this.log(`[Figma MCP] Found ${commentsData.length} total comments, ${relevantComments.length} relevant to processed nodes`);
+          
+          // Enhance nodes with comments
+          if (relevantComments.length > 0) {
+            enhancedData = this.contextProcessor.processCommentsForNode(enhancedData, relevantComments);
+          }
+          
+        } catch (error) {
+          this.logError(`[Figma MCP] Failed to fetch comments:`, error);
+          // Continue without comments rather than failing entirely
+        }
+      }
 
       // Get processing stats
       const stats = this.contextProcessor.getStats();
@@ -368,6 +401,13 @@ class CustomFigmaMcpServer {
                 framework,
                 isSpecificSelection: isSpecificNode,
                 selectionType: isSpecificNode ? 'user_selection' : 'full_document',
+                includeComments,
+                commentStats: includeComments ? {
+                  totalComments: commentsData?.length || 0,
+                  relevantComments: commentsData?.filter(c => 
+                    this.contextProcessor.extractAllNodeIds(figmaData).includes(c.client_meta?.node_id || '')
+                  ).length || 0
+                } : undefined,
                 processingStats: stats,
                 timestamp: new Date().toISOString()
               }
