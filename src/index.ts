@@ -99,27 +99,109 @@ class CustomFigmaMcpServer {
           {
             name: 'get_figma_data',
             description: 'Fetch and process Figma design data with AI-optimized context enhancement',
-            inputSchema: GetFigmaDataSchema,
+            inputSchema: {
+              type: 'object',
+              properties: {
+                fileKey: {
+                  type: 'string',
+                  description: 'The Figma file key'
+                },
+                nodeId: {
+                  type: 'string',
+                  description: 'Specific node ID to fetch (optional)'
+                },
+                depth: {
+                  type: 'number',
+                  minimum: 1,
+                  maximum: 10,
+                  default: 5,
+                  description: 'Maximum depth to traverse'
+                },
+                framework: {
+                  type: 'string',
+                  enum: ['react', 'vue', 'angular', 'svelte', 'html'],
+                  description: 'Target framework for optimization'
+                },
+                includeImages: {
+                  type: 'boolean',
+                  default: false,
+                  description: 'Whether to include image URLs'
+                },
+                customRules: {
+                  type: 'object',
+                  description: 'Custom processing rules'
+                }
+              },
+              required: ['fileKey']
+            },
           },
           {
             name: 'download_figma_images',
             description: 'Download images from Figma nodes to local directory',
-            inputSchema: DownloadFigmaImagesSchema,
+            inputSchema: {
+              type: 'object',
+              properties: {
+                fileKey: {
+                  type: 'string',
+                  description: 'The Figma file key'
+                },
+                nodeIds: {
+                  type: 'array',
+                  items: {
+                    type: 'string'
+                  },
+                  description: 'Array of node IDs to download as images'
+                },
+                localPath: {
+                  type: 'string',
+                  description: 'Local directory path to save images'
+                },
+                scale: {
+                  type: 'number',
+                  minimum: 0.5,
+                  maximum: 4,
+                  default: 2,
+                  description: 'Export scale for images'
+                },
+                format: {
+                  type: 'string',
+                  enum: ['png', 'jpg', 'svg', 'pdf'],
+                  default: 'png',
+                  description: 'Image format'
+                }
+              },
+              required: ['fileKey', 'nodeIds', 'localPath']
+            },
           },
           {
             name: 'extract_url_info',
             description: 'Extract file key and node ID from Figma URLs',
-            inputSchema: ExtractUrlInfoSchema,
+            inputSchema: {
+              type: 'object',
+              properties: {
+                url: {
+                  type: 'string',
+                  description: 'Figma URL to extract information from'
+                }
+              },
+              required: ['url']
+            },
           },
           {
             name: 'get_server_stats',
             description: 'Get server performance and usage statistics',
-            inputSchema: z.object({}),
+            inputSchema: {
+              type: 'object',
+              properties: {}
+            },
           },
           {
             name: 'clear_cache',
             description: 'Clear the API response cache',
-            inputSchema: z.object({}),
+            inputSchema: {
+              type: 'object',
+              properties: {}
+            },
           }
         ],
       };
