@@ -1,5 +1,3 @@
-#!/usr/bin/env node
-
 import { Server } from '@modelcontextprotocol/sdk/server/index.js';
 import { StdioServerTransport } from '@modelcontextprotocol/sdk/server/stdio.js';
 import {
@@ -471,6 +469,4 @@ process.on('uncaughtException', (error: Error) => {
 });
 
 // Start the CLI
-if (import.meta.url === `file://${process.argv[1]}`) {
-  program.parse();
-} 
+program.parse(); 

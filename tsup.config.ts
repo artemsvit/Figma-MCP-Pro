@@ -10,13 +10,13 @@ export default defineConfig({
   minify: false,
   target: 'node18',
   outDir: 'dist',
-  banner: {
-    js: '#!/usr/bin/env node',
-  },
   external: [
     '@modelcontextprotocol/sdk'
   ],
   esbuildOptions(options) {
     options.platform = 'node';
+    options.banner = {
+      js: '#!/usr/bin/env node',
+    };
   },
 }); 
