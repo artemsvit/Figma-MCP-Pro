@@ -78,7 +78,7 @@ class CustomFigmaMcpServer {
     this.server = new Server(
       {
         name: 'figma-mcp-pro',
-        version: '1.0.0',
+        version: '1.2.1',
       },
       {
         capabilities: {
@@ -244,11 +244,26 @@ class CustomFigmaMcpServer {
   }
 
   private async handleGetFigmaData(args: any) {
-    const parsed = GetFigmaDataSchema.parse(args);
+    console.log(chalk.blue(`[Figma MCP] Received args:`, JSON.stringify(args, null, 2)));
+    
+    let parsed;
+    try {
+      parsed = GetFigmaDataSchema.parse(args);
+    } catch (error) {
+      console.error(chalk.red(`[Figma MCP] Schema validation error:`, error));
+      throw new McpError(
+        ErrorCode.InvalidParams,
+        `Invalid parameters: ${error instanceof Error ? error.message : String(error)}`
+      );
+    }
+    
     const { fileKey, nodeId, framework, includeImages, customRules } = parsed;
     const depth = parsed.depth || 5;
 
     console.log(chalk.blue(`[Figma MCP] Fetching data for file: ${fileKey} (depth: ${depth})`));
+    if (nodeId) {
+      console.log(chalk.blue(`[Figma MCP] Target node: ${nodeId}`));
+    }
     
     try {
       // Update processor rules if custom rules provided
@@ -262,24 +277,36 @@ class CustomFigmaMcpServer {
       if (nodeId) {
         // Fetch specific node with depth - this is what user selected
         console.log(chalk.blue(`[Figma MCP] Fetching specific node: ${nodeId}`));
-        const nodeResponse = await this.figmaApi.getFileNodes(fileKey, [nodeId], {
-          depth: depth,
-          use_absolute_bounds: true
-        });
-        const nodeWrapper = nodeResponse.nodes[nodeId];
-        if (!nodeWrapper) {
-          throw new Error(`Node ${nodeId} not found in file ${fileKey}`);
+        try {
+          const nodeResponse = await this.figmaApi.getFileNodes(fileKey, [nodeId], {
+            depth: depth,
+            use_absolute_bounds: true
+          });
+          console.log(chalk.green(`[Figma MCP] Node response received, keys:`, Object.keys(nodeResponse.nodes)));
+          const nodeWrapper = nodeResponse.nodes[nodeId];
+          if (!nodeWrapper) {
+            throw new Error(`Node ${nodeId} not found in file ${fileKey}. Available nodes: ${Object.keys(nodeResponse.nodes).join(', ')}`);
+          }
+          figmaData = nodeWrapper.document;
+          isSpecificNode = true;
+        } catch (apiError) {
+          console.error(chalk.red(`[Figma MCP] API error fetching node ${nodeId}:`, apiError));
+          throw apiError;
         }
-        figmaData = nodeWrapper.document;
-        isSpecificNode = true;
       } else {
         // Fetch entire file with depth - fallback when no specific selection
         console.log(chalk.blue(`[Figma MCP] Fetching entire document (no specific selection)`));
-        const fileResponse = await this.figmaApi.getFile(fileKey, {
-          depth: depth,
-          use_absolute_bounds: true
-        });
-        figmaData = fileResponse.document;
+        try {
+          const fileResponse = await this.figmaApi.getFile(fileKey, {
+            depth: depth,
+            use_absolute_bounds: true
+          });
+          console.log(chalk.green(`[Figma MCP] File response received for document:`, fileResponse.document?.name));
+          figmaData = fileResponse.document;
+        } catch (apiError) {
+          console.error(chalk.red(`[Figma MCP] API error fetching file ${fileKey}:`, apiError));
+          throw apiError;
+        }
       }
 
       // Debug: Log the structure we received
@@ -547,7 +574,7 @@ const program = new Command();
 program
   .name('figma-mcp-pro')
   .description('Professional Figma MCP Server with enhanced AI context processing')
-  .version('1.0.0')
+  .version('1.2.1')
   .requiredOption('--figma-api-key <key>', 'Figma API key', process.env.FIGMA_API_KEY)
   .option('--port <port>', 'Server port', process.env.PORT)
   .option('--debug', 'Enable debug mode', process.env.DEBUG === 'true')
