@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [1.3.12] - 2024-12-19
 
+### Fixed
+- **CRITICAL**: Fixed MCP JSON protocol interference issue
+- All console.log statements changed to console.error to prevent stdout corruption
+- MCP servers now properly communicate via JSON without "[Figma API]" text interfering
+- Resolves "Unexpected token 'F'" JSON parsing errors in Cursor MCP
+
 ### Added
 - **Comprehensive Figma Effects Support**: Major enhancement to handle all Figma layer effects
   - Inner shadows support (up to 8 per element)
