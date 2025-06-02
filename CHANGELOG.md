@@ -5,6 +5,20 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.3.13] - 2024-12-19
+
+### Updated
+- **README & Documentation**: Updated NPM package documentation to match latest features
+- **Cursor Instructions**: Fixed Cursor MCP configuration to use `--yes` instead of `-y`
+- **Documentation Cleanup**: Removed unnecessary "Selection vs Full Document" and "Response Metadata" sections
+- **Feature Documentation**: Added comprehensive documentation for MCP JSON protocol fix and Figma effects support
+- **Tool Descriptions**: Updated `download_figma_images` description to reflect direct download capability
+
+### Enhanced
+- **Package Documentation**: Better organized feature descriptions with latest v1.3.12 updates
+- **Installation Guide**: Clearer setup instructions for both Cursor and Claude Desktop
+- **Effects Documentation**: Highlighted advanced CSS generation with comprehensive Figma effects support
+
 ## [1.3.12] - 2024-12-19
 
 ### Fixed
