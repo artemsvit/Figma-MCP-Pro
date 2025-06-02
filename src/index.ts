@@ -181,7 +181,6 @@ class CustomFigmaMcpServer {
               required: ['fileKey', 'nodeIds', 'localPath']
             },
           },
-
           {
             name: 'get_server_stats',
             description: 'Get server performance and usage statistics',
