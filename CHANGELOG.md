@@ -5,6 +5,18 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.3.14] - 2024-12-19
+
+### Improved
+- **Documentation**: Unified MCP configuration section for all supported clients
+- **Client Support**: Combined configuration instructions for Cursor, Windsurf, TRAE, and Claude Desktop
+- **Simplified Setup**: Single configuration example instead of duplicate sections
+- **Better Organization**: Clearer configuration file location guidance
+
+### Documentation
+- Streamlined installation instructions to reduce redundancy
+- Added comprehensive client support list with file location details
+
 ## [1.3.13] - 2024-12-19
 
 ### Updated
