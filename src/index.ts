@@ -31,8 +31,10 @@ const GetFigmaDataSchema = z.object({
 
 const DownloadFigmaImagesSchema = z.object({
   fileKey: z.string().describe('The Figma file key'),
-  nodeIds: z.array(z.string()).describe('Array of node IDs to check for export settings and download'),
-  localPath: z.string().describe('Local directory path to save images (will be created if it does not exist)')
+  nodeIds: z.array(z.string()).describe('Array of node IDs to download as images'),
+  localPath: z.string().describe('Local directory path to save images (will be created if it does not exist)'),
+  scale: z.number().min(0.5).max(4).default(2).optional().describe('Export scale for images'),
+  format: z.enum(['jpg', 'png', 'svg', 'pdf']).default('svg').optional().describe('Image format')
 });
 
 const ExtractUrlInfoSchema = z.object({
@@ -76,7 +78,7 @@ class CustomFigmaMcpServer {
     this.server = new Server(
       {
         name: 'figma-mcp-pro',
-        version: '1.3.2',
+        version: '1.3.3',
       },
       {
         capabilities: {
@@ -145,7 +147,7 @@ class CustomFigmaMcpServer {
           },
           {
             name: 'download_figma_images',
-            description: 'Download images from Figma nodes based on their export settings. Only nodes with export settings configured in Figma will be downloaded. The tool respects the original export settings including format (PNG, JPG, SVG, PDF), scale (1x, 2x, etc.), and custom suffixes as defined in Figma\'s export panel.',
+            description: 'Download images from Figma nodes directly. Downloads any node as an image using the node\'s actual name as the filename (e.g., "EPAM Systems.svg"). Does not require export settings to be configured in Figma.',
             inputSchema: {
               type: 'object',
               properties: {
@@ -158,11 +160,24 @@ class CustomFigmaMcpServer {
                   items: {
                     type: 'string'
                   },
-                  description: 'Array of node IDs to check for export settings and download. The tool will recursively check children nodes for export settings.'
+                  description: 'Array of node IDs to download as images'
                 },
                 localPath: {
                   type: 'string',
-                  description: 'Local directory path to save images (will be created if it does not exist). Images will be saved with filenames based on node names and export settings.'
+                  description: 'Local directory path to save images (will be created if it does not exist). Images will be saved with filenames based on the actual node names from Figma.'
+                },
+                scale: {
+                  type: 'number',
+                  minimum: 0.5,
+                  maximum: 4,
+                  default: 2,
+                  description: 'Export scale for images (0.5x to 4x)'
+                },
+                format: {
+                  type: 'string',
+                  enum: ['jpg', 'png', 'svg', 'pdf'],
+                  default: 'svg',
+                  description: 'Image format'
                 }
               },
               required: ['fileKey', 'nodeIds', 'localPath']
@@ -390,28 +405,23 @@ class CustomFigmaMcpServer {
 
   private async handleDownloadFigmaImages(args: any) {
     const parsed = DownloadFigmaImagesSchema.parse(args);
-    const { fileKey, nodeIds, localPath } = parsed;
+    const { fileKey, nodeIds, localPath, scale, format } = parsed;
 
-    this.log(`[Figma MCP] Downloading images with export settings for ${nodeIds.length} nodes to ${localPath}`);
+    this.log(`[Figma MCP] Downloading ${nodeIds.length} nodes as ${format || 'svg'} images to ${localPath}`);
 
     try {
-      // First, get the nodes to check their export settings
-      const nodeResponse = await this.figmaApi.getFileNodes(fileKey, nodeIds, {
-        depth: 1,
-        use_absolute_bounds: true
-      });
-
-      // Extract the actual nodes from the response
-      const nodes = Object.values(nodeResponse.nodes).map(wrapper => wrapper.document);
-
-      // Download images based on export settings
-      const downloadResult = await this.figmaApi.downloadImagesWithExportSettings(
+      // Download images directly using node names as filenames
+      const downloadResult = await this.figmaApi.downloadImages(
         fileKey,
-        nodes,
-        localPath
+        nodeIds,
+        localPath,
+        {
+          scale: scale || 2,
+          format: format || 'svg'
+        }
       );
 
-      this.log(`[Figma MCP] Download completed: ${downloadResult.summary.successful} successful, ${downloadResult.summary.failed} failed, ${downloadResult.summary.skipped} skipped`);
+      this.log(`[Figma MCP] Download completed: ${downloadResult.summary.successful} successful, ${downloadResult.summary.failed} failed`);
 
       return {
         content: [
@@ -421,8 +431,8 @@ class CustomFigmaMcpServer {
               downloads: downloadResult.downloaded,
               summary: downloadResult.summary,
               message: downloadResult.summary.total === 0 
-                ? 'No nodes found with export settings. Only nodes with export settings configured in Figma can be downloaded.'
-                : `Downloaded ${downloadResult.summary.successful} images based on Figma export settings.`
+                ? 'No nodes found to download.'
+                : `Downloaded ${downloadResult.summary.successful} images using original node names as filenames.`
             }, null, 2)
           }
         ]
@@ -566,7 +576,7 @@ const program = new Command();
 program
   .name('figma-mcp-pro')
   .description('Professional Figma MCP Server with enhanced AI context processing')
-  .version('1.3.2')
+  .version('1.3.3')
   .requiredOption('--figma-api-key <key>', 'Figma API key', process.env.FIGMA_API_KEY)
   .option('--port <port>', 'Server port', process.env.PORT)
   .option('--debug', 'Enable debug mode', process.env.DEBUG === 'true')

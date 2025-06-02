@@ -467,6 +467,151 @@ export class FigmaApiService {
   }
 
   /**
+   * Download images for specific nodes directly (without requiring export settings)
+   */
+  async downloadImages(
+    fileKey: string,
+    nodeIds: string[],
+    localPath: string,
+    options: {
+      scale?: number;
+      format?: 'jpg' | 'png' | 'svg' | 'pdf';
+    } = {}
+  ): Promise<{
+    downloaded: Array<{
+      nodeId: string;
+      nodeName: string;
+      filePath: string;
+      success: boolean;
+      error?: string;
+    }>;
+    summary: {
+      total: number;
+      successful: number;
+      failed: number;
+    };
+  }> {
+    // Ensure local directory exists
+    try {
+      await fs.mkdir(localPath, { recursive: true });
+    } catch (error) {
+      throw new FigmaApiError(`Failed to create directory ${localPath}: ${error}`);
+    }
+
+    const results: Array<{
+      nodeId: string;
+      nodeName: string;
+      filePath: string;
+      success: boolean;
+      error?: string;
+    }> = [];
+
+    try {
+      // First, get the nodes to get their names
+      const nodeResponse = await this.getFileNodes(fileKey, nodeIds, {
+        depth: 1,
+        use_absolute_bounds: true
+      });
+
+      // Get image URLs for all nodes
+      const imageResponse = await this.getImages(fileKey, nodeIds, {
+        format: options.format || 'svg',
+        scale: options.scale || 1,
+        use_absolute_bounds: true
+      });
+
+      // Download each image
+      for (const nodeId of nodeIds) {
+        const nodeWrapper = nodeResponse.nodes[nodeId];
+        const imageUrl = imageResponse.images[nodeId];
+        
+        if (!nodeWrapper) {
+          results.push({
+            nodeId,
+            nodeName: 'Unknown',
+            filePath: '',
+            success: false,
+            error: `Node ${nodeId} not found`
+          });
+          continue;
+        }
+
+        if (!imageUrl) {
+          results.push({
+            nodeId,
+            nodeName: nodeWrapper.document.name,
+            filePath: '',
+            success: false,
+            error: 'No image URL returned from Figma API'
+          });
+          continue;
+        }
+
+        // Use the actual node name as filename (preserve original name)
+        const nodeName = nodeWrapper.document.name;
+        const extension = (options.format || 'svg').toLowerCase();
+        const filename = `${nodeName}.${extension}`;
+        const filePath = path.join(localPath, filename);
+
+        try {
+          // Download the image
+          const downloadResponse = await axios.get(imageUrl, {
+            responseType: 'arraybuffer',
+            timeout: 30000,
+            headers: {
+              'User-Agent': 'Custom-Figma-MCP-Server/1.0.0'
+            }
+          });
+
+          // Write to file
+          await fs.writeFile(filePath, downloadResponse.data);
+
+          results.push({
+            nodeId,
+            nodeName,
+            filePath,
+            success: true
+          });
+
+          console.log(`[Figma API] Downloaded: ${filename} (${(downloadResponse.data.byteLength / 1024).toFixed(1)}KB)`);
+
+        } catch (downloadError) {
+          results.push({
+            nodeId,
+            nodeName,
+            filePath: filePath,
+            success: false,
+            error: `Download failed: ${downloadError instanceof Error ? downloadError.message : String(downloadError)}`
+          });
+          console.error(`[Figma API] Failed to download ${filename}:`, downloadError);
+        }
+      }
+
+    } catch (error) {
+      // Mark all as failed if we can't get the basic data
+      for (const nodeId of nodeIds) {
+        results.push({
+          nodeId,
+          nodeName: 'Unknown',
+          filePath: '',
+          success: false,
+          error: `Failed to fetch node data: ${error instanceof Error ? error.message : String(error)}`
+        });
+      }
+    }
+
+    const summary = {
+      total: results.length,
+      successful: results.filter(r => r.success).length,
+      failed: results.filter(r => !r.success).length
+    };
+
+    console.log(`[Figma API] Download summary: ${summary.successful}/${summary.total} successful`);
+
+    return { downloaded: results, summary };
+  }
+
+  /**
    * Download images to local directory based on export settings
    */
   async downloadImagesWithExportSettings(

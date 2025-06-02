@@ -5,6 +5,30 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.3.3] - 2024-12-19
+
+### Fixed
+- **CRITICAL**: Fixed MCP image download functionality that was not working properly
+- **MAJOR**: Added direct node download capability without requiring export settings
+- **MAJOR**: Fixed filename logic to use actual node names (e.g., "EPAM Systems.svg") instead of sanitized versions
+- Resolved issue where download_figma_images tool reported success but didn't actually save files
+
+### Added
+- New `downloadImages` method for direct node downloads without export settings requirement
+- Support for scale and format parameters in download_figma_images tool
+- Proper filename preservation using original Figma node names
+
+### Enhanced
+- **Filename Logic**: Now uses actual node names as filenames, preserving original naming
+- **Direct Downloads**: Can download any node as an image, not just those with export settings
+- **Better Parameters**: Added scale (0.5x-4x) and format (jpg, png, svg, pdf) options
+- **Improved Tool Description**: Updated to reflect actual functionality
+
+### Changed
+- download_figma_images tool now works for any node, not just those with export settings
+- Tool description updated to clarify it uses original node names as filenames
+- Default format changed to SVG for better scalability
+
 ## [1.3.2] - 2024-12-19
 
 ### Fixed
