@@ -1,6 +1,5 @@
 import {
   FigmaNode,
-  FigmaNodeType,
   EnhancedFigmaNode,
   CSSProperties,
   SemanticRole,
@@ -10,12 +9,10 @@ import {
   InteractionState,
   LayoutContext,
   FigmaColor,
-  FigmaPaint,
   FigmaTypeStyle
 } from '../types/figma.js';
 import {
   ContextRules,
-  CustomRule,
   RuleCondition,
   RuleAction,
   DEFAULT_RULES,
@@ -53,7 +50,6 @@ export interface ProcessingStats {
 
 export class ContextProcessor {
   private rules: ContextRules;
-  private designSystemCache: Map<string, DesignSystemContext> = new Map();
   private stats: ProcessingStats = {
     nodesProcessed: 0,
     nodesEnhanced: 0,
@@ -208,7 +204,7 @@ export class ContextProcessor {
     };
   }
 
-  private generateCSSProperties(node: FigmaNode, context: ProcessingContext): CSSProperties {
+  private generateCSSProperties(node: FigmaNode, _context: ProcessingContext): CSSProperties {
     const css: CSSProperties = {};
 
     // Layout properties
@@ -298,7 +294,7 @@ export class ContextProcessor {
     return css;
   }
 
-  private analyzeSemanticRole(node: FigmaNode, context: ProcessingContext): SemanticRole | undefined {
+  private analyzeSemanticRole(node: FigmaNode, _context: ProcessingContext): SemanticRole | undefined {
     const name = node.name.toLowerCase();
     
     // Button detection
@@ -365,7 +361,7 @@ export class ContextProcessor {
     return info;
   }
 
-  private extractDesignTokens(node: FigmaNode, context: ProcessingContext): DesignToken[] {
+  private extractDesignTokens(node: FigmaNode, _context: ProcessingContext): DesignToken[] {
     const tokens: DesignToken[] = [];
     
     // Color tokens
@@ -419,7 +415,7 @@ export class ContextProcessor {
     return tokens;
   }
 
-  private detectComponentVariants(node: FigmaNode, context: ProcessingContext): ComponentVariant[] {
+  private detectComponentVariants(node: FigmaNode, _context: ProcessingContext): ComponentVariant[] {
     const variants: ComponentVariant[] = [];
     
     if (node.type === 'COMPONENT' || node.type === 'INSTANCE') {
@@ -501,7 +497,7 @@ export class ContextProcessor {
     }
   }
 
-  private evaluateRuleCondition(condition: RuleCondition, node: EnhancedFigmaNode, context: ProcessingContext): boolean {
+  private evaluateRuleCondition(condition: RuleCondition, node: EnhancedFigmaNode, _context: ProcessingContext): boolean {
     // Check node type
     if (condition.nodeType) {
       const types = Array.isArray(condition.nodeType) ? condition.nodeType : [condition.nodeType];
@@ -639,12 +635,12 @@ export class ContextProcessor {
     return 6; // h6 or body
   }
 
-  private detectGridArea(node: FigmaNode, context: ProcessingContext): string | undefined {
+  private detectGridArea(_node: FigmaNode, _context: ProcessingContext): string | undefined {
     // Implementation for detecting CSS Grid area
     return undefined;
   }
 
-  private detectFlexOrder(node: FigmaNode, context: ProcessingContext): number | undefined {
+  private detectFlexOrder(_node: FigmaNode, _context: ProcessingContext): number | undefined {
     // Implementation for detecting flex order
     return undefined;
   }

@@ -5,6 +5,38 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.2.0] - 2024-06-02
+
+### Fixed
+- **CRITICAL**: Fixed URL extraction for Figma node IDs with dash format (1459-57 → 1459:57)
+- **CRITICAL**: Fixed selection handling to properly analyze specific Figma elements instead of entire documents
+- Removed unused TypeScript imports to eliminate compilation warnings
+- Fixed ES module compatibility issues in context processor
+
+### Improved
+- Enhanced URL parsing to handle all Figma URL formats correctly
+- Better error handling and validation for node ID formats
+- Improved selection detection logic with clear metadata indicators
+- Added comprehensive test scripts for URL extraction and selection handling
+- Optimized processing for specific node selections vs full document analysis
+
+### Added
+- Test scripts for validating URL extraction and selection functionality
+- Better debugging output for selection vs full document processing
+- Enhanced metadata in responses to clearly indicate selection type
+
+### Technical
+- Fixed TypeScript strict mode compliance
+- Improved code organization and removed dead code
+- Enhanced type safety throughout the codebase
+
+## [1.1.1] - 2024-01-XX
+
+### Fixed
+- ES module import issues
+- Build process improvements
+- CLI execution fixes
+
 ## [1.0.0] - 2024-01-XX
 
 ### Added

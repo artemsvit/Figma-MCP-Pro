@@ -354,8 +354,11 @@ export class FigmaApiService {
     const match = url.match(/node-id=([^&]+)/);
     if (match && match[1]) {
       // Decode URL-encoded node ID and convert format
-      const nodeId = decodeURIComponent(match[1]);
-      return nodeId.replace(/%3A/g, ':');
+      let nodeId = decodeURIComponent(match[1]);
+      nodeId = nodeId.replace(/%3A/g, ':');
+      // Convert dash format to colon format (1459-57 -> 1459:57)
+      nodeId = nodeId.replace(/-/g, ':');
+      return nodeId;
     }
 
     return null;

@@ -124,6 +124,34 @@ Add to `claude_desktop_config.json`:
 
 ## 🛠️ Usage
 
+### Selection-Focused Analysis
+
+**NEW in v1.2.0**: The server now properly handles Figma selections! When you provide a `nodeId`, it analyzes only your selected element instead of the entire document.
+
+#### Getting Node IDs from Figma URLs
+
+1. **Select an element in Figma** - The URL will look like:
+   ```
+   https://www.figma.com/design/ABC123DEF456/My-Design?node-id=123-456&t=xyz
+   ```
+
+2. **Use the `extract_url_info` tool** to get the correct parameters:
+   ```json
+   {
+     "url": "https://www.figma.com/design/ABC123DEF456/My-Design?node-id=123-456&t=xyz"
+   }
+   ```
+
+3. **Use the extracted `fileKey` and `nodeId`** in `get_figma_data`:
+   ```json
+   {
+     "fileKey": "ABC123DEF456",
+     "nodeId": "123:456",
+     "depth": 3,
+     "framework": "react"
+   }
+   ```
+
 ### Available Tools
 
 #### 1. `get_figma_data`
@@ -131,23 +159,41 @@ Fetch and process Figma design data with AI-optimized context enhancement.
 
 **Parameters:**
 - `fileKey` (string): The Figma file key
-- `nodeId` (string, optional): Specific node ID to fetch
+- `nodeId` (string, optional): **Specific node ID to fetch - USE THIS for selected elements!**
 - `depth` (number, 1-10, default: 5): Maximum depth to traverse
 - `framework` (enum, optional): Target framework ('react', 'vue', 'angular', 'svelte', 'html')
 - `includeImages` (boolean, default: false): Whether to include image URLs
 - `customRules` (object, optional): Custom processing rules
 
-**Example:**
+**Selection vs Full Document:**
 ```javascript
+// ✅ ANALYZE SELECTED ELEMENT (recommended)
 {
   "fileKey": "ABC123DEF456",
-  "nodeId": "123:456",
+  "nodeId": "123:456",  // Include this for selections!
   "framework": "react",
-  "includeImages": true,
-  "customRules": {
-    "aiOptimization": {
-      "enableCSSGeneration": true,
-      "enableSemanticAnalysis": true
+  "depth": 3
+}
+
+// ❌ ANALYZE ENTIRE DOCUMENT (slow, large response)
+{
+  "fileKey": "ABC123DEF456",
+  // nodeId omitted = processes entire document
+  "framework": "react"
+}
+```
+
+**Response Metadata:**
+The response includes metadata to confirm selection handling:
+```json
+{
+  "data": { /* enhanced node data */ },
+  "metadata": {
+    "isSpecificSelection": true,  // true when nodeId provided
+    "selectionType": "user_selection",  // vs "full_document"
+    "nodeId": "123:456",
+    "processingStats": {
+      "nodesProcessed": 15  // much smaller for selections
     }
   }
 }
