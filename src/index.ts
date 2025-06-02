@@ -78,7 +78,7 @@ class CustomFigmaMcpServer {
     this.server = new Server(
       {
         name: 'figma-mcp-pro',
-        version: '1.2.1',
+        version: '1.2.3',
       },
       {
         capabilities: {
@@ -89,6 +89,16 @@ class CustomFigmaMcpServer {
 
     this.setupToolHandlers();
     this.setupErrorHandling();
+  }
+
+  private log(...args: any[]): void {
+    if (this.config.debug) {
+      console.error(chalk.blue(...args)); // Use stderr for logging to avoid interfering with MCP JSON
+    }
+  }
+
+  private logError(...args: any[]): void {
+    console.error(chalk.red(...args)); // Always log errors to stderr
   }
 
   private setupToolHandlers(): void {
@@ -234,7 +244,7 @@ class CustomFigmaMcpServer {
           throw error;
         }
         
-        console.error(`Error in tool ${name}:`, error);
+        this.logError(`Error in tool ${name}:`, error);
         throw new McpError(
           ErrorCode.InternalError,
           `Tool execution failed: ${error instanceof Error ? error.message : String(error)}`
@@ -244,13 +254,13 @@ class CustomFigmaMcpServer {
   }
 
   private async handleGetFigmaData(args: any) {
-    console.log(chalk.blue(`[Figma MCP] Received args:`, JSON.stringify(args, null, 2)));
+    this.log(`[Figma MCP] Received args:`, JSON.stringify(args, null, 2));
     
     let parsed;
     try {
       parsed = GetFigmaDataSchema.parse(args);
     } catch (error) {
-      console.error(chalk.red(`[Figma MCP] Schema validation error:`, error));
+      this.logError(`[Figma MCP] Schema validation error:`, error);
       throw new McpError(
         ErrorCode.InvalidParams,
         `Invalid parameters: ${error instanceof Error ? error.message : String(error)}`
@@ -260,9 +270,9 @@ class CustomFigmaMcpServer {
     const { fileKey, nodeId, framework, includeImages, customRules } = parsed;
     const depth = parsed.depth || 5;
 
-    console.log(chalk.blue(`[Figma MCP] Fetching data for file: ${fileKey} (depth: ${depth})`));
+    this.log(`[Figma MCP] Fetching data for file: ${fileKey} (depth: ${depth})`);
     if (nodeId) {
-      console.log(chalk.blue(`[Figma MCP] Target node: ${nodeId}`));
+      this.log(`[Figma MCP] Target node: ${nodeId}`);
     }
     
     try {
@@ -276,13 +286,13 @@ class CustomFigmaMcpServer {
       
       if (nodeId) {
         // Fetch specific node with depth - this is what user selected
-        console.log(chalk.blue(`[Figma MCP] Fetching specific node: ${nodeId}`));
+        this.log(`[Figma MCP] Fetching specific node: ${nodeId}`);
         try {
           const nodeResponse = await this.figmaApi.getFileNodes(fileKey, [nodeId], {
             depth: depth,
             use_absolute_bounds: true
           });
-          console.log(chalk.green(`[Figma MCP] Node response received, keys:`, Object.keys(nodeResponse.nodes)));
+          this.log(`[Figma MCP] Node response received, keys:`, Object.keys(nodeResponse.nodes));
           const nodeWrapper = nodeResponse.nodes[nodeId];
           if (!nodeWrapper) {
             throw new Error(`Node ${nodeId} not found in file ${fileKey}. Available nodes: ${Object.keys(nodeResponse.nodes).join(', ')}`);
@@ -290,42 +300,42 @@ class CustomFigmaMcpServer {
           figmaData = nodeWrapper.document;
           isSpecificNode = true;
         } catch (apiError) {
-          console.error(chalk.red(`[Figma MCP] API error fetching node ${nodeId}:`, apiError));
+          this.logError(`[Figma MCP] API error fetching node ${nodeId}:`, apiError);
           throw apiError;
         }
       } else {
         // Fetch entire file with depth - fallback when no specific selection
-        console.log(chalk.blue(`[Figma MCP] Fetching entire document (no specific selection)`));
+        this.log(`[Figma MCP] Fetching entire document (no specific selection)`);
         try {
           const fileResponse = await this.figmaApi.getFile(fileKey, {
             depth: depth,
             use_absolute_bounds: true
           });
-          console.log(chalk.green(`[Figma MCP] File response received for document:`, fileResponse.document?.name));
+          this.log(`[Figma MCP] File response received for document:`, fileResponse.document?.name);
           figmaData = fileResponse.document;
         } catch (apiError) {
-          console.error(chalk.red(`[Figma MCP] API error fetching file ${fileKey}:`, apiError));
+          this.logError(`[Figma MCP] API error fetching file ${fileKey}:`, apiError);
           throw apiError;
         }
       }
 
       // Debug: Log the structure we received
       if (this.config.debug) {
-        console.log(chalk.yellow(`[Figma MCP] Raw data structure (${isSpecificNode ? 'SPECIFIC SELECTION' : 'FULL DOCUMENT'}):`));
-        console.log(chalk.yellow(`- Node ID: ${figmaData.id}`));
-        console.log(chalk.yellow(`- Node Name: ${figmaData.name}`));
-        console.log(chalk.yellow(`- Node Type: ${figmaData.type}`));
-        console.log(chalk.yellow(`- Has Children: ${figmaData.children ? figmaData.children.length : 0}`));
+        this.log(`[Figma MCP] Raw data structure (${isSpecificNode ? 'SPECIFIC SELECTION' : 'FULL DOCUMENT'}):`);
+        this.log(`- Node ID: ${figmaData.id}`);
+        this.log(`- Node Name: ${figmaData.name}`);
+        this.log(`- Node Type: ${figmaData.type}`);
+        this.log(`- Has Children: ${figmaData.children ? figmaData.children.length : 0}`);
         if (figmaData.children && figmaData.children.length > 0) {
           const maxChildren = isSpecificNode ? figmaData.children.length : Math.min(5, figmaData.children.length);
                      for (let i = 0; i < maxChildren; i++) {
              const child = figmaData.children[i];
              if (child) {
-               console.log(chalk.yellow(`  - Child ${i}: ${child.name} (${child.type}) - Children: ${child.children ? child.children.length : 0}`));
+               this.log(`  - Child ${i}: ${child.name} (${child.type}) - Children: ${child.children ? child.children.length : 0}`);
              }
            }
           if (!isSpecificNode && figmaData.children.length > 5) {
-            console.log(chalk.yellow(`  - ... and ${figmaData.children.length - 5} more children`));
+            this.log(`  - ... and ${figmaData.children.length - 5} more children`);
           }
         }
       }
@@ -356,12 +366,12 @@ class CustomFigmaMcpServer {
             });
             imageUrls = imageResponse.images;
           } catch (error) {
-            console.warn('Failed to fetch images:', error);
+            this.logError('Failed to fetch images:', error);
           }
         }
       }
 
-      console.log(chalk.green(`[Figma MCP] Successfully processed ${stats.nodesProcessed} nodes`));
+      this.log(`[Figma MCP] Successfully processed ${stats.nodesProcessed} nodes`);
 
       return {
         content: [
@@ -385,7 +395,7 @@ class CustomFigmaMcpServer {
       };
 
     } catch (error) {
-      console.error(chalk.red(`[Figma MCP] Error fetching data:`, error));
+      this.logError(`[Figma MCP] Error fetching data:`, error);
       throw new McpError(
         ErrorCode.InternalError,
         `Failed to fetch Figma data: ${error instanceof Error ? error.message : String(error)}`
@@ -397,7 +407,7 @@ class CustomFigmaMcpServer {
     const parsed = DownloadFigmaImagesSchema.parse(args);
     const { fileKey, nodeIds, localPath, scale, format } = parsed;
 
-    console.log(chalk.blue(`[Figma MCP] Downloading ${nodeIds.length} images to ${localPath}`));
+    this.log(`[Figma MCP] Downloading ${nodeIds.length} images to ${localPath}`);
 
     try {
       // Get image URLs from Figma
@@ -415,7 +425,7 @@ class CustomFigmaMcpServer {
         status: url ? 'available' : 'failed'
       }));
 
-      console.log(chalk.green(`[Figma MCP] Generated ${results.length} image URLs`));
+      this.log(`[Figma MCP] Generated ${results.length} image URLs`);
 
       return {
         content: [
@@ -434,7 +444,7 @@ class CustomFigmaMcpServer {
       };
 
     } catch (error) {
-      console.error(chalk.red(`[Figma MCP] Error downloading images:`, error));
+      this.logError(`[Figma MCP] Error downloading images:`, error);
       throw new McpError(
         ErrorCode.InternalError,
         `Failed to download images: ${error instanceof Error ? error.message : String(error)}`
@@ -546,11 +556,11 @@ class CustomFigmaMcpServer {
 
   private setupErrorHandling(): void {
     this.server.onerror = (error) => {
-      console.error(chalk.red('[Figma MCP] Server error:'), error);
+      this.logError('[Figma MCP] Server error:', error);
     };
 
     process.on('SIGINT', async () => {
-      console.log(chalk.yellow('\n[Figma MCP] Shutting down server...'));
+      this.logError('\n[Figma MCP] Shutting down server...');
       await this.server.close();
       process.exit(0);
     });
@@ -560,11 +570,8 @@ class CustomFigmaMcpServer {
     const transport = new StdioServerTransport();
     await this.server.connect(transport);
     
-    if (this.config.debug) {
-      console.log(chalk.blue('[Figma MCP] Debug mode enabled'));
-    }
-    
-    console.log(chalk.green('[Figma MCP] Server started successfully'));
+    this.log('[Figma MCP] Debug mode enabled');
+    this.logError('[Figma MCP] Server started successfully');
   }
 }
 
@@ -574,15 +581,15 @@ const program = new Command();
 program
   .name('figma-mcp-pro')
   .description('Professional Figma MCP Server with enhanced AI context processing')
-  .version('1.2.1')
+  .version('1.2.3')
   .requiredOption('--figma-api-key <key>', 'Figma API key', process.env.FIGMA_API_KEY)
   .option('--port <port>', 'Server port', process.env.PORT)
   .option('--debug', 'Enable debug mode', process.env.DEBUG === 'true')
   .option('--stdio', 'Use stdio transport (default)', true)
   .action(async (options) => {
     if (!options.figmaApiKey) {
-      console.error(chalk.red('Error: Figma API key is required'));
-      console.log(chalk.yellow('Set FIGMA_API_KEY environment variable or use --figma-api-key option'));
+      console.error('Error: Figma API key is required');
+      console.error('Set FIGMA_API_KEY environment variable or use --figma-api-key option');
       process.exit(1);
     }
 
@@ -595,19 +602,19 @@ program
 
       await server.start();
     } catch (error) {
-      console.error(chalk.red('Failed to start server:'), error);
+      console.error('Failed to start server:', error);
       process.exit(1);
     }
   });
 
 // Handle unhandled rejections
 process.on('unhandledRejection', (reason: any, promise: Promise<any>) => {
-  console.error(chalk.red('Unhandled Rejection at:'), promise, chalk.red('reason:'), reason);
+  console.error('Unhandled Rejection at:', promise, 'reason:', reason);
   process.exit(1);
 });
 
 process.on('uncaughtException', (error: Error) => {
-  console.error(chalk.red('Uncaught Exception:'), error);
+  console.error('Uncaught Exception:', error);
   process.exit(1);
 });
 

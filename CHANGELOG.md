@@ -5,6 +5,44 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.2.4] - 2024-06-02
+
+### Fixed
+- **CRITICAL**: Fixed bin script path resolution for npm package installation
+- Improved executable wrapper script with proper __dirname resolution
+- Fixed npx execution issues with relative path imports
+
+### Technical
+- Enhanced bin/figma-mcp-pro.js with fileURLToPath and proper path joining
+- Resolved npm package structure for cross-platform compatibility
+
+## [1.2.3] - 2024-06-02
+
+### Fixed
+- **CRITICAL**: Fixed ES module shebang syntax error that prevented npx execution
+- Removed shebang from main ES module file to avoid Node.js import errors
+- Created separate executable wrapper script in bin/ directory
+- Fixed package.json bin configuration to use proper executable wrapper
+
+### Technical
+- Separated executable script from ES module to resolve import conflicts
+- Updated package structure to include bin/ directory in published files
+- Improved npm package executable handling
+
+## [1.2.2] - 2024-06-02
+
+### Fixed
+- **CRITICAL**: Fixed MCP JSON protocol interference caused by console.log statements going to stdout
+- **CRITICAL**: All logging now properly uses stderr to avoid corrupting MCP communication
+- Added proper executable shebang for npm binary
+- Improved error handling and logging strategy
+
+### Technical
+- Implemented separate log() and logError() methods using stderr
+- Only MCP JSON responses now use stdout
+- Debug logging only enabled when DEBUG environment variable is set
+- Better separation of concerns for MCP protocol compliance
+
 ## [1.2.1] - 2024-06-02
 
 ### Fixed
