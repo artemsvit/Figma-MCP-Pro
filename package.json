@@ -39,7 +39,7 @@
     "design",
     "typescript"
   ],
-  "author": "Your Name",
+  "author": "Artem Svitelskyi <a.svitelskyi@gmail.com>",
   "license": "MIT",
   "dependencies": {
     "@modelcontextprotocol/sdk": "^1.0.0",
