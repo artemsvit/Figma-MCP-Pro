@@ -1,7 +1,7 @@
 {
   "name": "figma-mcp-pro",
-  "version": "1.3.3",
-  "description": "Custom Figma MCP Server with enhanced context rules and AI-optimized design data extraction",
+  "version": "1.3.4",
+  "description": "Professional Figma MCP Server with AI-optimized design analysis, intelligent image downloads respecting export settings, and enhanced context processing for code generation",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
   "type": "module",
@@ -38,7 +38,13 @@
     "ai",
     "cursor",
     "design",
-    "typescript"
+    "typescript",
+    "export-settings",
+    "image-download",
+    "design-tokens",
+    "code-generation",
+    "claude",
+    "context-processing"
   ],
   "author": "Artem Svitelskyi <a.svitelskyi@gmail.com>",
   "license": "MIT",

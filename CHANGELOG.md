@@ -5,6 +5,19 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.3.4] - 2024-12-19
+
+### Enhanced
+- **Package Description**: Updated NPM package description to better reflect current capabilities
+- **Keywords**: Added more relevant keywords for better discoverability (export-settings, image-download, design-tokens, code-generation, claude, context-processing)
+- **Documentation**: Enhanced README with detailed export settings constraint handling documentation
+
+### Verified
+- **Export Settings Logic**: Confirmed correct handling of SCALE, WIDTH, and HEIGHT constraints
+- **SVG Scale Limitation**: Verified proper handling of Figma's SVG 1x scale limitation
+- **Filename Preservation**: Confirmed original node names are preserved (e.g., "EPAM Systems.svg")
+- **Batch Processing**: Verified efficient API call grouping by format and scale
+
 ## [1.3.3] - 2024-12-19
 
 ### Fixed
