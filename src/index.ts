@@ -347,17 +347,29 @@ class CustomFigmaMcpServer {
           const commentsResponse = await this.figmaApi.getComments(fileKey);
           commentsData = commentsResponse.comments;
           
+          this.log(`[Figma MCP] Comments API returned ${commentsData.length} total comments`);
+          
           // Filter comments to only those relevant to our processed nodes
           const allNodeIds = this.contextProcessor.extractAllNodeIds(figmaData);
-          const relevantComments = commentsData.filter(comment => 
-            comment.client_meta?.node_id && allNodeIds.includes(comment.client_meta.node_id)
-          );
+          this.log(`[Figma MCP] Extracted node IDs from processed data:`, allNodeIds);
+          
+          const relevantComments = commentsData.filter(comment => {
+            const nodeId = comment.client_meta?.node_id;
+            const hasNodeId = !!nodeId;
+            const isRelevant = hasNodeId && allNodeIds.includes(nodeId!);
+            this.log(`[Figma MCP] Comment "${comment.message}" (node_id: ${nodeId}) - Relevant: ${isRelevant}`);
+            return isRelevant;
+          });
           
           this.log(`[Figma MCP] Found ${commentsData.length} total comments, ${relevantComments.length} relevant to processed nodes`);
           
           // Enhance nodes with comments
           if (relevantComments.length > 0) {
+            this.log(`[Figma MCP] Processing ${relevantComments.length} relevant comments into nodes`);
             enhancedData = this.contextProcessor.processCommentsForNode(enhancedData, relevantComments);
+            this.log(`[Figma MCP] Comments processed successfully`);
+          } else {
+            this.log(`[Figma MCP] No relevant comments found for the processed nodes`);
           }
           
         } catch (error) {
