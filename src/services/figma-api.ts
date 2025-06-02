@@ -547,7 +547,7 @@ export class FigmaApiService {
         if (!imageUrl) {
           results.push({
             nodeId,
-            nodeName: nodeWrapper.document.name,
+            nodeName: nodeWrapper.document?.name || 'Unknown',
             filePath: '',
             success: false,
             error: 'No image URL returned from Figma API'
@@ -556,10 +556,13 @@ export class FigmaApiService {
         }
 
         // Use the actual node name as filename (preserve original name)
-        const nodeName = nodeWrapper.document.name;
+        const nodeName = nodeWrapper.document?.name || `node-${nodeId}`;
         const extension = format;
         const filename = `${nodeName}.${extension}`;
         const filePath = path.join(localPath, filename);
+
+        // Debug logging to understand the filename issue
+        console.log(`[Figma API] Debug - Node ID: ${nodeId}, Node Name: "${nodeName}", Filename: "${filename}"`);
 
         try {
           // Download the image
@@ -576,7 +579,7 @@ export class FigmaApiService {
 
           results.push({
             nodeId,
-            nodeName,
+            nodeName: nodeName,
             filePath,
             success: true
           });

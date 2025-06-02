@@ -37,9 +37,7 @@ const DownloadFigmaImagesSchema = z.object({
   format: z.enum(['jpg', 'png', 'svg', 'pdf']).default('svg').optional().describe('Image format')
 });
 
-const ExtractUrlInfoSchema = z.object({
-  url: z.string().describe('Figma URL to extract information from')
-});
+
 
 // Server configuration
 interface ServerConfig {
@@ -78,7 +76,7 @@ class CustomFigmaMcpServer {
     this.server = new Server(
       {
         name: 'figma-mcp-pro',
-        version: '1.3.4',
+        version: '1.3.5',
       },
       {
         capabilities: {
@@ -183,20 +181,7 @@ class CustomFigmaMcpServer {
               required: ['fileKey', 'nodeIds', 'localPath']
             },
           },
-          {
-            name: 'extract_url_info',
-            description: 'Extract file key and node ID from Figma URLs',
-            inputSchema: {
-              type: 'object',
-              properties: {
-                url: {
-                  type: 'string',
-                  description: 'Figma URL to extract information from'
-                }
-              },
-              required: ['url']
-            },
-          },
+
           {
             name: 'get_server_stats',
             description: 'Get server performance and usage statistics',
@@ -227,8 +212,6 @@ class CustomFigmaMcpServer {
             return await this.handleGetFigmaData(args);
           case 'download_figma_images':
             return await this.handleDownloadFigmaImages(args);
-          case 'extract_url_info':
-            return await this.handleExtractUrlInfo(args);
           case 'get_server_stats':
             return await this.handleGetServerStats();
           case 'clear_cache':
@@ -447,36 +430,7 @@ class CustomFigmaMcpServer {
     }
   }
 
-  private async handleExtractUrlInfo(args: any) {
-    const parsed = ExtractUrlInfoSchema.parse(args);
-    const { url } = parsed;
 
-    try {
-      const fileKey = FigmaApiService.extractFileKeyFromUrl(url);
-      const nodeId = FigmaApiService.extractNodeIdFromUrl(url);
-
-      return {
-        content: [
-          {
-            type: 'text',
-            text: JSON.stringify({
-              url,
-              fileKey,
-              nodeId,
-              isValidFileKey: fileKey ? FigmaApiService.isValidFileKey(fileKey) : false,
-              isValidNodeId: nodeId ? FigmaApiService.isValidNodeId(nodeId) : false
-            }, null, 2)
-          }
-        ]
-      };
-
-    } catch (error) {
-      throw new McpError(
-        ErrorCode.InternalError,
-        `Failed to extract URL info: ${error instanceof Error ? error.message : String(error)}`
-      );
-    }
-  }
 
   private async handleGetServerStats() {
     try {
@@ -576,7 +530,7 @@ const program = new Command();
 program
   .name('figma-mcp-pro')
   .description('Professional Figma MCP Server with enhanced AI context processing')
-  .version('1.3.4')
+  .version('1.3.5')
   .requiredOption('--figma-api-key <key>', 'Figma API key', process.env.FIGMA_API_KEY)
   .option('--port <port>', 'Server port', process.env.PORT)
   .option('--debug', 'Enable debug mode', process.env.DEBUG === 'true')

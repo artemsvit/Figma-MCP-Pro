@@ -5,6 +5,21 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.3.5] - 2024-12-19
+
+### Removed
+- **extract_url_info tool**: Removed as requested - no longer needed for workflow
+- Cleaned up unused URL extraction functionality from tool handlers
+
+### Enhanced
+- **Debug Logging**: Added detailed debug logging to understand filename generation in image downloads
+- **Error Handling**: Improved null safety for node name extraction
+- **Type Safety**: Fixed TypeScript strict mode compliance for optional properties
+
+### Fixed
+- **Filename Issue Investigation**: Added logging to debug why filenames might show as node IDs instead of actual names
+- **Null Safety**: Added proper null checks for document.name property access
+
 ## [1.3.4] - 2024-12-19
 
 ### Enhanced
