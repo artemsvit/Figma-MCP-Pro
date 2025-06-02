@@ -118,7 +118,7 @@ Add to your MCP configuration file:
   "mcpServers": {
     "figma-mcp-pro": {
       "command": "npx",
-      "args": ["figma-mcp-pro@1.4.1", "--figma-api-key", "your-api-key-here"],
+      "args": ["figma-mcp-pro@latest", "--figma-api-key", "your-api-key-here"],
       "env": {
         "DEBUG": "true"
       }
