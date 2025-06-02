@@ -1,0 +1,52 @@
+# Changelog
+
+All notable changes to this project will be documented in this file.
+
+The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
+and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
+
+## [1.0.0] - 2024-01-XX
+
+### Added
+- Initial release of Custom Figma MCP Server
+- Enhanced context processing with AI optimization
+- Custom rules engine for data transformation
+- Framework-specific optimizations (React, Vue, Angular, Svelte, HTML)
+- Semantic analysis for UI component detection
+- CSS property generation from Figma properties
+- Accessibility information enhancement
+- Design token extraction
+- Component variant detection
+- Interaction state generation
+- Comprehensive caching and rate limiting
+- TypeScript support with full type definitions
+- MCP tools for Figma data access and image download
+- Extensive configuration options
+- Performance monitoring and statistics
+- CLI interface with environment variable support
+
+### Features
+- **get_figma_data**: Fetch and process Figma design data with AI optimization
+- **download_figma_images**: Download images from Figma nodes
+- **extract_url_info**: Parse Figma URLs for file keys and node IDs
+- **get_server_stats**: Performance and usage statistics
+- **clear_cache**: Cache management
+
+### Technical
+- Built with TypeScript and modern ES modules
+- Comprehensive test suite with Jest
+- ESLint and Prettier configuration
+- Automated build and publishing pipeline
+- Docker support (planned)
+- Extensive documentation and examples
+
+## [Unreleased]
+
+### Planned
+- Real-time Figma webhook integration
+- Advanced machine learning for component detection
+- Distributed caching support
+- Plugin system for custom processors
+- Web dashboard for monitoring and configuration
+- Docker container distribution
+- GitHub Actions CI/CD pipeline 
