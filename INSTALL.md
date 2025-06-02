@@ -36,22 +36,22 @@
    - Restart Cursor to load the new MCP server
 
 5. **Test the Installation**:
-   - Try using the `extract_url_info` tool with a Figma URL
    - Use `get_figma_data` to analyze Figma designs
+   - Try downloading images with `download_figma_images`
 
 ## Available Tools
 
 - `get_figma_data` - Analyze Figma designs with AI optimization
 - `download_figma_images` - Download images from Figma
-- `extract_url_info` - Parse Figma URLs for file keys and node IDs
 - `get_server_stats` - View server performance statistics
 - `clear_cache` - Clear the API cache
 
 ## Example Usage
 
-1. **Extract info from a Figma URL**:
+1. **Extract info from a Figma URL manually**:
    ```
-   Use extract_url_info with: https://www.figma.com/design/ABC123/My-Design?node-id=123-456
+   From URL: https://www.figma.com/design/ABC123/My-Design?node-id=123-456
+   Extract fileKey: ABC123 and nodeId: 123:456
    ```
 
 2. **Analyze a specific selection**:
@@ -65,4 +65,4 @@
 - **"API key invalid"**: Check your Figma API key is correct and active
 - **"JSON parsing error"**: Make sure you're using version 1.2.4 or later
 
-For more details, see the [full README](README.md). 
+For more details, see the [full README](README.md).

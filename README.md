@@ -143,14 +143,11 @@ Add to `claude_desktop_config.json`:
    https://www.figma.com/design/ABC123DEF456/My-Design?node-id=123-456&t=xyz
    ```
 
-2. **Use the `extract_url_info` tool** to get the correct parameters:
-   ```json
-   {
-     "url": "https://www.figma.com/design/ABC123DEF456/My-Design?node-id=123-456&t=xyz"
-   }
-   ```
+2. **Extract the fileKey and nodeId manually** from the URL:
+   - fileKey: `ABC123DEF456` (the part after `/design/` and before the next `/`)
+   - nodeId: `123:456` (convert the hyphen in `node-id=123-456` to a colon)
 
-3. **Use the extracted `fileKey` and `nodeId`** in `get_figma_data`:
+3. **Use these values in `get_figma_data`**:
    ```json
    {
      "fileKey": "ABC123DEF456",
@@ -243,16 +240,10 @@ Download images from Figma nodes based on their export settings. This tool respe
 **Output:**
 Returns detailed information about each download attempt, including success/failure status, file paths, and export settings used.
 
-#### 3. `extract_url_info`
-Extract file key and node ID from Figma URLs.
-
-**Parameters:**
-- `url` (string): Figma URL to extract information from
-
-#### 4. `get_server_stats`
+#### 3. `get_server_stats`
 Get server performance and usage statistics.
 
-#### 5. `clear_cache`
+#### 4. `clear_cache`
 Clear the API response cache.
 
 ### Custom Rules Configuration
@@ -489,4 +480,4 @@ MIT License - See LICENSE file for details
 
 - [GLips/Figma-Context-MCP](https://github.com/GLips/Figma-Context-MCP) - Original Framelink implementation
 - [TimHolden/figma-mcp-server](https://github.com/TimHolden/figma-mcp-server) - Alternative MCP server
-- [MatthewDailey/figma-mcp](https://github.com/MatthewDailey/figma-mcp) - Another Figma MCP implementation 
+- [MatthewDailey/figma-mcp](https://github.com/MatthewDailey/figma-mcp) - Another Figma MCP implementation
