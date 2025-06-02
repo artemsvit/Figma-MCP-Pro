@@ -557,8 +557,13 @@ export class FigmaApiService {
 
         // Use the actual node name as filename (preserve original name)
         const nodeName = nodeWrapper.document?.name || `node-${nodeId}`;
+        // Sanitize filename to remove/replace problematic characters
+        const sanitizedNodeName = nodeName
+          .replace(/[/\\:*?"<>|]/g, '-') // Replace problematic characters with dash
+          .replace(/\s+/g, ' ') // Normalize spaces
+          .trim();
         const extension = format;
-        const filename = `${nodeName}.${extension}`;
+        const filename = `${sanitizedNodeName}.${extension}`;
         const filePath = path.join(localPath, filename);
 
         // Debug logging to understand the filename issue
@@ -575,11 +580,11 @@ export class FigmaApiService {
           });
 
           // Write to file
-          await fs.writeFile(filePath, downloadResponse.data);
+          await fs.writeFile(filePath, Buffer.from(downloadResponse.data));
 
           results.push({
             nodeId,
-            nodeName: nodeName,
+            nodeName: sanitizedNodeName,
             filePath,
             success: true
           });
@@ -589,7 +594,7 @@ export class FigmaApiService {
         } catch (downloadError) {
           results.push({
             nodeId,
-            nodeName,
+            nodeName: sanitizedNodeName,
             filePath: filePath,
             success: false,
             error: `Download failed: ${downloadError instanceof Error ? downloadError.message : String(downloadError)}`
