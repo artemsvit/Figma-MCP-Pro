@@ -471,6 +471,7 @@ export class FigmaApiService {
 
   /**
    * Resolve and validate file paths safely for different MCP environments
+   * Enhanced specifically for Cursor MCP compatibility
    */
   private static resolvePath(inputPath: string): string {
     // Normalize and validate the input path to prevent encoding issues
@@ -478,51 +479,84 @@ export class FigmaApiService {
     
     console.error(`[Figma API] Input path: "${inputPath}" -> normalized: "${normalizedPath}"`);
     
-    // If already absolute and looks valid, use it
-    if (path.isAbsolute(normalizedPath) && normalizedPath !== '/') {
-      console.error(`[Figma API] Path is absolute: ${normalizedPath}`);
-      return normalizedPath;
-    }
-    
-    // For relative paths or problematic absolute paths
     const cwd = process.cwd();
-    console.error(`[Figma API] Current working directory: ${cwd}`);
+    const environment = {
+      cwd,
+      PWD: process.env.PWD,
+      INIT_CWD: process.env.INIT_CWD,
+      HOME: process.env.HOME,
+      platform: process.platform
+    };
     
-    // Defensive check: if cwd is root, it's likely an MCP environment issue
-    if (cwd === '/' || cwd === '') {
-      console.error(`[Figma API] WARNING: cwd is root or empty, using safe fallback`);
-      // In MCP environments, try to use a safe working directory
-      // This prevents creating directories at filesystem root
-      const safeCwd = process.env.PWD || process.env.INIT_CWD || '/tmp/figma-mcp';
-      console.error(`[Figma API] Using safe working directory: ${safeCwd}`);
-      
-      // Clean the path and ensure it's relative
-      let cleanPath = normalizedPath
-        .replace(/^\.\//, '') // Remove leading ./
-        .replace(/^\/+/, '') // Remove any leading slashes
-        .replace(/^\.*\//, ''); // Remove any leading ../
-      
-      if (!cleanPath || cleanPath === '.' || cleanPath === '..') {
-        cleanPath = 'figma-assets'; // Safe default
-      }
-      
-      const resolvedPath = path.join(safeCwd, cleanPath);
-      console.error(`[Figma API] Safe path resolution: "${cleanPath}" -> "${resolvedPath}"`);
-      return resolvedPath;
-    }
+    console.error(`[Figma API] Environment:`, environment);
     
-    // Normal path resolution for good environments
-    let cleanPath = normalizedPath
+    // CRITICAL: Force relative path handling for MCP environments
+    // Never use absolute paths that could point to filesystem root
+    let cleanPath = normalizedPath;
+    
+    // Strip any absolute path indicators to force relative
+    cleanPath = cleanPath
+      .replace(/^\/+/, '') // Remove leading slashes
       .replace(/^\.\//, '') // Remove leading ./
-      .replace(/^\/+/, ''); // Remove any leading slashes to force relative
+      .replace(/^\.+\//, ''); // Remove any leading ../
     
-    // Ensure we don't have an empty path
-    if (!cleanPath || cleanPath === '.' || cleanPath === '..') {
-      cleanPath = 'assets'; // Default directory name
+    // Ensure we have a valid path component
+    if (!cleanPath || cleanPath === '.' || cleanPath === '..' || cleanPath === '/') {
+      cleanPath = 'assets'; // Safe default directory name
     }
     
-    const resolvedPath = path.resolve(cwd, cleanPath);
-    console.error(`[Figma API] Normal path resolution: "${cleanPath}" -> "${resolvedPath}"`);
+    console.error(`[Figma API] Cleaned path: "${normalizedPath}" -> "${cleanPath}"`);
+    
+    // Determine working directory for resolution
+    let workingDir = cwd;
+    
+         // Handle problematic MCP environments where cwd is root or empty
+     if (cwd === '/' || cwd === '' || !cwd) {
+       console.error(`[Figma API] WARNING: Problematic cwd detected: "${cwd}"`);
+       
+       // Try environment variables for better working directory
+       const envWorkingDir = process.env.INIT_CWD || process.env.PWD || process.env.HOME;
+       
+       // Final fallback for MCP environments
+       if (!envWorkingDir || envWorkingDir === '/' || envWorkingDir === '') {
+         // Use a safe temporary directory structure
+         workingDir = '/tmp/figma-mcp-workspace';
+         console.error(`[Figma API] Using safe fallback working directory: ${workingDir}`);
+       } else {
+         workingDir = envWorkingDir;
+         console.error(`[Figma API] Using environment working directory: ${workingDir}`);
+       }
+     }
+    
+    // Build the final path using safe join (never produces root paths)
+    let resolvedPath: string;
+    
+    if (path.isAbsolute(cleanPath)) {
+      // If somehow still absolute, force it to be relative
+      console.error(`[Figma API] WARNING: Forcing absolute path to relative: ${cleanPath}`);
+      cleanPath = path.basename(cleanPath);
+    }
+    
+    // Use path.join which handles cross-platform path separators safely
+    resolvedPath = path.join(workingDir, cleanPath);
+    
+    // Final safety check: ensure we never create paths at dangerous locations
+    if (resolvedPath === '/' || 
+        resolvedPath.startsWith('/bin') || 
+        resolvedPath.startsWith('/usr') || 
+        resolvedPath.startsWith('/etc') ||
+        resolvedPath.startsWith('/var') ||
+        resolvedPath.startsWith('/sys') ||
+        resolvedPath.startsWith('/proc')) {
+      
+      console.error(`[Figma API] CRITICAL: Dangerous path detected, using ultra-safe fallback: ${resolvedPath}`);
+      // Ultra-safe fallback
+      resolvedPath = path.join('/tmp', 'figma-mcp-safe', cleanPath);
+    }
+    
+    console.error(`[Figma API] Final path resolution: "${inputPath}" -> "${resolvedPath}"`);
+    console.error(`[Figma API] Working dir: "${workingDir}", Clean path: "${cleanPath}"`);
+    
     return resolvedPath;
   }
 

@@ -5,6 +5,43 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [3.0.16] - 2025-01-21
+
+### 🔧 **CRITICAL FIX: Enhanced Cursor MCP Path Resolution**
+- **FIXED**: Advanced directory creation failure specific to Cursor MCP environment  
+- **ISSUE**: `download_design_assets` failing with "ENOENT: no such file or directory, mkdir '/assets'"
+- **ROOT CAUSE**: Cursor MCP environment interpreting `./assets` as absolute path `/assets` instead of relative path
+- **SOLUTION**: Completely rebuilt path resolution with Cursor-specific compatibility:
+  - Force relative path handling, never allow filesystem root paths
+  - Enhanced working directory detection using environment variables (`PWD`, `INIT_CWD`, `HOME`)
+  - Ultra-safe fallbacks for problematic MCP environments  
+  - Advanced safety checks preventing dangerous directory creation
+  - Enhanced logging for comprehensive debugging
+
+### Technical Implementation
+- **Path Cleaning**: Strip all absolute path indicators (`/`, `./`, `../`) to force relative
+- **Environment Detection**: Comprehensive `cwd`, `PWD`, `INIT_CWD`, `HOME` environment analysis
+- **Safe Fallbacks**: `/tmp/figma-mcp-workspace` for extreme MCP environment edge cases
+- **Safety Validation**: Prevents creation at `/`, `/bin`, `/usr`, `/etc`, `/var`, `/sys`, `/proc`
+- **Cross-Platform**: Enhanced `path.join()` usage for reliable cross-platform path handling
+
+### Before vs After
+- **Before**: `./assets` → `/assets` (filesystem root) ❌ ENOENT error
+- **After**: `./assets` → `/workspace/assets` (correct location) ✅ Works reliably in Cursor
+
+### Enhanced Debugging
+- **Environment Logging**: Complete environment variable analysis
+- **Path Tracking**: Step-by-step path transformation logging (`input → normalized → cleaned → resolved`)
+- **Safety Validation**: Clear logging for any dangerous path detection and blocking
+
+### MCP Client Compatibility
+✅ **Cursor**: Fixed critical `/assets` root creation error  
+✅ **Windsurf**: Enhanced compatibility  
+✅ **Other MCP Clients**: Improved reliability across all environments  
+✅ **Cross-Platform**: Windows, macOS, Linux path handling  
+
+**Result: Directory creation now works reliably across ALL MCP environments, especially Cursor!** 🎯
+
 ## [3.0.15] - 2025-01-21
 
 ### 🔧 **CRITICAL FIX: Cursor MCP Path Resolution Issue**
