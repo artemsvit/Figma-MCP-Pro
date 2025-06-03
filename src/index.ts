@@ -470,6 +470,33 @@ class CustomFigmaMcpServer {
       // Generate optimized data for AI (removing redundant information)
       const optimizedData = this.contextProcessor.optimizeForAI(enhancedData);
 
+      // Create debug metadata for coordinate analysis
+      const debugInfo: any = {
+        framework: framework || 'html',
+        source: isSpecificNode ? 'selection' : 'document',
+        processed: stats.nodesProcessed,
+        comments: includeComments ? (commentsData?.length || 0) : 0
+      };
+
+      // Add coordinate debugging info when comments are requested
+      if (includeComments) {
+        debugInfo.commentDebug = {
+          totalComments: commentsData ? commentsData.length : 0,
+          commentsData: commentsData,
+          commentsWithCoordinates: commentsData ? commentsData.filter(c => c.client_meta?.node_offset).length : 0,
+          commentDetails: commentsData ? commentsData.map(comment => ({
+            message: comment.message,
+            coordinates: comment.client_meta?.node_offset ? {
+              x: comment.client_meta.node_offset.x,
+              y: comment.client_meta.node_offset.y
+            } : null,
+            targetNodeId: comment.client_meta?.node_id,
+            allClientMeta: comment.client_meta
+          })) : [],
+          elementBounds: this.extractAllElementBounds(enhancedData)
+        };
+      }
+
       return {
         content: [
           {
@@ -478,19 +505,8 @@ class CustomFigmaMcpServer {
               // Primary data: AI-optimized and clean
               data: optimizedData,
               
-              // Optional: Include full data for debugging (if needed)
-              // fullData: enhancedData,
-              
-              // Note: Exportable images are now detected and marked within the data structure
-              // Use download_figma_images tool for actual image downloads
-              
-              // Essential metadata for development
-              metadata: {
-                framework: framework || 'html',
-                source: isSpecificNode ? 'selection' : 'document',
-                processed: stats.nodesProcessed,
-                comments: includeComments ? (commentsData?.length || 0) : 0
-              }
+              // Essential metadata for development (now includes debugging)
+              metadata: debugInfo
             }, null, 2)
           }
         ]
@@ -808,6 +824,37 @@ class CustomFigmaMcpServer {
   }
 
 
+
+  /**
+   * Extract all element bounds for coordinate debugging
+   */
+  private extractAllElementBounds(node: any): any[] {
+    const bounds: any[] = [];
+    
+    const extractBounds = (currentNode: any, path: string = '') => {
+      const fullPath = path ? `${path} > ${currentNode.name}` : currentNode.name;
+      
+      if (currentNode.bounds) {
+        bounds.push({
+          path: fullPath,
+          id: currentNode.id,
+          name: currentNode.name,
+          type: currentNode.type,
+          bounds: currentNode.bounds,
+          area: currentNode.bounds.width * currentNode.bounds.height
+        });
+      }
+      
+      if (currentNode.children && Array.isArray(currentNode.children)) {
+        currentNode.children.forEach((child: any) => {
+          extractBounds(child, fullPath);
+        });
+      }
+    };
+    
+    extractBounds(node);
+    return bounds.sort((a, b) => a.area - b.area); // Sort by area (smallest first)
+  }
 
   private async handleGetServerStats() {
     try {
