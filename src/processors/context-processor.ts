@@ -882,7 +882,11 @@ export class ContextProcessor {
     const availableInstructions = simplifiedInstructions.filter((_, index) => !usedInstructions.has(index));
     console.error(`  Available instructions for this node: ${availableInstructions.length}`);
     
-    const matchedInstructions = this.matchInstructionsToNode(node, availableInstructions);
+    // Special case: if we have hover/animation instructions and this node is a parent,
+    // try to find the most appropriate child element
+    const semanticInstructions = this.findSemanticMatches(node, availableInstructions);
+    
+    const matchedInstructions = this.matchInstructionsToNode(node, semanticInstructions.length > 0 ? semanticInstructions : availableInstructions);
 
     // Create enhanced node with comments
     const enhancedNodeWithComments: EnhancedFigmaNodeWithComments = {
@@ -929,6 +933,86 @@ export class ContextProcessor {
         this.markUsedInstructionsRecursively(child as EnhancedFigmaNodeWithComments, simplifiedInstructions, usedInstructions);
       });
     }
+  }
+
+  /**
+   * Find semantic matches - prefer instructions to go to appropriate interactive elements
+   */
+  private findSemanticMatches(
+    node: EnhancedFigmaNode,
+    instructions: Array<{ instruction: string; coordinates: { x: number; y: number }; nodeId?: string }>
+  ): Array<{ instruction: string; coordinates: { x: number; y: number }; nodeId?: string }> {
+    // Only apply semantic matching for parent containers
+    if (!node.children || node.children.length === 0) {
+      return instructions;
+    }
+
+    console.error(`  Applying semantic matching for parent node: ${node.name}`);
+    
+    const semanticMatches: typeof instructions = [];
+    
+    for (const inst of instructions) {
+      const instructionText = inst.instruction.toLowerCase();
+      
+      // Look for interaction instructions that should be on interactive elements
+      if (instructionText.includes('hover') || 
+          instructionText.includes('click') || 
+          instructionText.includes('animation') ||
+          instructionText.includes('jump') ||
+          instructionText.includes('bounce')) {
+        
+        console.error(`    Found interaction instruction: "${inst.instruction}"`);
+        
+        // Find the best child element for this instruction
+        const targetChild = this.findBestChildForInstruction(node, inst);
+        
+        if (targetChild) {
+          console.error(`    Redirecting to child: ${targetChild.name}`);
+          // Don't include this instruction for the parent - let the child handle it
+          continue;
+        }
+      }
+      
+      // Keep non-interaction instructions or those without better targets
+      semanticMatches.push(inst);
+    }
+    
+    console.error(`  Semantic matching result: ${semanticMatches.length}/${instructions.length} instructions kept for parent`);
+    return semanticMatches;
+  }
+
+  /**
+   * Find the best child element for a specific instruction
+   */
+  private findBestChildForInstruction(
+    parentNode: EnhancedFigmaNode,
+    instruction: { instruction: string; coordinates: { x: number; y: number }; nodeId?: string }
+  ): EnhancedFigmaNode | null {
+    if (!parentNode.children) return null;
+
+    const instructionText = instruction.instruction.toLowerCase();
+    
+    // Look for children that match the instruction semantically
+    for (const child of parentNode.children) {
+      const childName = child.name.toLowerCase();
+      
+      // Check for interactive elements
+      if (instructionText.includes('hover') || instructionText.includes('animation')) {
+        if (childName.includes('tag') || 
+            childName.includes('button') || 
+            childName.includes('link') ||
+            child.type === 'FRAME' && childName.includes('action')) {
+          console.error(`      Found semantic match: ${child.name} for "${instruction.instruction}"`);
+          return child as EnhancedFigmaNode;
+        }
+      }
+      
+      // Recursively check grandchildren
+      const grandchild = this.findBestChildForInstruction(child as EnhancedFigmaNode, instruction);
+      if (grandchild) return grandchild;
+    }
+    
+    return null;
   }
 
   /**
@@ -1005,14 +1089,43 @@ export class ContextProcessor {
            y >= bounds.y - tolerance && y <= bounds.y + bounds.height + tolerance)
         );
         
-        // Prioritize interactive elements (buttons, inputs, etc.)
-        const isInteractive = node.type === 'FRAME' && 
-                             (node.name.toLowerCase().includes('button') || 
-                              node.name.toLowerCase().includes('tag') ||
-                              inst.instruction.toLowerCase().includes('hover') ||
-                              inst.instruction.toLowerCase().includes('click'));
+        // Semantic matching: match interaction instructions to interactive elements
+        const instructionText = inst.instruction.toLowerCase();
+        const nodeName = node.name.toLowerCase();
         
-        const matches = strictMatch || (fuzzyMatch && isInteractive);
+        // Check if this is an interactive instruction
+        const isInteractionInstruction = instructionText.includes('hover') || 
+                                        instructionText.includes('click') || 
+                                        instructionText.includes('animation') ||
+                                        instructionText.includes('jump') ||
+                                        instructionText.includes('bounce');
+        
+        // Check if this is an interactive element
+        const isInteractiveElement = (
+          node.type === 'FRAME' && 
+          (nodeName.includes('button') || 
+           nodeName.includes('tag') || 
+           nodeName.includes('link') ||
+           nodeName.includes('action'))
+        ) || (
+          // Also check semantic role
+          node.semanticRole?.type === 'button' ||
+          // Or check if it has hover interactions already
+          (node as any).interactions?.some?.((int: any) => int.trigger === 'hover')
+        );
+        
+        // Smart matching logic
+        let matches = false;
+        
+        if (strictMatch) {
+          matches = true; // Always match if coordinates are perfect
+        } else if (fuzzyMatch && isInteractionInstruction && isInteractiveElement) {
+          // Strongly prefer interactive elements for interaction instructions
+          matches = true;
+        } else if (fuzzyMatch && !isInteractionInstruction) {
+          // For non-interaction instructions, use loose matching
+          matches = true;
+        }
         console.error(`    Checking instruction "${inst.instruction}" at (${x}, ${y}): ${matches ? (strictMatch ? 'STRICT MATCH' : 'FUZZY MATCH') : 'NO MATCH'}`);
         return matches;
       });
