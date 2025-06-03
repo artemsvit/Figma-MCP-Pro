@@ -10,6 +10,7 @@ import { z } from 'zod';
 import { Command } from 'commander';
 import dotenv from 'dotenv';
 import chalk from 'chalk';
+import { VERSION } from './version.js';
 
 // Load environment variables
 dotenv.config();
@@ -77,7 +78,7 @@ class CustomFigmaMcpServer {
     this.server = new Server(
       {
         name: 'figma-mcp-pro',
-        version: '1.4.2',
+        version: VERSION,
       },
       {
         capabilities: {
@@ -584,7 +585,7 @@ const program = new Command();
 program
   .name('figma-mcp-pro')
   .description('Professional Figma MCP Server with enhanced AI context processing')
-  .version('1.4.2')
+  .version(VERSION)
   .requiredOption('--figma-api-key <key>', 'Figma API key', process.env.FIGMA_API_KEY)
   .option('--port <port>', 'Server port', process.env.PORT)
   .option('--debug', 'Enable debug mode', process.env.DEBUG === 'true')
