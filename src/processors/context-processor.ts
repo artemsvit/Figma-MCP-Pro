@@ -1315,7 +1315,7 @@ export class ContextProcessor {
     const hasSimpleStructure = !node.children || node.children.length <= 1;
     const isVisualElement = hasImageFill || isComponent || hasSimpleStructure;
     
-    if (isIcon || isImage || (isComponent && isVisualElement)) {
+    if (isIcon || isImage || (isComponent && isVisualElement) || hasExportSettings) {
       let category: 'icon' | 'image' | 'logo' = 'icon';
       
       if (hasImageFill) category = 'image';
