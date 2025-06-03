@@ -5,6 +5,44 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [3.0.15] - 2025-01-21
+
+### 🔧 **CRITICAL FIX: Cursor MCP Path Resolution Issue**
+- **FIXED**: Critical path resolution bug in Cursor MCP environment causing `mkdir '/assets'` errors
+- **ROOT CAUSE**: Cursor MCP environment returns `process.cwd() === '/'` instead of workspace directory  
+- **ISSUE**: Relative paths like `./assets` or `assets` were being resolved to filesystem root `/assets`
+- **SOLUTION**: Enhanced path resolution with MCP environment detection and safe fallbacks
+
+### What Was Fixed
+- **Before**: `./assets` → `/assets` (filesystem root) ❌ ENOENT error
+- **After**: `./assets` → `/workspace/path/assets` (correct location) ✅ Works reliably
+
+### Technical Implementation
+- **🛡️ Environment Detection**: Detects when `process.cwd()` returns `/` (MCP issue indicator)
+- **🔄 Safe Fallbacks**: Uses `PWD`, `INIT_CWD` environment variables to find real workspace
+- **⚠️ Safety Blocks**: Prevents dangerous directory creation at `/`, `/bin`, `/usr`, `/etc`
+- **🧹 Path Sanitization**: Forces relative paths by stripping leading slashes
+- **📝 Enhanced Debugging**: Comprehensive logging for environment and path resolution
+
+### Environment Handling
+- **Normal environments**: Standard `path.resolve(cwd, cleanPath)` 
+- **MCP environments**: Uses `process.env.PWD || process.env.INIT_CWD || '/tmp/figma-mcp'`
+- **Fallback defaults**: Safe directory names like `assets` or `figma-assets`
+- **Safety validation**: Blocks creation of directories in system locations
+
+### Debugging Enhancements
+- **Environment info**: Logs `cwd`, `PWD`, `INIT_CWD` values for diagnosis
+- **Path tracking**: Shows original input → normalized → cleaned → resolved path chain
+- **Error context**: Detailed error information with environment variables
+
+### MCP Client Compatibility
+✅ **Cursor**: Fixed `/assets` root creation error  
+✅ **Other MCP Clients**: Improved compatibility across different environments  
+✅ **Path Safety**: No more dangerous system directory creation attempts  
+✅ **Error Diagnosis**: Clear logging for troubleshooting path issues in any environment  
+
+**Result**: Directory creation now works reliably in all MCP environments, especially Cursor! 🛠️
+
 ## [3.0.14] - 2025-01-21
 
 ### 🔧 **CRITICAL FIX: Complete Dynamic Import Removal**

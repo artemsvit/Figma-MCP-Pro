@@ -478,28 +478,52 @@ export class FigmaApiService {
     
     console.error(`[Figma API] Input path: "${inputPath}" -> normalized: "${normalizedPath}"`);
     
-    if (path.isAbsolute(normalizedPath)) {
+    // If already absolute and looks valid, use it
+    if (path.isAbsolute(normalizedPath) && normalizedPath !== '/') {
       console.error(`[Figma API] Path is absolute: ${normalizedPath}`);
       return normalizedPath;
-    } else {
-      // For relative paths, ensure we resolve from a known base directory
-      const cwd = process.cwd();
-      console.error(`[Figma API] Current working directory: ${cwd}`);
+    }
+    
+    // For relative paths or problematic absolute paths
+    const cwd = process.cwd();
+    console.error(`[Figma API] Current working directory: ${cwd}`);
+    
+    // Defensive check: if cwd is root, it's likely an MCP environment issue
+    if (cwd === '/' || cwd === '') {
+      console.error(`[Figma API] WARNING: cwd is root or empty, using safe fallback`);
+      // In MCP environments, try to use a safe working directory
+      // This prevents creating directories at filesystem root
+      const safeCwd = process.env.PWD || process.env.INIT_CWD || '/tmp/figma-mcp';
+      console.error(`[Figma API] Using safe working directory: ${safeCwd}`);
       
-      // Clean the relative path and resolve it properly
+      // Clean the path and ensure it's relative
       let cleanPath = normalizedPath
         .replace(/^\.\//, '') // Remove leading ./
-        .replace(/^\//, ''); // Remove leading / if accidentally added
+        .replace(/^\/+/, '') // Remove any leading slashes
+        .replace(/^\.*\//, ''); // Remove any leading ../
       
-      // Ensure we don't have an empty path
-      if (!cleanPath) {
-        cleanPath = '.';
+      if (!cleanPath || cleanPath === '.' || cleanPath === '..') {
+        cleanPath = 'figma-assets'; // Safe default
       }
       
-      const resolvedPath = path.resolve(cwd, cleanPath);
-      console.error(`[Figma API] Relative path resolution: "${cleanPath}" -> "${resolvedPath}"`);
+      const resolvedPath = path.join(safeCwd, cleanPath);
+      console.error(`[Figma API] Safe path resolution: "${cleanPath}" -> "${resolvedPath}"`);
       return resolvedPath;
     }
+    
+    // Normal path resolution for good environments
+    let cleanPath = normalizedPath
+      .replace(/^\.\//, '') // Remove leading ./
+      .replace(/^\/+/, ''); // Remove any leading slashes to force relative
+    
+    // Ensure we don't have an empty path
+    if (!cleanPath || cleanPath === '.' || cleanPath === '..') {
+      cleanPath = 'assets'; // Default directory name
+    }
+    
+    const resolvedPath = path.resolve(cwd, cleanPath);
+    console.error(`[Figma API] Normal path resolution: "${cleanPath}" -> "${resolvedPath}"`);
+    return resolvedPath;
   }
 
   /**
@@ -512,7 +536,14 @@ export class FigmaApiService {
       throw new Error('Invalid or empty path after resolution');
     }
     
+    // Additional safety check: prevent creating directories at dangerous locations
+    if (resolvedPath === '/' || resolvedPath.startsWith('/bin') || resolvedPath.startsWith('/usr') || resolvedPath.startsWith('/etc')) {
+      console.error(`[Figma API] SAFETY BLOCK: Refusing to create directory at dangerous location: ${resolvedPath}`);
+      throw new FigmaApiError(`Blocked dangerous directory creation at: ${resolvedPath}. Original path: ${originalPath}`);
+    }
+    
     console.error(`[Figma API] Path resolution: "${originalPath}" -> "${resolvedPath}"`);
+    console.error(`[Figma API] Environment info: cwd="${process.cwd()}", PWD="${process.env.PWD}", INIT_CWD="${process.env.INIT_CWD}"`);
     
     try {
       await fs.mkdir(resolvedPath, { recursive: true });
@@ -522,6 +553,12 @@ export class FigmaApiService {
       console.error(`[Figma API] Directory creation failed:`, { 
         originalPath, 
         resolvedPath,
+        cwd: process.cwd(),
+        environment: {
+          PWD: process.env.PWD,
+          INIT_CWD: process.env.INIT_CWD,
+          HOME: process.env.HOME
+        },
         error: errorMessage 
       });
       throw new FigmaApiError(`Failed to create directory: ${errorMessage}`);
