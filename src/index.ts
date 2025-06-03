@@ -255,12 +255,15 @@ class CustomFigmaMcpServer {
       );
     }
     
-    const { fileKey, nodeId, framework, includeImages, includeComments, customRules } = parsed;
+    const { fileKey, framework, includeImages, includeComments, customRules } = parsed;
     const depth = parsed.depth || 5;
 
+    // Convert node ID format from URL format (1530-166) to API format (1530:166)
+    const apiNodeId = parsed.nodeId ? parsed.nodeId.replace(/-/g, ':') : undefined;
+
     this.log(`[Figma MCP] Fetching data for file: ${fileKey} (depth: ${depth})`);
-    if (nodeId) {
-      this.log(`[Figma MCP] Target node: ${nodeId}`);
+    if (apiNodeId) {
+      this.log(`[Figma MCP] Target node: ${apiNodeId} (converted from: ${parsed.nodeId})`);
     }
     
     try {
@@ -272,23 +275,23 @@ class CustomFigmaMcpServer {
       let figmaData;
       let isSpecificNode = false;
       
-      if (nodeId) {
+      if (apiNodeId) {
         // Fetch specific node with depth - this is what user selected
-        this.log(`[Figma MCP] Fetching specific node: ${nodeId}`);
+        this.log(`[Figma MCP] Fetching specific node: ${apiNodeId}`);
         try {
-          const nodeResponse = await this.figmaApi.getFileNodes(fileKey, [nodeId], {
+          const nodeResponse = await this.figmaApi.getFileNodes(fileKey, [apiNodeId], {
             depth: depth,
             use_absolute_bounds: true
           });
           this.log(`[Figma MCP] Node response received, keys:`, Object.keys(nodeResponse.nodes));
-          const nodeWrapper = nodeResponse.nodes[nodeId];
+          const nodeWrapper = nodeResponse.nodes[apiNodeId];
           if (!nodeWrapper) {
-            throw new Error(`Node ${nodeId} not found in file ${fileKey}. Available nodes: ${Object.keys(nodeResponse.nodes).join(', ')}`);
+            throw new Error(`Node ${apiNodeId} not found in file ${fileKey}. Available nodes: ${Object.keys(nodeResponse.nodes).join(', ')}`);
           }
           figmaData = nodeWrapper.document;
           isSpecificNode = true;
         } catch (apiError) {
-          this.logError(`[Figma MCP] API error fetching node ${nodeId}:`, apiError);
+          this.logError(`[Figma MCP] API error fetching node ${apiNodeId}:`, apiError);
           throw apiError;
         }
       } else {
@@ -409,7 +412,7 @@ class CustomFigmaMcpServer {
               images: imageUrls,
               metadata: {
                 fileKey,
-                nodeId,
+                nodeId: parsed.nodeId,
                 framework,
                 isSpecificSelection: isSpecificNode,
                 selectionType: isSpecificNode ? 'user_selection' : 'full_document',
