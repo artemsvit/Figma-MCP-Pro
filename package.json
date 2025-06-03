@@ -1,7 +1,7 @@
 {
   "name": "figma-mcp-pro",
-  "version": "2.3.4",
-  "description": "Professional Figma MCP Server with enhanced AI context processing and framework-first URL analysis",
+  "version": "3.0.4",
+  "description": "Professional Figma MCP Server with intelligent 4-step workflow: show_frameworks, get_figma_data, process_design_comments, and automatic export asset discovery. Takes Figma URLs, scans for export-ready assets, downloads with native Figma settings.",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
   "type": "module",
@@ -39,12 +39,17 @@
     "cursor",
     "design",
     "typescript",
+    "comment-processing",
+    "coordinate-matching",
     "export-settings",
     "image-download",
     "design-tokens",
     "code-generation",
     "claude",
-    "context-processing"
+    "context-processing",
+    "workflow",
+    "windsurf",
+    "ai-prompts"
   ],
   "author": "Artem Svitelskyi <a.svitelskyi@gmail.com>",
   "license": "MIT",

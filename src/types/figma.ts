@@ -509,9 +509,48 @@ export interface CSSProperties {
 }
 
 export interface SemanticRole {
-  type: 'button' | 'input' | 'text' | 'image' | 'container' | 'navigation' | 'header' | 'footer' | 'main' | 'section' | 'article';
+  type: 'button' | 'input' | 'text' | 'image' | 'container' | 'navigation' | 'header' | 'footer' | 'main' | 'section' | 'article' | 'list' | 'grid' | 'card';
   purpose?: string;
   hierarchy?: number;
+  
+  // Enhanced button properties
+  variant?: string;
+  state?: string;
+  
+  // Enhanced input properties
+  inputType?: string;
+  required?: boolean;
+  
+  // Enhanced navigation properties
+  level?: number;
+  
+  // Enhanced text properties
+  contentType?: string;
+  textAlign?: string;
+  
+  // Enhanced list properties
+  listType?: string;
+  itemCount?: number;
+  
+  // Enhanced grid properties
+  gridStructure?: {
+    columns: number;
+    rows: number;
+    gap: number;
+  };
+  responsive?: boolean;
+  
+  // Enhanced card properties
+  cardType?: string;
+  hasActions?: boolean;
+  
+  // Enhanced container properties
+  layoutPattern?: string;
+  semantic?: string;
+  
+  // Enhanced image properties
+  imageType?: string;
+  hasCaption?: boolean;
 }
 
 export interface AccessibilityInfo {

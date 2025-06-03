@@ -104,6 +104,15 @@ export interface HTMLOptimizations {
   useTailwindCSS: boolean;
   generateAccessibleMarkup: boolean;
   useModernCSS: boolean;
+  implementationRules?: {
+    [key: string]: {
+      rule: string;
+      description: string;
+      priority: 'critical' | 'high' | 'medium' | 'low';
+      example?: string;
+      checks?: string[];
+    };
+  };
 }
 
 export interface CustomRule {

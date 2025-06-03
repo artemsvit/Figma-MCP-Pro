@@ -392,36 +392,457 @@ export class ContextProcessor {
     return css;
   }
 
-  private analyzeSemanticRole(node: FigmaNode, _context: ProcessingContext): SemanticRole | undefined {
+  private analyzeSemanticRole(node: FigmaNode, context: ProcessingContext): SemanticRole | undefined {
     const name = node.name.toLowerCase();
     
-    // Button detection
-    if (name.includes('button') || name.includes('btn')) {
-      return { type: 'button', purpose: 'interactive' };
+    // Enhanced button detection with states
+    if (this.isButton(node, name)) {
+      return { 
+        type: 'button', 
+        purpose: 'interactive',
+        variant: this.detectButtonVariant(node, name),
+        state: this.detectComponentState(node, name)
+      };
     }
     
-    // Input detection
-    if (name.includes('input') || name.includes('field') || name.includes('textbox')) {
-      return { type: 'input', purpose: 'data-entry' };
+    // Enhanced input detection with field types
+    if (this.isInput(node, name)) {
+      return { 
+        type: 'input', 
+        purpose: 'data-entry',
+        inputType: this.detectInputType(node, name),
+        required: name.includes('required') || name.includes('*')
+      };
     }
     
-    // Navigation detection
-    if (name.includes('nav') || name.includes('menu') || name.includes('header')) {
-      return { type: 'navigation', purpose: 'navigation' };
+    // Navigation and menu detection
+    if (this.isNavigation(node, name, context)) {
+      return { 
+        type: 'navigation', 
+        purpose: 'navigation',
+        level: this.detectNavigationLevel(node, context)
+      };
     }
     
-    // Text content
+    // Enhanced text content with semantic hierarchy
     if (node.type === 'TEXT') {
       const hierarchy = this.detectTextHierarchy(node);
-      return { type: 'text', hierarchy };
+      const contentType = this.detectContentType(node, name);
+      return { 
+        type: 'text', 
+        hierarchy,
+        contentType,
+        textAlign: this.detectTextAlignment(node)
+      };
     }
     
-    // Container detection
+    // List detection
+    if (this.isList(node, name, context)) {
+      return {
+        type: 'list',
+        purpose: 'content',
+        listType: this.detectListType(node, name),
+        itemCount: this.countListItems(node)
+      };
+    }
+    
+    // Grid detection
+    if (this.isGrid(node, name, context)) {
+      return {
+        type: 'grid',
+        purpose: 'layout',
+        gridStructure: this.analyzeGridStructure(node),
+        responsive: this.detectResponsiveBehavior(node)
+      };
+    }
+    
+    // Card component detection
+    if (this.isCard(node, name, context)) {
+      return {
+        type: 'card',
+        purpose: 'content',
+        cardType: this.detectCardType(node, name),
+        hasActions: this.hasCardActions(node)
+      };
+    }
+    
+    // Container with layout analysis
     if (node.type === 'FRAME' && node.children && node.children.length > 0) {
-      return { type: 'container', purpose: 'layout' };
+      const layoutPattern = this.detectLayoutPattern(node);
+      return { 
+        type: 'container', 
+        purpose: 'layout',
+        layoutPattern,
+        semantic: this.detectContainerSemantic(node, name)
+      };
+    }
+    
+    // Image with enhanced detection
+    if (this.isImage(node, name)) {
+      return {
+        type: 'image',
+        purpose: 'visual',
+        imageType: this.detectImageType(node, name),
+        hasCaption: this.hasImageCaption(node, context)
+      };
     }
     
     return undefined;
+  }
+
+  // Enhanced helper methods for semantic analysis
+  private isButton(node: FigmaNode, name: string): boolean {
+    return name.includes('button') || 
+           name.includes('btn') || 
+           name.includes('cta') ||
+           (node.type === 'FRAME' && this.hasButtonCharacteristics(node));
+  }
+
+  private hasButtonCharacteristics(node: FigmaNode): boolean {
+    // Check for button-like styling: rounded corners, solid background, centered text
+    const hasRoundedCorners = Boolean(node.cornerRadius && node.cornerRadius > 0);
+    const hasSolidBackground = Boolean(node.fills && node.fills.some(fill => fill.type === 'SOLID'));
+    const hasClickableSize = Boolean(node.absoluteBoundingBox && 
+      node.absoluteBoundingBox.width >= 60 && node.absoluteBoundingBox.height >= 32);
+    const hasTextChild = Boolean(node.children && node.children.some(child => child.type === 'TEXT'));
+    
+    return hasRoundedCorners && hasSolidBackground && hasClickableSize && hasTextChild;
+  }
+
+  private detectButtonVariant(node: FigmaNode, name: string): string {
+    if (name.includes('primary')) return 'primary';
+    if (name.includes('secondary')) return 'secondary';
+    if (name.includes('outline')) return 'outline';
+    if (name.includes('ghost')) return 'ghost';
+    if (name.includes('link')) return 'link';
+    return 'default';
+  }
+
+  private detectComponentState(node: FigmaNode, name: string): string {
+    if (name.includes('disabled')) return 'disabled';
+    if (name.includes('hover')) return 'hover';
+    if (name.includes('active')) return 'active';
+    if (name.includes('focus')) return 'focus';
+    return 'default';
+  }
+
+  private isInput(node: FigmaNode, name: string): boolean {
+    return name.includes('input') || 
+           name.includes('field') || 
+           name.includes('textbox') ||
+           name.includes('textarea') ||
+           name.includes('select') ||
+           name.includes('dropdown');
+  }
+
+  private detectInputType(node: FigmaNode, name: string): string {
+    if (name.includes('email')) return 'email';
+    if (name.includes('password')) return 'password';
+    if (name.includes('search')) return 'search';
+    if (name.includes('number')) return 'number';
+    if (name.includes('tel') || name.includes('phone')) return 'tel';
+    if (name.includes('url')) return 'url';
+    if (name.includes('date')) return 'date';
+    if (name.includes('textarea')) return 'textarea';
+    if (name.includes('select') || name.includes('dropdown')) return 'select';
+    return 'text';
+  }
+
+  private isNavigation(node: FigmaNode, name: string, context: ProcessingContext): boolean {
+    return name.includes('nav') || 
+           name.includes('menu') || 
+           name.includes('header') ||
+           name.includes('breadcrumb') ||
+           (this.hasNavigationPattern(node) && context.depth <= 2);
+  }
+
+  private hasNavigationPattern(node: FigmaNode): boolean {
+    // Check for horizontal list of links/buttons
+    if (node.layoutMode === 'HORIZONTAL' && node.children) {
+      const hasMultipleItems = node.children.length >= 2;
+      const hasUniformItems = this.hasUniformChildren(node);
+      return hasMultipleItems && hasUniformItems;
+    }
+    return false;
+  }
+
+  private detectNavigationLevel(node: FigmaNode, context: ProcessingContext): number {
+    if (context.depth === 0) return 1; // Primary navigation
+    if (context.depth === 1) return 2; // Secondary navigation
+    return 3; // Tertiary navigation
+  }
+
+  private isList(node: FigmaNode, name: string, context: ProcessingContext): boolean {
+    if (name.includes('list') || name.includes('items')) return true;
+    
+    // Auto-detect list pattern
+    if (node.children && node.children.length >= 2) {
+      const hasRepeatingPattern = this.hasRepeatingPattern(node);
+      const isVerticalLayout = node.layoutMode === 'VERTICAL' || 
+        (node.layoutMode === undefined && this.hasVerticalArrangement(node));
+      return hasRepeatingPattern && isVerticalLayout;
+    }
+    return false;
+  }
+
+  private detectListType(node: FigmaNode, name: string): string {
+    if (name.includes('ordered') || name.includes('numbered')) return 'ordered';
+    if (name.includes('unordered') || name.includes('bullet')) return 'unordered';
+    if (name.includes('description') || name.includes('definition')) return 'description';
+    
+    // Auto-detect based on content
+    if (node.children && node.children.length > 0) {
+      const firstChild = node.children[0];
+      if (firstChild && this.hasNumbering(firstChild)) return 'ordered';
+      if (firstChild && this.hasBulletPoints(firstChild)) return 'unordered';
+    }
+    return 'unordered';
+  }
+
+  private countListItems(node: FigmaNode): number {
+    if (!node.children) return 0;
+    // Count direct children that represent list items
+    return node.children.filter(child => 
+      child.type === 'FRAME' || child.type === 'TEXT'
+    ).length;
+  }
+
+  private isGrid(node: FigmaNode, name: string, context: ProcessingContext): boolean {
+    if (name.includes('grid') || name.includes('gallery')) return true;
+    
+    // Auto-detect grid pattern
+    if (node.children && node.children.length >= 4) {
+      const gridStructure = this.analyzeGridStructure(node);
+      return gridStructure.columns > 1 && gridStructure.rows > 1;
+    }
+    return false;
+  }
+
+  private analyzeGridStructure(node: FigmaNode): { columns: number; rows: number; gap: number } {
+    if (!node.children || node.children.length === 0) {
+      return { columns: 1, rows: 1, gap: 0 };
+    }
+
+    // Sort children by position
+    const children = [...node.children].sort((a, b) => {
+      const aBox = a.absoluteBoundingBox;
+      const bBox = b.absoluteBoundingBox;
+      if (!aBox || !bBox) return 0;
+      
+      // Sort by Y first, then by X
+      if (Math.abs(aBox.y - bBox.y) < 10) {
+        return aBox.x - bBox.x;
+      }
+      return aBox.y - bBox.y;
+    });
+
+    // Detect grid dimensions
+    if (children.length === 0) return { columns: 1, rows: 1, gap: 0 };
+    
+    const firstChild = children[0];
+    if (!firstChild || !firstChild.absoluteBoundingBox) return { columns: 1, rows: 1, gap: 0 };
+    
+    // Count items in first row (same Y position)
+    const firstRowY = firstChild.absoluteBoundingBox.y;
+    const firstRowItems = children.filter(child => 
+      child.absoluteBoundingBox && 
+      Math.abs(child.absoluteBoundingBox.y - firstRowY) < 10
+    );
+    
+    const columns = firstRowItems.length;
+    const rows = Math.ceil(children.length / columns);
+    
+    // Calculate gap
+    let gap = 0;
+    if (firstRowItems.length > 1) {
+      const first = firstRowItems[0]?.absoluteBoundingBox;
+      const second = firstRowItems[1]?.absoluteBoundingBox;
+      if (first && second) {
+        gap = second.x - (first.x + first.width);
+      }
+    }
+    
+    return { columns, rows, gap: Math.max(0, gap) };
+  }
+
+  private isCard(node: FigmaNode, name: string, context: ProcessingContext): boolean {
+    if (name.includes('card') || name.includes('tile')) return true;
+    
+    // Auto-detect card pattern
+    return this.hasCardCharacteristics(node);
+  }
+
+  private hasCardCharacteristics(node: FigmaNode): boolean {
+    // Check for card-like styling and content structure
+    const hasBackground = Boolean(node.fills && node.fills.length > 0);
+    const hasBorder = Boolean(node.strokes && node.strokes.length > 0);
+    const hasShadow = Boolean(node.effects && node.effects.some(effect => 
+      effect.type === 'DROP_SHADOW' && effect.visible !== false
+    ));
+    const hasStructuredContent = Boolean(node.children && node.children.length >= 2);
+    const hasRoundedCorners = Boolean(node.cornerRadius && node.cornerRadius > 0);
+    
+    return (hasBackground || hasBorder || hasShadow) && 
+           hasStructuredContent && 
+           hasRoundedCorners;
+  }
+
+  private detectCardType(node: FigmaNode, name: string): string {
+    if (name.includes('product')) return 'product';
+    if (name.includes('profile') || name.includes('user')) return 'profile';
+    if (name.includes('article') || name.includes('blog')) return 'article';
+    if (name.includes('feature')) return 'feature';
+    return 'content';
+  }
+
+  private hasCardActions(node: FigmaNode): boolean {
+    if (!node.children) return false;
+    
+    return node.children.some(child => 
+      this.isButton(child, child.name.toLowerCase()) ||
+      child.name.toLowerCase().includes('action') ||
+      child.name.toLowerCase().includes('link')
+    );
+  }
+
+  private detectLayoutPattern(node: FigmaNode): string {
+    if (!node.children || node.children.length === 0) return 'empty';
+    
+    // Check for specific layout patterns
+    if (node.layoutMode === 'HORIZONTAL') {
+      if (this.hasUniformChildren(node)) return 'horizontal-list';
+      if (this.hasSidebarPattern(node)) return 'sidebar';
+      return 'horizontal-flow';
+    }
+    
+    if (node.layoutMode === 'VERTICAL') {
+      if (this.hasHeaderBodyFooterPattern(node)) return 'header-body-footer';
+      if (this.hasUniformChildren(node)) return 'vertical-list';
+      return 'vertical-flow';
+    }
+    
+    // Auto layout not defined, analyze positioning
+    if (this.hasGridPattern(node)) return 'grid';
+    if (this.hasAbsolutePositioning(node)) return 'absolute';
+    if (this.hasStackingPattern(node)) return 'stack';
+    
+    return 'free-form';
+  }
+
+  private detectContainerSemantic(node: FigmaNode, name: string): string {
+    if (name.includes('header')) return 'header';
+    if (name.includes('footer')) return 'footer';
+    if (name.includes('sidebar')) return 'aside';
+    if (name.includes('main') || name.includes('content')) return 'main';
+    if (name.includes('section')) return 'section';
+    if (name.includes('article')) return 'article';
+    if (name.includes('nav')) return 'nav';
+    return 'div';
+  }
+
+  private isImage(node: FigmaNode, name: string): boolean {
+    const hasImageFill = node.fills && node.fills.some(fill => fill.type === 'IMAGE');
+    const isImageType = node.type === 'RECTANGLE' || node.type === 'ELLIPSE';
+    const hasImageName = name.includes('image') || name.includes('photo') || 
+                        name.includes('picture') || name.includes('avatar');
+    
+    return hasImageFill || (isImageType && hasImageName);
+  }
+
+  private detectImageType(node: FigmaNode, name: string): string {
+    if (name.includes('avatar') || name.includes('profile')) return 'avatar';
+    if (name.includes('logo')) return 'logo';
+    if (name.includes('icon')) return 'icon';
+    if (name.includes('hero') || name.includes('banner')) return 'hero';
+    if (name.includes('thumbnail')) return 'thumbnail';
+    return 'content';
+  }
+
+  private hasImageCaption(node: FigmaNode, context: ProcessingContext): boolean {
+    // Check if there's a text element near this image
+    if (!context.parentNode?.children) return false;
+    
+    const nodeIndex = context.siblingIndex;
+    const siblings = context.parentNode.children;
+    
+    // Check next sibling for caption
+    if (nodeIndex + 1 < siblings.length) {
+      const nextSibling = siblings[nodeIndex + 1];
+      if (!nextSibling) return false;
+      
+      return nextSibling.type === 'TEXT' && 
+             nextSibling.name.toLowerCase().includes('caption');
+    }
+    
+    return false;
+  }
+
+  // Enhanced text hierarchy detection
+  private detectTextHierarchy(node: FigmaNode): number {
+    if (node.type !== 'TEXT' || !node.style) {
+      return 0;
+    }
+    
+    const fontSize = node.style.fontSize;
+    // @ts-ignore - fontWeight not in type definition but exists in API
+    const fontWeight = node.style.fontWeight || 400;
+    const name = node.name.toLowerCase();
+    
+    // Check explicit heading indicators first
+    if (name.includes('h1') || name.includes('heading 1')) return 1;
+    if (name.includes('h2') || name.includes('heading 2')) return 2;
+    if (name.includes('h3') || name.includes('heading 3')) return 3;
+    if (name.includes('h4') || name.includes('heading 4')) return 4;
+    if (name.includes('h5') || name.includes('heading 5')) return 5;
+    if (name.includes('h6') || name.includes('heading 6')) return 6;
+    
+    // Semantic name-based detection
+    if (name.includes('title') || name.includes('headline')) {
+      if (fontSize >= 32) return 1;
+      if (fontSize >= 24) return 2;
+      return 3;
+    }
+    
+    if (name.includes('subtitle') || name.includes('subheading')) {
+      if (fontSize >= 20) return 3;
+      return 4;
+    }
+    
+    // Font size and weight based detection
+    if (fontSize >= 36 || (fontSize >= 28 && fontWeight >= 600)) return 1;
+    if (fontSize >= 28 || (fontSize >= 24 && fontWeight >= 600)) return 2;
+    if (fontSize >= 24 || (fontSize >= 20 && fontWeight >= 600)) return 3;
+    if (fontSize >= 20 || (fontSize >= 18 && fontWeight >= 600)) return 4;
+    if (fontSize >= 18 || (fontSize >= 16 && fontWeight >= 600)) return 5;
+    if (fontSize >= 16 && fontWeight >= 600) return 6;
+    
+    return 0; // Body text
+  }
+
+  private detectContentType(node: FigmaNode, name: string): string {
+    if (name.includes('title') || name.includes('heading') || name.includes('headline')) return 'title';
+    if (name.includes('subtitle') || name.includes('subheading')) return 'subtitle';
+    if (name.includes('label')) return 'label';
+    if (name.includes('caption')) return 'caption';
+    if (name.includes('description') || name.includes('body')) return 'body';
+    if (name.includes('quote') || name.includes('blockquote')) return 'quote';
+    if (name.includes('code')) return 'code';
+    if (name.includes('link')) return 'link';
+    if (name.includes('date') || name.includes('time')) return 'datetime';
+    if (name.includes('price') || name.includes('cost')) return 'price';
+    if (name.includes('tag')) return 'tag';
+    return 'text';
+  }
+
+  private detectTextAlignment(node: FigmaNode): string {
+    if (node.type !== 'TEXT' || !node.style) return 'left';
+    
+    // @ts-ignore - textAlignHorizontal not in type definition but exists in API
+    const textAlign = node.style.textAlignHorizontal;
+    if (textAlign === 'CENTER') return 'center';
+    if (textAlign === 'RIGHT') return 'right';
+    if (textAlign === 'JUSTIFIED') return 'justify';
+    return 'left';
   }
 
   private generateAccessibilityInfo(node: FigmaNode, context: ProcessingContext): AccessibilityInfo {
@@ -778,20 +1199,6 @@ export class ContextProcessor {
     }
   }
 
-  private detectTextHierarchy(node: FigmaNode): number {
-    if (node.type !== 'TEXT' || !node.style) {
-      return 0;
-    }
-    
-    const fontSize = node.style.fontSize;
-    if (fontSize >= 32) return 1; // h1
-    if (fontSize >= 24) return 2; // h2
-    if (fontSize >= 20) return 3; // h3
-    if (fontSize >= 18) return 4; // h4
-    if (fontSize >= 16) return 5; // h5
-    return 6; // h6 or body
-  }
-
   private detectGridArea(_node: FigmaNode, _context: ProcessingContext): string | undefined {
     // Implementation for detecting CSS Grid area
     return undefined;
@@ -941,8 +1348,6 @@ export class ContextProcessor {
       });
     }
   }
-
-
 
   /**
    * Extract only essential data from comments: instruction + coordinates
@@ -1125,8 +1530,6 @@ export class ContextProcessor {
     return 'general';
   }
 
-
-
   /**
    * Extract all node IDs from a node tree for comment filtering
    */
@@ -1287,58 +1690,300 @@ export class ContextProcessor {
   }
 
   /**
-   * Detect if a node represents an exportable image/icon
+   * Detect ONLY nodes with explicit Figma export settings - no heuristics
+   * Following Figma API specification: only export what's marked for export
    */
   private detectExportableImage(node: any): { category: 'icon' | 'image' | 'logo'; formats: string[]; isExportable: boolean } | null {
-    // Check for image fills (actual images)
+    // ONLY detect nodes with explicit export settings configured in Figma
+    const hasExportSettings = node.exportSettings && node.exportSettings.length > 0;
+    
+    if (!hasExportSettings) {
+      return null; // No export settings = not exportable
+    }
+    
+    // Extract actual export formats and scales from Figma export settings
+    const formats: string[] = [];
+    for (const setting of node.exportSettings) {
+      const format = setting.format.toLowerCase();
+      let scale = 1;
+      
+      // Extract scale from constraint according to Figma API
+      if (setting.constraint) {
+        if (setting.constraint.type === 'SCALE') {
+          scale = setting.constraint.value;
+        }
+      }
+      
+      // Format with scale info (e.g., "svg", "png@2x")
+      if (format === 'svg' || scale === 1) {
+        formats.push(format);
+      } else {
+        formats.push(`${format}@${scale}x`);
+      }
+    }
+    
+    // Determine category based on actual content, not guessing
+    let category: 'icon' | 'image' | 'logo' = 'icon';
+    
+    // Check for actual image fills (photos/raster images)
     const hasImageFill = node.fills && node.fills.some((fill: any) => 
       fill.type === 'IMAGE' && fill.imageRef
     );
     
-    // Check for vector/icon characteristics
-    const isSmallSquare = node.absoluteBoundingBox && 
-      node.absoluteBoundingBox.width <= 100 && 
-      node.absoluteBoundingBox.height <= 100 &&
-      Math.abs(node.absoluteBoundingBox.width - node.absoluteBoundingBox.height) <= 10;
-    
-    // Check naming patterns
-    const name = node.name.toLowerCase();
-    const isIcon = name.includes('icon') || name.includes('logo') || 
-                   name.includes('svg') || isSmallSquare;
-    const isImage = hasImageFill || name.includes('image') || name.includes('photo');
-    
-    // Check if it's a component or has export settings
-    const isComponent = node.type === 'COMPONENT' || node.type === 'INSTANCE';
-    const hasExportSettings = node.exportSettings && node.exportSettings.length > 0;
-    
-    // Check if it's a visual element (not a layout container)
-    const hasSimpleStructure = !node.children || node.children.length <= 1;
-    const isVisualElement = hasImageFill || isComponent || hasSimpleStructure;
-    
-    if (isIcon || isImage || (isComponent && isVisualElement) || hasExportSettings) {
-      let category: 'icon' | 'image' | 'logo' = 'icon';
-      
-      if (hasImageFill) category = 'image';
-      else if (name.includes('logo')) category = 'logo';
-      else if (isIcon) category = 'icon';
-      
-      // Determine best export formats
-      let formats: string[] = [];
-      if (hasImageFill) {
-        formats = ['png', 'jpg']; // Raster images
-      } else if (category === 'icon' || category === 'logo') {
-        formats = ['svg', 'png']; // Vector graphics
+    if (hasImageFill) {
+      category = 'image';
+    } else {
+      // For vector content, check naming for logos vs icons
+      const name = node.name.toLowerCase();
+      if (name.includes('logo') || name.includes('brand')) {
+        category = 'logo';
       } else {
-        formats = ['png']; // Default
+        category = 'icon';
       }
-      
-      return {
-        category,
-        formats,
-        isExportable: true
-      };
     }
     
-    return null;
+    return {
+      category,
+      formats: [...new Set(formats)], // Remove duplicates
+      isExportable: true
+    };
+  }
+
+  // Helper methods for pattern detection
+  private hasUniformChildren(node: FigmaNode): boolean {
+    if (!node.children || node.children.length < 2) return false;
+    
+    const firstChild = node.children[0];
+    if (!firstChild) return false;
+    
+    const firstType = firstChild.type;
+    const firstSize = firstChild.absoluteBoundingBox;
+    
+    return node.children.every(child => {
+      const childSize = child.absoluteBoundingBox;
+      const sameType = child.type === firstType;
+      const similarSize = firstSize && childSize && 
+        Math.abs(firstSize.width - childSize.width) < 20 &&
+        Math.abs(firstSize.height - childSize.height) < 20;
+      return sameType && similarSize;
+    });
+  }
+
+  private hasRepeatingPattern(node: FigmaNode): boolean {
+    if (!node.children || node.children.length < 2) return false;
+    
+    // Check if children have similar structure
+    const firstChild = node.children[0];
+    if (!firstChild) return false;
+    
+    const pattern = this.analyzeNodeStructure(firstChild);
+    
+    return node.children.slice(1).every(child => 
+      this.matchesStructurePattern(child, pattern)
+    );
+  }
+
+  private hasVerticalArrangement(node: FigmaNode): boolean {
+    if (!node.children || node.children.length < 2) return false;
+    
+    const sorted = [...node.children].sort((a, b) => {
+      const aBox = a.absoluteBoundingBox;
+      const bBox = b.absoluteBoundingBox;
+      if (!aBox || !bBox) return 0;
+      return aBox.y - bBox.y;
+    });
+    
+    // Check if items are arranged vertically with minimal horizontal overlap
+    for (let i = 1; i < sorted.length; i++) {
+      const prevNode = sorted[i - 1];
+      const currNode = sorted[i];
+      const prev = prevNode?.absoluteBoundingBox;
+      const curr = currNode?.absoluteBoundingBox;
+      if (!prev || !curr) continue;
+      
+      // Items should be below each other, not side by side
+      if (curr.y <= prev.y + prev.height * 0.5) return false;
+    }
+    
+    return true;
+  }
+
+  private hasNumbering(node: FigmaNode): boolean {
+    if (node.type !== 'TEXT' || !node.characters) return false;
+    
+    const text = node.characters.trim();
+    const numberPatterns = [
+      /^\d+\./,  // 1. 2. 3.
+      /^\d+\)/,  // 1) 2) 3)
+      /^\(\d+\)/, // (1) (2) (3)
+      /^[ivx]+\./i, // i. ii. iii.
+      /^[a-z]\./  // a. b. c.
+    ];
+    
+    return numberPatterns.some(pattern => pattern.test(text));
+  }
+
+  private hasBulletPoints(node: FigmaNode): boolean {
+    if (node.type !== 'TEXT' || !node.characters) return false;
+    
+    const text = node.characters.trim();
+    const bulletPatterns = [
+      /^•/, /^·/, /^‣/, /^⁃/, // Unicode bullets
+      /^-/, /^\*/, /^\+/     // ASCII bullets
+    ];
+    
+    return bulletPatterns.some(pattern => pattern.test(text));
+  }
+
+  private hasSidebarPattern(node: FigmaNode): boolean {
+    if (!node.children || node.children.length !== 2) return false;
+    
+    const first = node.children[0];
+    const second = node.children[1];
+    if (!first || !second) return false;
+    
+    const firstBox = first.absoluteBoundingBox;
+    const secondBox = second.absoluteBoundingBox;
+    
+    if (!firstBox || !secondBox) return false;
+    
+    // One child should be significantly narrower (sidebar)
+    const firstIsNarrow = firstBox.width < secondBox.width * 0.5;
+    const secondIsNarrow = secondBox.width < firstBox.width * 0.5;
+    
+    return firstIsNarrow || secondIsNarrow;
+  }
+
+  private hasHeaderBodyFooterPattern(node: FigmaNode): boolean {
+    if (!node.children || node.children.length < 3) return false;
+    
+    // Sort by Y position
+    const sorted = [...node.children].sort((a, b) => {
+      const aBox = a.absoluteBoundingBox;
+      const bBox = b.absoluteBoundingBox;
+      if (!aBox || !bBox) return 0;
+      return aBox.y - bBox.y;
+    });
+    
+    // Check if first and last are smaller than middle sections
+    const heights = sorted.map(child => child.absoluteBoundingBox?.height || 0);
+    if (heights.length < 3) return false;
+    
+    const [headerHeight, ...bodyAndFooter] = heights;
+    const footerHeight = bodyAndFooter[bodyAndFooter.length - 1];
+    const bodyHeights = bodyAndFooter.slice(0, -1);
+    const maxBodyHeight = Math.max(...bodyHeights);
+    
+    return (headerHeight || 0) < maxBodyHeight && (footerHeight || 0) < maxBodyHeight;
+  }
+
+  private hasGridPattern(node: FigmaNode): boolean {
+    if (!node.children || node.children.length < 4) return false;
+    
+    const structure = this.analyzeGridStructure(node);
+    return structure.columns > 1 && structure.rows > 1;
+  }
+
+  private hasAbsolutePositioning(node: FigmaNode): boolean {
+    if (!node.children || node.children.length === 0) return false;
+    
+    // Check if children overlap significantly (indicating absolute positioning)
+    const boxes = node.children
+      .map(child => child.absoluteBoundingBox)
+      .filter(box => box !== undefined);
+    
+    if (boxes.length < 2) return false;
+    
+    for (let i = 0; i < boxes.length; i++) {
+      for (let j = i + 1; j < boxes.length; j++) {
+        const box1 = boxes[i]!;
+        const box2 = boxes[j]!;
+        
+        const overlapX = Math.max(0, Math.min(box1.x + box1.width, box2.x + box2.width) - Math.max(box1.x, box2.x));
+        const overlapY = Math.max(0, Math.min(box1.y + box1.height, box2.y + box2.height) - Math.max(box1.y, box2.y));
+        const overlapArea = overlapX * overlapY;
+        
+        const box1Area = box1.width * box1.height;
+        const box2Area = box2.width * box2.height;
+        const minArea = Math.min(box1Area, box2Area);
+        
+        // Significant overlap indicates absolute positioning
+        if (overlapArea > minArea * 0.25) {
+          return true;
+        }
+      }
+    }
+    
+    return false;
+  }
+
+  private hasStackingPattern(node: FigmaNode): boolean {
+    if (!node.children || node.children.length < 2) return false;
+    
+    // Check if elements are stacked with similar positions (like z-index stacking)
+    const centerPoints = node.children.map(child => {
+      const box = child.absoluteBoundingBox;
+      return box ? {
+        x: box.x + box.width / 2,
+        y: box.y + box.height / 2
+      } : null;
+    }).filter(point => point !== null);
+    
+    if (centerPoints.length < 2) return false;
+    
+    // Check if center points are close together
+    const [first, ...rest] = centerPoints;
+    const threshold = 50; // pixels
+    
+    return rest.every(point => 
+      Math.abs(point!.x - first!.x) < threshold &&
+      Math.abs(point!.y - first!.y) < threshold
+    );
+  }
+
+  private analyzeNodeStructure(node: FigmaNode): any {
+    return {
+      type: node.type,
+      hasText: node.type === 'TEXT' || (node.children && node.children.some(child => child.type === 'TEXT')),
+      hasImage: node.fills && node.fills.some(fill => fill.type === 'IMAGE'),
+      childCount: node.children ? node.children.length : 0,
+      hasBackground: node.fills && node.fills.length > 0,
+      hasCornerRadius: node.cornerRadius && node.cornerRadius > 0
+    };
+  }
+
+  private matchesStructurePattern(node: FigmaNode, pattern: any): boolean {
+    const structure = this.analyzeNodeStructure(node);
+    
+    return structure.type === pattern.type &&
+           structure.hasText === pattern.hasText &&
+           structure.hasImage === pattern.hasImage &&
+           Math.abs(structure.childCount - pattern.childCount) <= 1 &&
+           structure.hasBackground === pattern.hasBackground;
+  }
+
+  private detectResponsiveBehavior(node: FigmaNode): boolean {
+    // Analyze layout properties to detect responsive behavior intentions
+    if (!node.children || node.children.length === 0) return false;
+    
+    // Check for auto layout (indicates responsive design)
+    const hasAutoLayout = node.layoutMode !== undefined && node.layoutMode !== 'NONE';
+    
+    // Check for flexible sizing
+    const hasFlexibleSizing = node.children.some(child => 
+      child.layoutSizingHorizontal === 'FILL' || 
+      child.layoutSizingVertical === 'FILL' ||
+      (child.layoutGrow !== undefined && child.layoutGrow > 0)
+    );
+    
+    // Check for constraints that suggest responsive behavior
+    const hasResponsiveConstraints = node.children.some(child =>
+      child.constraints?.horizontal === 'LEFT_RIGHT' ||
+      child.constraints?.horizontal === 'SCALE' ||
+      child.constraints?.vertical === 'TOP_BOTTOM' ||
+      child.constraints?.vertical === 'SCALE'
+    );
+    
+    return hasAutoLayout || hasFlexibleSizing || hasResponsiveConstraints;
   }
 } 

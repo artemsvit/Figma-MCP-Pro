@@ -497,9 +497,20 @@ export class FigmaApiService {
     // Resolve and ensure local directory exists
     let resolvedPath: string;
     try {
-      // Resolve path relative to current working directory
-      resolvedPath = path.resolve(process.cwd(), localPath);
-      console.error(`[Figma API] Resolved path: ${localPath} -> ${resolvedPath}`);
+      // Fix path resolution: handle both absolute and relative paths properly
+      if (path.isAbsolute(localPath)) {
+        resolvedPath = localPath;
+      } else {
+        // For relative paths, ensure we resolve from a known base directory
+        // Get the current working directory at runtime
+        const cwd = process.cwd();
+        console.error(`[Figma API] Current working directory: ${cwd}`);
+        
+        // Clean the relative path and resolve it properly
+        const cleanPath = localPath.replace(/^\.\//, ''); // Remove leading ./
+        resolvedPath = path.join(cwd, cleanPath);
+      }
+      console.error(`[Figma API] Path resolution: "${localPath}" -> "${resolvedPath}"`);
       
       // Create directory with proper error handling
       await fs.mkdir(resolvedPath, { recursive: true });
@@ -664,9 +675,20 @@ export class FigmaApiService {
     // Resolve and ensure local directory exists
     let resolvedPath: string;
     try {
-      // Resolve path relative to current working directory
-      resolvedPath = path.resolve(process.cwd(), localPath);
-      console.error(`[Figma API] Resolved path: ${localPath} -> ${resolvedPath}`);
+      // Fix path resolution: handle both absolute and relative paths properly
+      if (path.isAbsolute(localPath)) {
+        resolvedPath = localPath;
+      } else {
+        // For relative paths, ensure we resolve from a known base directory
+        // Get the current working directory at runtime
+        const cwd = process.cwd();
+        console.error(`[Figma API] Current working directory: ${cwd}`);
+        
+        // Clean the relative path and resolve it properly
+        const cleanPath = localPath.replace(/^\.\//, ''); // Remove leading ./
+        resolvedPath = path.join(cwd, cleanPath);
+      }
+      console.error(`[Figma API] Path resolution: "${localPath}" -> "${resolvedPath}"`);
       
       // Create directory with proper error handling
       await fs.mkdir(resolvedPath, { recursive: true });

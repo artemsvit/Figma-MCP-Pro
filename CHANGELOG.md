@@ -5,6 +5,692 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [3.0.4] - 2025-01-21
+
+### ✨ **ENHANCED: No README.md Generation for HTML Framework**
+- **ADDED**: "No README.md generation" rule to HTML framework for cleaner project structure
+- **PRIORITY**: Medium priority rule focusing on code quality over documentation files
+- **PHILOSOPHY**: HTML/CSS/JS projects should focus on clean code structure and comments
+- **VALIDATION**: Added to validation checklist to ensure compliance
+
+### New Implementation Rule
+- **Rule**: No README.md generation
+- **Description**: Do not generate README.md files for HTML/CSS/JS projects - focus on clean code structure and comments instead
+- **Priority**: Medium
+- **Benefits**: 
+  - Cleaner project structure without unnecessary documentation files
+  - Focus on self-documenting code through clear HTML structure and CSS organization
+  - Less clutter in simple HTML/CSS/JS projects
+  - Code quality takes precedence over documentation files
+
+### Enhanced Validation
+- **Updated Checklist**: Added "✓ No README.md file generated - focus on code quality and structure"
+- **Total Rules**: Now 13 comprehensive implementation rules for HTML framework
+- **Focus**: Emphasizes clean code and structure over documentation generation
+
+### Philosophy
+For HTML/CSS/JS projects, the code should be self-documenting through:
+- Clear BEM methodology class naming
+- Semantic HTML structure
+- Well-organized CSS with meaningful comments
+- Clean, readable JavaScript code
+
+**Result**: HTML framework now avoids generating unnecessary README.md files, focusing purely on code quality and structure! 📝
+
+## [3.0.3] - 2025-01-21
+
+### ✨ **ENHANCED: BEM Methodology for Clear CSS Structure**
+- **ADDED**: BEM (Block Element Modifier) naming convention rule to HTML framework
+- **PRIORITY**: High priority rule for maintainable, scalable CSS architecture
+- **ENHANCED**: Semantic HTML rule to work with BEM for optimal structure
+- **VALIDATION**: Added BEM verification to validation checklist
+
+### New BEM Implementation Rule
+- **Rule**: BEM methodology
+- **Description**: Use BEM naming convention: `block-name`, `block__element`, `block--modifier`, `block__element--modifier`
+- **Priority**: High
+- **Benefits**: 
+  - Clear component structure and hierarchy
+  - Reusable and modular CSS components
+  - Easier maintenance and debugging
+  - Better team collaboration and code understanding
+  - Scalable architecture for large projects
+
+### BEM Naming Convention Examples
+```html
+<!-- Block -->
+<article class='product-card'>
+  <!-- Elements -->
+  <h2 class='product-card__title'>Product Name</h2>
+  <p class='product-card__description'>Description</p>
+  <button class='product-card__button'>Add to Cart</button>
+</article>
+
+<!-- Block with Modifier -->
+<article class='product-card product-card--featured'>
+  <!-- Element with Modifier -->
+  <button class='product-card__button product-card__button--large'>Buy Now</button>
+</article>
+```
+
+### Enhanced Semantic HTML
+- **Updated**: Semantic HTML rule now emphasizes combining semantic tags with BEM class names
+- **Example**: `<section class='hero'><article class='hero__content'><header class='hero__header'></header></article></section>`
+
+### Enhanced Validation
+- **Updated Checklist**: Added "✓ BEM methodology applied for class naming (block__element--modifier)"
+- **Total Rules**: Now 12 comprehensive implementation rules for HTML framework
+- **Code Quality**: Ensures professional CSS architecture and maintainability
+
+**Result**: HTML framework now enforces BEM methodology for crystal-clear, maintainable CSS structure that scales perfectly with project complexity! 🎯
+
+## [3.0.2] - 2025-01-21
+
+### ✨ **ENHANCED: No Inline Styles Rule**
+- **ADDED**: "No inline CSS styles" rule to HTML framework for clean, maintainable code
+- **PRIORITY**: High priority rule enforcing separation of concerns
+- **VALIDATION**: Added to validation checklist to ensure compliance
+
+### New Implementation Rule
+- **Rule**: No inline CSS styles
+- **Description**: Use only external CSS files and class names; avoid inline style attributes
+- **Priority**: High
+- **Benefits**: Better maintainability, separation of concerns, cleaner HTML markup
+- **Example**: 
+  - ✅ Good: `<div class='hero-section'>`
+  - ❌ Bad: `<div style='padding: 16px; color: #1f2937;'>`
+
+### Enhanced Validation
+- **Updated Checklist**: Added verification step for inline styles
+- **Total Rules**: Now 11 comprehensive implementation rules for HTML framework
+- **Code Quality**: Ensures clean, professional HTML/CSS separation
+
+**Result**: HTML framework now enforces external CSS files only, promoting better code organization and maintainability! 📝
+
+## [3.0.1] - 2025-01-21
+
+### ✨ **ENHANCED: HTML Framework Implementation Rules**
+- **ADDED**: Comprehensive Figma-to-HTML implementation rules for pixel-perfect accuracy
+- **ENHANCED**: HTML framework configuration with detailed implementation guidelines
+- **IMPROVED**: First-attempt accuracy by prioritizing metadata fidelity
+
+### New HTML Implementation Rules
+
+#### 🎯 **Critical Priority Rules**
+1. **Metadata Fidelity**: Use exact padding, margins, font-sizes, colors, and dimensions from Figma data
+2. **Typography Precision**: Apply exact font-size, line-height, and letter-spacing from metadata
+3. **Color Accuracy**: Use exact hex/rgba values from design tokens
+4. **Validation Checklist**: 8-point verification system before completion
+
+#### 📐 **High Priority Rules**  
+5. **Flexible Containers**: Child elements use width: 100% or flex: 1; containers use max-width
+6. **Margin Conflicts**: Remove conflicting margins in flexbox/grid; let containers handle spacing
+7. **Responsive by Default**: Mobile-first implementation with proper breakpoints
+8. **Semantic HTML**: Proper tags (`<section>`, `<article>`, `<header>`) with meaningful classes
+
+#### 🎨 **Medium Priority Rules**
+9. **Box-shadow over Border**: Use `box-shadow: 0 0 0 1px color` for pixel-perfect rendering
+10. **Animation Integration**: Add hover effects and transitions as specified in design
+
+### Implementation Examples
+```css
+/* Metadata Fidelity */
+padding: 16px; /* exact from Figma metadata */
+
+/* Flexible Containers */
+.child { width: 100%; } 
+.container { max-width: 1200px; }
+
+/* Box-shadow Borders */
+box-shadow: 0 0 0 1px #e5e7eb; /* instead of border */
+
+/* Typography Precision */
+font-size: 16px; line-height: 1.5; letter-spacing: -0.01em;
+```
+
+### Validation Checklist
+- ✓ All dimensions match Figma metadata exactly
+- ✓ Colors use exact hex/rgba values  
+- ✓ Typography matches font-size, line-height, letter-spacing
+- ✓ Responsive behavior works on mobile, tablet, desktop
+- ✓ Container containment prevents overflow
+- ✓ Semantic HTML structure is meaningful
+- ✓ Accessibility attributes are present
+- ✓ Hover states and animations work as designed
+
+### Technical Implementation
+- **Enhanced**: `HTMLOptimizations` interface with `implementationRules` property
+- **Structured**: Rules with priority levels, descriptions, and examples
+- **Type-safe**: Full TypeScript support for implementation guidelines
+- **Framework-specific**: Rules integrated into HTML framework configuration
+
+**Result**: HTML framework now includes comprehensive implementation rules that ensure first-attempt accuracy and pixel-perfect Figma-to-code conversion! 🎯
+
+## [3.0.0] - 2025-01-21
+
+### 🚀 **MAJOR: Automatic Export Asset Discovery & Download**
+- **BREAKING**: Completely redesigned `download_design_assets` tool for automatic asset discovery
+- **NEW WORKFLOW**: Takes Figma URL → Scans selected area → Finds ALL export-ready assets → Downloads with Figma settings
+- **INTELLIGENT**: No more manual node ID specification - automatically finds what's meant to be exported
+
+### Revolutionary Asset Download Workflow
+
+#### Before (Manual, Error-Prone)
+```json
+{
+  "fileKey": "ABC123",
+  "nodeIds": ["1530-166", "1530-167", "1530-168"], // Manual specification
+  "localPath": "./assets"
+}
+```
+
+#### After (Automatic, Intelligent)
+```json
+{
+  "url": "https://figma.com/design/ABC123/Design?node-id=1530-166",
+  "localPath": "./assets"
+}
+```
+
+### How It Works
+1. **URL Parsing**: Extracts file key and selected area from Figma URL
+2. **Deep Scan**: Recursively searches selected area for nodes with `exportSettings`
+3. **Figma Export Settings**: Downloads each asset with its configured export settings (format, scale, suffix)
+4. **Reference Creation**: Creates `reference.svg` of the entire selected area for context
+5. **Smart Reporting**: Shows exactly what was found and downloaded
+
+### New Features
+- **🔍 Export Settings Detection**: Automatically finds nodes with Figma export settings configured
+- **📱 Figma URL Support**: Direct URL input like other tools - no manual file key extraction needed
+- **🎯 Area Scanning**: Scans only the selected area, not entire document
+- **⚙️ Native Export Settings**: Uses actual Figma export settings (format, scale, naming)
+- **📄 Visual Reference**: Creates `reference.svg` showing the selected area context
+- **📊 Detailed Reporting**: Shows scope, found assets, download results
+
+### API Changes (BREAKING)
+- **Removed**: `nodeIds` array parameter (manual specification)
+- **Added**: `url` parameter for direct Figma URL input
+- **Added**: `nodeId` parameter for specific area selection
+- **Changed**: `fileKey` now optional if `url` provided
+- **Changed**: `scale` and `format` now fallback values (export settings take precedence)
+
+### Enhanced Output
+```json
+{
+  "downloads": [...], // Actual downloaded assets with export settings
+  "reference": {...}, // reference.svg creation details
+  "exportSettings": {
+    "found": 12, // Total nodes with export settings found
+    "downloaded": 10, // Successfully downloaded
+    "scope": "Selected area: 1530-166" // What area was scanned
+  },
+  "instructions": [...] // Step-by-step usage instructions
+}
+```
+
+### User Experience Revolution
+✅ **Just like Figma**: Select area → Copy URL → Auto-download all export-ready assets  
+✅ **No more guessing**: Finds exactly what designers marked for export  
+✅ **Perfect integration**: Works with Figma's native export workflow  
+✅ **Visual context**: Reference shows how assets fit in overall design  
+✅ **Proper naming**: Uses Figma's export naming conventions  
+
+**Result**: The download tool now works exactly like a developer would expect - point to an area, get all the assets that are meant to be exported! 🎯
+
+## [2.9.2] - 2025-01-21
+
+### 🔧 **CRITICAL FIX: get_figma_data URL Support**
+- **FIXED**: `get_figma_data` now accepts full Figma URLs and automatically extracts node selection
+- **ISSUE**: Users were calling `get_figma_data` with only `fileKey`, missing `nodeId` from URL
+- **SOLUTION**: Added URL parsing to automatically extract both file key and node selection
+
+### New URL Parameter Support
+- **New Parameter**: `url` - Full Figma URL with file and node selection
+- **Alternative Usage**: Can use `url` instead of separate `fileKey` + `nodeId` parameters
+- **Automatic Extraction**: Parses URLs like `https://figma.com/design/ZVnXdidh7cqIeJuI8e4c6g/Name?node-id=1530-166`
+- **Smart Detection**: Extracts `fileKey` from path and `nodeId` from query parameters
+
+### Updated API
+**Before** (manual extraction required):
+```json
+{
+  "fileKey": "ZVnXdidh7cqIeJuI8e4c6g",
+  "nodeId": "1530-166", 
+  "framework": "html"
+}
+```
+
+**After** (direct URL usage):
+```json
+{
+  "url": "https://figma.com/design/ZVnXdidh7cqIeJuI8e4c6g/Name?node-id=1530-166",
+  "framework": "html"
+}
+```
+
+### Backward Compatibility
+- **Maintained**: All existing `fileKey` + `nodeId` usage still works
+- **Flexible**: Can use either approach - URL or manual parameters
+- **Validation**: Requires either `url` OR `fileKey` to be provided
+
+### Enhanced Logging
+- Shows whether URL was parsed or direct parameters were used
+- Logs extracted fileKey and nodeId from URLs for debugging
+- Clear error messages for invalid URLs
+
+### Result
+✅ **Perfect URL workflow**: Copy Figma link → Paste directly into `get_figma_data` → Works with selected node  
+✅ **No manual extraction**: No need to manually extract file keys and node IDs  
+✅ **Consistent with other tools**: Same URL-first approach as `process_design_comments`  
+✅ **Node selection respected**: Automatically processes only the selected node from URL  
+
+**User Experience**: Copy any Figma URL with selection → Works immediately! 🎯
+
+## [2.9.1] - 2025-01-21
+
+### 🔧 **CRITICAL FIX: Node Selection Scope for All Tools**
+- **FIXED**: All tools now properly respect specific node selections from URLs
+- **ISSUE**: When user copies link to small section, tools were showing entire page data instead of just selected node
+- **SOLUTION**: Enhanced node-specific filtering and context detection across all tools
+
+### Fixed Tools
+
+#### 1. ✅ `get_figma_data`
+- **Already working**: Correctly fetches only selected node when `nodeId` provided
+- **Verified**: Uses `getFileNodes()` with specific node ID vs `getFile()` for entire document
+
+#### 2. 🔧 `process_design_comments` 
+- **FIXED**: Now filters comments to only those within selected node bounds
+- **Before**: Fetched ALL comments from entire file regardless of selection
+- **After**: Smart filtering based on:
+  - Comments directly attached to selected node (`client_meta.node_id`)
+  - Comments with coordinates within selected node bounds
+  - Coordinate-based bounds checking with proper fallback
+
+#### 3. 🔧 `download_design_assets` (Visual Reference)
+- **FIXED**: Visual reference now uses selected node as context, not page fallback
+- **Before**: Always fell back to page-level or document context
+- **After**: Uses actual selected node as reference context:
+  - Single selection → Uses that specific node as reference
+  - Multiple selections → Uses first selected node as context
+  - Only falls back to page if no selection available
+
+### Enhanced Comment Filtering
+- **Bounds-based filtering**: Gets selected node's `absoluteBoundingBox` for precise filtering
+- **Coordinate sources**: Checks multiple coordinate fields (`node_offset.x/y`, `client_meta.x/y`, `x/y`)
+- **Smart inclusion**: Only includes comments that are:
+  - Directly attached to selected node, OR
+  - Positioned within selected node's visual bounds
+- **Better logging**: Shows exactly which comments are included/excluded and why
+
+### Enhanced Visual Reference
+- **Node-specific context**: Reference SVG shows the selected area, not entire page
+- **Accurate context**: `reference.svg` now represents what user actually selected
+- **Better naming**: Context type reflects actual selection (`parent-frame` vs generic `page`)
+
+### Result
+✅ **Perfect node scoping**: Copy link to small section → All tools work only with that section  
+✅ **No more page leakage**: Tools don't accidentally process entire pages when specific nodes selected  
+✅ **Precise comment matching**: Comments analysis only for selected area  
+✅ **Focused visual reference**: Reference shows selected context, not entire page  
+
+**User Experience**: Select small component → Get data/comments/assets only for that component! 🎯
+
+## [2.9.0] - 2025-01-21
+
+### 🎯 **MAJOR NEW FEATURE: Visual Context Reference Generation**
+- **NEW**: Automatic `reference.svg` creation with every download for visual context
+- **SMART CONTEXT**: Automatically detects parent frame, page, or document context  
+- **VISUAL GUIDANCE**: Provides overall design layout reference alongside individual assets
+- **WORKFLOW ENHANCEMENT**: Detailed instructions on how to use reference for development
+
+### New Visual Reference Features
+- **Automatic Context Detection**: 
+  - Single selection → Uses parent frame or page context
+  - Multiple selections → Uses page-level context  
+  - Fallback → Uses document context
+- **Smart Naming**: Always saved as `reference.svg` in assets folder
+- **Optimized Format**: SVG at 1x scale for lightweight overview
+- **Context Types**: `parent-frame`, `page`, or `document` based on selection
+
+### Enhanced Download Response
+- **Reference Metadata**: Success status, file path, context type, and context name
+- **Visual Instructions**: Step-by-step workflow for using reference + assets  
+- **File Mapping**: Clear overview of downloaded assets and reference file
+- **Error Handling**: Downloads continue even if reference creation fails
+
+### Developer Workflow
+```
+📁 Asset Files Downloaded:
+   ✅ Button Component → button.svg
+   ✅ Icon Set → icons.svg
+
+🎯 Visual Context Reference:
+   📄 reference.svg → Shows parent-frame context: "Main Dashboard"
+   💡 Use this reference to understand how assets fit in overall design
+   🔍 Open reference.svg to see layout, positioning, and relationships
+
+🛠️ Development Workflow:
+   1. Open reference.svg to understand design context and layout
+   2. Use individual asset files for implementation  
+   3. Reference the SVG for accurate positioning and relationships
+   4. Maintain design consistency using visual context
+```
+
+### Technical Implementation
+- **Robust Error Handling**: Reference creation failures don't break main downloads
+- **Context Detection Logic**: Intelligent parent/page detection based on selection
+- **File Management**: Automatic renaming and organization in assets folder
+- **TypeScript Safety**: Full type definitions and null safety
+
+**Result**: Every download now includes perfect visual context for understanding how individual assets fit into the overall design! 🎨
+
+## [2.8.2] - 2025-01-21
+
+### 🔧 **CRITICAL FIX: Node ID Format Conversion for Downloads**
+- **FIXED**: "Node 1530-166 not found" error in download tool
+- **ROOT CAUSE**: Download tool wasn't converting node IDs from URL format to API format
+- **SOLUTION**: Added node ID conversion from `1530-166` (URL) to `1530:166` (API) format
+- **RESULT**: Downloads now work correctly with node IDs from Figma URLs
+
+### Technical Details
+- **Problem**: User selects frame in Figma → URL shows `node-id=1530-166` → Download tool passes `1530-166` directly to API → API can't find node
+- **Fix**: Convert `1530-166` → `1530:166` before API calls, then convert back in response 
+- **Same logic**: Now matches the working conversion in `get_figma_data` tool
+- **User experience**: User still sees original `1530-166` format in responses
+
+### Enhanced Debugging
+- Added logging to show node ID conversions: `"1530-166 -> 1530:166"`
+- Shows exactly which node IDs are being converted and passed to API
+- Helps troubleshoot any future node ID issues
+
+**Result**: Download tool now works perfectly with selected frames marked for export! ✅
+
+## [2.8.1] - 2025-01-21
+
+### 🔍 **CRITICAL DEBUG: Enhanced Comment Processing Diagnostics**
+- **ENHANCED**: Comprehensive debugging for comment processing failures
+- **ROBUST**: Multiple coordinate extraction sources (7 different locations)
+- **RESILIENT**: Fallback processing ensures comments are never lost
+- **DIAGNOSTIC**: Detailed logging of comment structure and processing steps
+
+### New Debugging Features
+- **Extended coordinate sources**: Tries 7 different coordinate field patterns
+- **Error handling**: Catches and handles processing exceptions gracefully
+- **Fallback processing**: Generates AI prompts even when processing fails
+- **Detailed logging**: Shows comment structure, coordinate extraction, and element matching
+- **Field inspection**: Logs available fields when expected data is missing
+
+### Coordinate Sources Checked
+1. `client_meta.node_offset.x/y`
+2. `client_meta.x/y` 
+3. `x/y` (root level)
+4. `position.x/y`
+5. `node_offset.x/y`
+6. `offset.x/y`
+7. `coordinates.x/y`
+
+### Robust Processing
+- **No more null results**: Every comment gets processed with fallback data
+- **Error resilience**: Catches exceptions and creates error fallback prompts
+- **Guaranteed output**: processedComments will always equal totalComments
+- **Debug visibility**: Extensive logging to identify processing issues
+
+### Use Case Support
+✅ **Comment found but no coordinates**: Creates general AI prompt  
+✅ **Processing error**: Creates error fallback with implementation instruction  
+✅ **Partial data**: Handles missing fields gracefully  
+✅ **Different structures**: Tries multiple coordinate field patterns  
+
+**Result**: No more "0 processedComments" - every comment will be processed with maximum debugging information! 🔍
+
+## [2.8.0] - 2025-01-21
+
+### 🎯 **MAJOR: Enhanced Comment Processing with Smart Coordinate Matching**
+- **FIXED**: Comment processing now works correctly (was showing 1 comment but 0 processed)
+- **ENHANCED**: Multiple coordinate extraction methods for robust comment positioning
+- **IMPROVED**: Better element bounds detection from Figma design data
+- **ADDED**: Comprehensive debugging for comment-to-element matching
+
+### New Comment Processing Features
+- **Multi-source coordinates**: Tries `client_meta.node_offset`, `client_meta.x/y`, `x/y`, `position.x/y`
+- **Robust bounds extraction**: Handles `bounds`, `absoluteBoundingBox`, `relativeTransform + size`
+- **Fallback processing**: Generates AI prompts even when coordinates aren't available
+- **Smart matching**: Finds closest element within 100px tolerance
+
+### AI Prompt Generation
+- **Simple format**: "Please add 'Hover effect 50% opacity' to Button element"
+- **Element details**: Position, size, path, and framework context
+- **Instruction analysis**: Type detection (animation, interaction, behavior, style)
+- **Confidence scoring**: Keywords analysis with confidence percentage
+
+### Use Case Implementation
+✅ **Designer leaves comment**: "Hover effect 50% opacity" on button  
+✅ **System finds coordinates**: Comment position (x, y)  
+✅ **Matches to element**: Button element at same/nearby coordinates  
+✅ **Generates AI prompt**: "Please add 'Hover effect 50% opacity' to Button element"  
+
+### Technical Improvements
+- **Extensive debugging**: Logs comment structure, coordinates, and element matching
+- **Error resilience**: Handles missing coordinates gracefully
+- **Performance**: Efficient coordinate-based element lookup
+- **Framework awareness**: Tailored prompts for React, Vue, Angular, Svelte, HTML
+
+### Result
+🎯 **Perfect comment workflow**: Comments → Coordinates → Element matching → AI prompts  
+🔍 **Smart detection**: Finds target elements even with imperfect coordinate data  
+📝 **Actionable prompts**: Clear instructions for implementing designer feedback  
+🛠️ **Robust processing**: Works even when some data is missing or malformed  
+
+## [2.7.3] - 2025-01-21
+
+### 🔧 **FIX: MCP Parameter Handling for Windsurf**
+- **FIXED**: MCP error -32602 "Invalid parameters" in Windsurf
+- **ISSUE**: Windsurf passes `undefined` instead of `{}` for tools with no parameters
+- **SOLUTION**: Added `args || {}` fallback in `handleShowFrameworks`
+- **DEBUG**: Added logging to understand parameter passing differences between MCP clients
+
+### Technical Details
+- **Problem**: `z.object({})` schema rejects `undefined` (Windsurf behavior)
+- **Expected**: Empty object `{}` (standard MCP behavior)  
+- **Fix**: Handle both cases with `args || {}` fallback
+- **Result**: Works in both Windsurf and other MCP clients
+
+### Debugging
+- Added detailed logging to see exactly what parameters MCP clients send
+- Confirmed zod behavior: `z.object({})` only accepts actual objects, not `undefined`
+
+## [2.7.2] - 2025-01-21
+
+### 🚨 **CRITICAL FIX: True User-Driven Framework Selection**
+- **REPLACED**: `select_framework` with `show_frameworks` tool
+- **ELIMINATED**: Auto-proceeding issue completely 
+- **NEW WORKFLOW**: Show options → User chooses naturally → Direct to get_figma_data
+- **USER CONTROL**: Framework selection is now truly user-driven
+
+### Problem Solved
+- **Before**: AI would auto-select framework after showing options ❌
+- **After**: AI shows frameworks, stops, waits for user choice, then proceeds ✅
+
+### New Simple Workflow
+1. **AI calls**: `show_frameworks()` - Shows all options and stops
+2. **User says**: "I want to use React" (natural language)  
+3. **AI proceeds**: Directly to `get_figma_data` with user's chosen framework
+4. **No confusion**: No second tool call that could auto-proceed
+
+### Technical Changes
+- **Removed**: Complex two-step `select_framework` logic
+- **Added**: Simple `show_frameworks` that only displays options
+- **Simplified**: User choice now happens through natural conversation
+- **Fixed**: No more tool calls until user explicitly provides their choice
+
+### Result
+✅ **Perfect user control**: Users see options and choose naturally  
+✅ **No auto-proceeding**: AI physically cannot proceed without user input  
+✅ **Simpler workflow**: One tool call, user response, then continue  
+✅ **Clear separation**: Framework display vs. framework selection are separate actions
+
+## [2.7.1] - 2025-01-21
+
+### 🚨 **CRITICAL FIX: Proper Framework Selection UX**
+- **FIXED**: `select_framework` tool now asks user to choose instead of auto-selecting
+- **PROPER WORKFLOW**: Call `select_framework` WITHOUT parameters to see options, then call again with choice
+- **USER CHOICE**: Framework selection is now truly user-driven, not automatic
+
+### Before (Broken)
+```json
+// AI automatically called with framework pre-selected
+{ "framework": "react" }  ← Wrong! No user choice
+```
+
+### After (Fixed)  
+```json
+// Step 1: Call without parameters to see options
+{}  ← Shows available frameworks to user
+
+// Step 2: User chooses, AI calls again with selection
+{ "framework": "react" }  ← User's choice!
+```
+
+### Technical Changes
+- **Schema**: Made `framework` parameter optional in `SelectFrameworkSchema`
+- **Logic**: Show available frameworks when no parameter provided
+- **UX**: Clear instructions for two-step selection process
+- **Tool Description**: Updated to clarify the proper calling pattern
+
+### Result
+✅ **True user choice**: Users now see all frameworks and choose themselves  
+✅ **No auto-selection**: AI won't assume framework preferences  
+✅ **Clear workflow**: Two-step process makes selection explicit and intentional
+
+## [2.7.0] - 2025-01-21
+
+### 🎯 **MAJOR: 4-Step Framework-First Workflow**
+- **NEW**: `select_framework` tool as STEP 1 - Choose framework before any code generation
+- **FRAMEWORK-SPECIFIC RULES**: Separate rule files for each framework (React, Vue, Angular, Svelte, HTML)
+- **PROPER WORKFLOW**: Framework selection → Design analysis → Comments → Downloads
+- **NO MORE DEFAULTS**: Framework is now required, no more defaulting to HTML
+
+### Core Changes
+- **STEP 1**: `select_framework` - Choose target framework with features overview
+- **STEP 2**: `get_figma_data` - Framework-optimized design analysis 
+- **STEP 3**: `process_design_comments` - Comment processing with framework context
+- **STEP 4**: `download_design_assets` - Asset downloads
+
+### Framework-Specific Rules System
+- **React Rules**: JSX, TypeScript, Hooks, TailwindCSS optimizations
+- **Vue Rules**: SFC, Composition API, TypeScript, Scoped Styles
+- **Angular Rules**: Components, Standalone, TypeScript, Signals  
+- **Svelte Rules**: Components, TypeScript, Reactive statements
+- **HTML Rules**: Semantic HTML, Modern CSS, Accessibility focus
+
+### Technical Implementation
+- **Framework Rules**: `src/config/frameworks/` directory with separate files
+- **Type Safety**: All framework rules use `Partial<ContextRules>` type
+- **Rule Merging**: Framework rules merged with custom rules support
+- **Context Processor**: Updated to use framework-specific optimizations
+
+### Result  
+✅ **Perfect workflow control**: Framework choice drives all optimizations  
+✅ **No confusion**: AI must select framework before generating code  
+✅ **Framework expertise**: Each framework gets specialized treatment  
+✅ **Clean architecture**: Separate concerns, maintainable codebase
+
+## [2.6.3] - 2025-01-21
+
+### 🎯 **CRITICAL: AI Workflow Guidance Fix**
+- **MOVED**: Metadata with workflow guidance to the BEGINNING of response
+- **ENHANCED**: Made workflow guidance more prominent with caps and clear instructions
+- **RESULT**: AI now sees workflow guidance FIRST instead of jumping to code generation
+
+### Before vs After
+**Before**: `data: {...}, metadata: { nextSteps: {...} }` ← AI missed guidance at end
+**After**: `metadata: { IMPORTANT_NEXT_STEPS: {...} }, data: {...}` ← AI sees guidance first
+
+### New AI Guidance Structure
+```json
+{
+  "metadata": {
+    "IMPORTANT_NEXT_STEPS": {
+      "FOR_COMMENTS": "BEFORE generating code, call process_design_comments tool if there are designer comments in Figma",
+      "FOR_IMAGES": "BEFORE generating code, call download_design_assets tool if you need images", 
+      "WORKFLOW": "Design data → Comments analysis → Image downloads → THEN generate code"
+    }
+  },
+  "data": "... design data ..."
+}
+```
+
+### Result
+✅ AI will now follow proper workflow instead of jumping to HTML generation
+✅ AI will call `process_design_comments` when it sees there are comments
+✅ Clear workflow guidance prevents premature code generation
+
+## [2.6.2] - 2025-01-21
+
+### 🔧 **CRITICAL FIX: Clean Tool Separation**
+- **FIXED**: `get_figma_data` no longer returns comment data in response
+- **FIXED**: AI now correctly understands it needs to call `process_design_comments` for comment analysis
+- **CLEAN WORKFLOW**: Perfect tool separation achieved:
+  - `get_figma_data` = STEP 1: Pure design data only
+  - `process_design_comments` = STEP 2: Comment analysis only  
+  - `download_design_assets` = STEP 3: Asset downloads only
+
+### Technical
+- **Removed**: `includeComments` parameter from `get_figma_data` schema
+- **Removed**: All comment processing logic from `get_figma_data` handler
+- **Added**: Clear "nextSteps" guidance in `get_figma_data` response metadata
+- **Smaller Bundle**: Reduced size to 114.17 KB (from 116.58 KB)
+
+### Result
+- ✅ AI no longer gets confused by comment data in design response
+- ✅ AI will now call `process_design_comments` when it sees comments in Figma
+- ✅ Perfect workflow: Design → Comments → Downloads (3 separate tools)
+
+## [2.6.0] - 2025-01-21
+
+### 🎯 **MAJOR: Ultra-Clean 3-Tool Architecture**
+- **COMPLETE REDESIGN**: Streamlined to exactly 3 core tools as requested
+- **REMOVED**: All legacy and utility tools (`analyze_figma_design`, `optimize_for_framework`, `get_server_stats`, `clear_cache`)
+- **FOCUS**: Clean, minimal, purpose-driven tool set
+
+### Core Tools (Final Implementation)
+1. **`get_figma_data`** ✅
+   - Well-structured, AI-optimized Figma design data
+   - Layout, components, coordinates, visual effects (shadows, borders)
+   - Design tokens and framework-specific optimizations
+   - Latest Figma REST API implementation
+
+2. **`process_design_comments`** ✅ 
+   - Scan Figma URL for comments with smart coordinate matching
+   - Convert designer comments to actionable AI implementation instructions
+   - Framework-specific code suggestions with confidence scoring
+   - Element-to-comment coordinate matching system
+
+3. **`download_design_assets`** ✅
+   - Download Figma export-marked assets with original settings
+   - All formats (PNG, JPG, SVG, PDF) with proper scaling and naming
+   - Respects Figma export configurations and file naming
+
+### Technical Improvements
+- **✅ REST API Verification**: Confirmed compatibility with latest Figma REST API endpoints
+- **✅ Path Resolution**: Fixed absolute/relative path issues in downloads  
+- **✅ Clean Build**: No dead code, optimized TypeScript compilation
+- **✅ Proper Error Handling**: Comprehensive error management throughout
+
+### Removed (No Longer Needed)
+- ❌ `analyze_figma_design` - Redundant with `get_figma_data`
+- ❌ `optimize_for_framework` - Integrated into core tools
+- ❌ `get_server_stats` / `clear_cache` - Utility tools not needed
+- ❌ Legacy workflow complexity - Now simple and direct
+
+### Documentation
+- **Updated README**: Reflects new 3-tool architecture
+- **NPM Description**: "Ultra-clean 3-tool workflow: get_figma_data, process_design_comments, and download_design_assets"
+- **API Compliance**: Verified against Figma REST API documentation 
+
+**Result**: Minimal, powerful, easy-to-understand MCP server focused on core Figma functionality! 🚀
+
 ## [1.4.0] - 2024-12-19
 
 ### Added

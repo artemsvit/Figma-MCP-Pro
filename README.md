@@ -1,46 +1,47 @@
 # Figma MCP Pro
 
-A powerful, professional Model Context Protocol (MCP) server that provides AI-optimized access to Figma design data. This server enhances the standard Figma API responses with intelligent context processing, semantic analysis, and framework-specific optimizations to help AI coding agents generate better code from design files.
+A powerful, professional Model Context Protocol (MCP) server that provides AI-optimized access to Figma design data. Features a clean 4-step workflow for comprehensive design analysis, comment processing, and asset downloads. This server enhances the standard Figma API responses with intelligent context processing, semantic analysis, and framework-specific optimizations to help AI coding agents generate better code from design files.
 
 ## 🚀 Features
+
+### 🎯 Clean 4-Step Workflow
+1. **Framework Selection**: Choose your target framework (React, Vue, Angular, Svelte, HTML)
+2. **Design Analysis**: AI-optimized design structure analysis with framework-specific processing
+3. **Comment Processing**: Smart matching of designer comments to design elements with AI prompts
+4. **Asset Downloads**: Batch download of exportable images and assets
 
 ### Core Capabilities
 - **Enhanced Context Processing**: Intelligent analysis and enhancement of Figma design data
 - **AI-Optimized Output**: Structured data specifically formatted for AI code generation
-- **Custom Rules Engine**: Configurable rules for context enhancement and data transformation
 - **Framework Optimization**: Tailored output for React, Vue, Angular, Svelte, and HTML
 - **Semantic Analysis**: Automatic detection of UI patterns, components, and accessibility requirements
 - **Design Token Extraction**: Automatic extraction of colors, typography, spacing, and other design tokens
 
 ### Advanced Features
+- **Smart Comment Processing**: Coordinate-based matching of designer comments to UI elements
+- **AI Prompt Generation**: Framework-specific implementation prompts from designer instructions
 - **CSS Generation**: Automatic CSS property generation from Figma properties with comprehensive effects support
 - **Accessibility Enhancement**: ARIA labels, roles, and accessibility information
 - **Component Variant Detection**: Automatic detection of component states and variants
 - **Interaction State Generation**: Hover, focus, and active state definitions
-- **Responsive Breakpoint Analysis**: Detection and optimization for different screen sizes
 - **Performance Optimization**: Caching, rate limiting, and request optimization
 
 ### Latest Updates
 
-#### v1.4.0 - Figma Comments Integration 🎯
-- **NEW**: Designer comments integration for implementation instructions
-- **Read Figma Comments**: Automatically fetch and analyze designer comments
-- **Smart Analysis**: AI-powered detection of animation, interaction, and behavior instructions
-- **Confidence Scoring**: Intelligent filtering of implementation-relevant comments
-- **Seamless Integration**: Comments included as structured data for AI code generation
+#### v2.5.0 - Clean 4-Step Workflow & Smart Comments 🚀
+- **NEW**: Clean 4-step workflow replacing chaotic mixed operations
+- **NEW**: `analyze_figma_design` - Pure design analysis (Step 2)
+- **NEW**: `process_design_comments` - Smart comment-to-element matching (Step 3)
+- **NEW**: `download_design_assets` - Dedicated asset downloads (Step 4)
+- **IMPROVED**: Comment coordinate matching with 100px proximity tolerance
+- **IMPROVED**: AI prompt generation for designer instructions
+- **IMPROVED**: Framework-specific processing from step 1
+- **FIXED**: Path resolution issues for relative and absolute paths
 
-#### v1.3.12 - Comprehensive Effects Support
-- **MCP JSON Protocol Fix**: Resolved stdout interference issues for clean MCP communication
-- **Comprehensive Figma Effects Support**: Full support for all Figma layer effects
-  - Inner shadows (up to 8 per element)
-  - Multiple drop shadows (up to 8 per element) 
-  - Layer blur effects (`filter: blur()`)
-  - Background blur effects (`backdrop-filter: blur()`)
-  - Individual corner radius for each corner
-  - Stroke/border properties with proper alignment handling
-  - Individual stroke weights per side
-  - Basic stroke dash support
-  - Shadow and border design token extraction
+#### v2.4.2 - Path Fixes & Stability
+- **FIXED**: Directory creation issues with relative paths (`./images`)
+- **IMPROVED**: Path resolution logging for debugging
+- **ENHANCED**: Error handling for edge cases
 
 ## 📦 Installation
 
@@ -135,96 +136,131 @@ Add to your MCP configuration file:
 
 ## 🛠️ Usage
 
-### Selection-Focused Analysis
+### 🎯 The Clean 4-Step Workflow
 
-**NEW in v1.2.0**: The server now properly handles Figma selections! When you provide a `nodeId`, it analyzes only your selected element instead of the entire document.
+Follow this clean, predictable workflow for best results:
 
-#### Getting Node IDs from Figma URLs
+#### **Step 1: Framework Selection** 
+Choose your target framework before starting. This optimizes all subsequent processing:
+- React/JSX
+- Vue.js  
+- Angular
+- Svelte
+- HTML/CSS/JavaScript
 
-1. **Select an element in Figma** - The URL will look like:
-   ```
-   https://www.figma.com/design/ABC123DEF456/My-Design?node-id=123-456&t=xyz
-   ```
+#### **Step 2: Design Analysis** 
+Use `analyze_figma_design` to get AI-optimized design structure:
 
-2. **Extract the fileKey and nodeId manually** from the URL:
-   - fileKey: `ABC123DEF456` (the part after `/design/` and before the next `/`)
-   - nodeId: `123:456` (convert the hyphen in `node-id=123-456` to a colon)
-
-3. **Use these values in `get_figma_data`**:
-   ```json
-   {
-     "fileKey": "ABC123DEF456",
-     "nodeId": "123:456",
-     "depth": 3,
-     "framework": "react"
-   }
-   ```
-
-### Available Tools
-
-#### 1. `get_figma_data`
-Fetch and process Figma design data with AI-optimized context enhancement. Use nodeId from a Figma selection link to analyze only the selected element, or omit nodeId to analyze the full document.
-
-**Parameters:**
-- `fileKey` (string): The Figma file key
-- `nodeId` (string, optional): Specific node ID to fetch (use for selected elements)
-- `depth` (number, 1-10, default: 5): Maximum depth to traverse
-- `framework` (enum, optional): Target framework ('react', 'vue', 'angular', 'svelte', 'html')
-- `includeImages` (boolean, default: false): Whether to include image URLs
-- `includeComments` (boolean, default: false): Whether to include designer comments and implementation instructions
-- `customRules` (object, optional): Custom processing rules
-
-**Example with Comments:**
 ```json
 {
-  "fileKey": "ABC123DEF456",
-  "nodeId": "123:456",
-  "includeComments": true,
+  "url": "https://www.figma.com/design/ABC123DEF456/My-Design?node-id=123-456",
   "framework": "react"
 }
 ```
 
-**Comments Integration:**
-When `includeComments: true`, the tool automatically:
-- Fetches designer comments attached to processed nodes
-- Analyzes comments for implementation instructions (animations, interactions, behaviors)
-- Provides confidence scores for instruction relevance
-- Includes structured comment data for AI code generation
+#### **Step 3: Comment Processing** 
+Use `process_design_comments` to match designer comments to elements:
 
-#### 2. `download_figma_images`
-Download images from Figma nodes directly. Downloads any node as an image using the node's actual name as the filename (e.g., "EPAM Systems.svg"). Does not require export settings to be configured in Figma.
+```json
+{
+  "fileKey": "ABC123DEF456",
+  "analysisData": "...(output from step 2)...",
+  "framework": "react"
+}
+```
+
+#### **Step 4: Asset Downloads**
+Use `download_design_assets` to get exportable images:
+
+```json
+{
+  "fileKey": "ABC123DEF456", 
+  "nodeIds": ["1417:681", "1417:695"],
+  "localPath": "./images"
+}
+```
+
+### Available Tools
+
+#### 1. `analyze_figma_design` (Step 2)
+Pure design analysis with framework-specific optimization. Analyzes Figma URL and extracts AI-optimized structure.
+
+**Parameters:**
+- `url` (string): Full Figma URL from browser (handles file extraction automatically)
+- `framework` (enum): Target framework ('react', 'vue', 'angular', 'svelte', 'html') - **REQUIRED**
+- `includeComments` (boolean, default: false): Include basic comment data (use Step 3 for detailed processing)
+
+**Example:**
+```json
+{
+  "url": "https://www.figma.com/design/ZVnXdidh7cqIeJuI8e4c6g/CV-Artem-Svitelskyi?node-id=1410-165",
+  "framework": "react"
+}
+```
+
+**Output:**
+- AI-optimized design structure
+- CSS properties and design tokens
+- Framework-specific component suggestions
+- Accessibility metadata
+- Exportable node identification for Step 4
+
+#### 2. `process_design_comments` (Step 3)
+Smart processing of designer comments with coordinate-based element matching. Generates actionable AI prompts.
+
+**Parameters:**
+- `fileKey` (string): The Figma file key from Step 2
+- `analysisData` (object): The analyzed design data from Step 2
+- `framework` (enum): Target framework for code suggestions
+
+**Example:**
+```json
+{
+  "fileKey": "ZVnXdidh7cqIeJuI8e4c6g",
+  "analysisData": { "...output from analyze_figma_design..." },
+  "framework": "react"
+}
+```
+
+**Smart Features:**
+- **Coordinate Matching**: Matches comment positions to design elements (100px tolerance)
+- **Intent Analysis**: Detects animation, interaction, behavior, and style instructions
+- **Confidence Scoring**: Rates actionable vs informational comments
+- **AI Prompt Generation**: Creates framework-specific implementation prompts
+- **Context Awareness**: Includes element details and positioning
+
+#### 3. `download_design_assets` (Step 4)
+Dedicated asset downloading with smart path resolution. Downloads exportable images identified in Step 2.
 
 **Parameters:**
 - `fileKey` (string): The Figma file key
-- `nodeIds` (array): Array of node IDs to download as images
-- `localPath` (string): Local directory path to save images (will be created if it does not exist)
+- `nodeIds` (array): Array of node IDs to download (from Step 2 metadata)
+- `localPath` (string): Local directory path (supports both `./images` and absolute paths)
 - `scale` (number, 0.5-4, default: 2): Export scale for images
 - `format` (enum, default: 'svg'): Image format ('jpg', 'png', 'svg', 'pdf')
 
 **Example:**
 ```json
 {
-  "fileKey": "abc123",
-  "nodeIds": ["1:2", "1:3"],
-  "localPath": "./downloads",
-  "scale": 2,
+  "fileKey": "ZVnXdidh7cqIeJuI8e4c6g",
+  "nodeIds": ["1417:681", "1417:695", "1488:167"],
+  "localPath": "./images",
   "format": "svg"
 }
 ```
 
 **Key Features:**
-- **Direct Downloads**: Downloads any node as an image, no export settings required
-- **Original Naming**: Uses actual node names as filenames with proper sanitization
-- **Format Support**: PNG, JPG, SVG, PDF formats
-- **Scale Options**: 0.5x to 4x scaling (SVG limited to 1x per Figma API)
-- **Batch Processing**: Efficiently processes multiple nodes
-- **Smart Naming**: Sanitizes special characters in filenames
+- **Path Resolution**: Fixed handling of relative (`./images`) and absolute paths
+- **Original Naming**: Uses actual node names as filenames with sanitization
+- **Batch Processing**: Efficiently processes multiple nodes in parallel
+- **Export Settings Aware**: Respects Figma export configurations when available
+- **Error Recovery**: Robust error handling with detailed reporting
 
-#### 3. `get_server_stats`
-Get server performance and usage statistics.
-
-#### 4. `clear_cache`
-Clear the API response cache.
+#### 4. Legacy Tools
+- `get_figma_data`: Legacy tool - use `analyze_figma_design` instead
+- `optimize_for_framework`: Legacy tool - framework selection now happens in Step 1
+- `get_server_stats`: Get server performance and usage statistics
+- `clear_cache`: Clear the API response cache
 
 ### Custom Rules Configuration
 
