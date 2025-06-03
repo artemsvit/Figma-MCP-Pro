@@ -831,40 +831,42 @@ export class ContextProcessor {
   }
 
   /**
-   * Process comments and associate them with nodes
+   * Process comments and associate them with nodes using coordinate matching
    */
   processCommentsForNode(
     node: EnhancedFigmaNode, 
     comments: FigmaComment[]
   ): EnhancedFigmaNodeWithComments {
-    const nodeComments = comments.filter(comment => 
-      comment.client_meta?.node_id === node.id
-    );
+    // Extract simplified comment instructions with coordinates
+    const simplifiedInstructions = this.extractSimplifiedInstructions(comments);
+    
+    // Match instructions to this node and its children using coordinates
+    const matchedInstructions = this.matchInstructionsToNode(node, simplifiedInstructions);
 
-    if (nodeComments.length === 0) {
+    if (matchedInstructions.length === 0) {
+      // Process children recursively
+      if (node.children) {
+        const enhancedNodeWithComments: EnhancedFigmaNodeWithComments = {
+          ...node,
+          children: node.children.map(child => 
+            this.processCommentsForNode(child as EnhancedFigmaNode, comments)
+          )
+        };
+        return enhancedNodeWithComments;
+      }
       return node as EnhancedFigmaNodeWithComments;
     }
 
-    // Analyze comments for implementation instructions
-    const commentInstructions: CommentInstruction[] = [];
-    
-    nodeComments.forEach(comment => {
-      const instruction = this.analyzeCommentForInstructions(comment);
-      if (instruction) {
-        commentInstructions.push(instruction);
-      }
-    });
-
-    // Sort instructions by confidence (highest first)
-    commentInstructions.sort((a, b) => b.confidence - a.confidence);
-
+    // Attach matched instructions directly to node
     const enhancedNodeWithComments: EnhancedFigmaNodeWithComments = {
       ...node,
-      comments: nodeComments,
-      commentInstructions
+      // Add instructions as direct properties for AI agents
+      aiInstructions: matchedInstructions,
+      // Also keep as commentInstructions for backward compatibility
+      commentInstructions: matchedInstructions
     };
 
-    // Process children recursively if they exist
+    // Process children recursively
     if (node.children) {
       enhancedNodeWithComments.children = node.children.map(child => 
         this.processCommentsForNode(child as EnhancedFigmaNode, comments)
@@ -872,6 +874,94 @@ export class ContextProcessor {
     }
 
     return enhancedNodeWithComments;
+  }
+
+  /**
+   * Extract only essential data from comments: instruction + coordinates
+   */
+  private extractSimplifiedInstructions(comments: FigmaComment[]): Array<{
+    instruction: string;
+    coordinates: { x: number; y: number };
+    nodeId?: string;
+  }> {
+    return comments
+      .filter(comment => comment.message && comment.client_meta?.node_offset)
+      .map(comment => ({
+        instruction: comment.message,
+        coordinates: {
+          x: comment.client_meta!.node_offset!.x,
+          y: comment.client_meta!.node_offset!.y
+        },
+        nodeId: comment.client_meta?.node_id
+      }));
+  }
+
+  /**
+   * Match instructions to nodes using coordinate proximity and node boundaries
+   */
+  private matchInstructionsToNode(
+    node: EnhancedFigmaNode, 
+    instructions: Array<{ instruction: string; coordinates: { x: number; y: number }; nodeId?: string }>
+  ): CommentInstruction[] {
+    const matchedInstructions: CommentInstruction[] = [];
+
+    // Direct node ID match (highest priority)
+    const directMatches = instructions.filter(inst => inst.nodeId === node.id);
+    
+    // Coordinate-based matching for nodes with bounds
+    let coordinateMatches: typeof instructions = [];
+    if (node.absoluteBoundingBox && instructions.length > directMatches.length) {
+      const bounds = node.absoluteBoundingBox;
+      coordinateMatches = instructions.filter(inst => 
+        !inst.nodeId || inst.nodeId !== node.id // Don't double-count direct matches
+      ).filter(inst => {
+        const { x, y } = inst.coordinates;
+        return x >= bounds.x && 
+               x <= bounds.x + bounds.width &&
+               y >= bounds.y && 
+               y <= bounds.y + bounds.height;
+      });
+    }
+
+    // Convert to CommentInstruction format
+    [...directMatches, ...coordinateMatches].forEach(match => {
+      const instructionType = this.categorizeInstruction(match.instruction);
+      const confidence = match.nodeId === node.id ? 1.0 : 0.7; // Higher confidence for direct node matches
+      
+      matchedInstructions.push({
+        type: instructionType,
+        instruction: match.instruction,
+        author: 'Designer', // Simplified - no need for full user data
+        timestamp: new Date().toISOString(), // Simplified timestamp
+        confidence,
+        coordinates: match.coordinates // Keep coordinates for reference
+      });
+    });
+
+    return matchedInstructions;
+  }
+
+  /**
+   * Simplified instruction categorization
+   */
+  private categorizeInstruction(instruction: string): 'animation' | 'interaction' | 'behavior' | 'general' {
+    const text = instruction.toLowerCase();
+    
+    if (text.includes('hover') || text.includes('click') || text.includes('tap') || text.includes('focus')) {
+      return 'interaction';
+    }
+    
+    if (text.includes('animate') || text.includes('animation') || text.includes('transition') || 
+        text.includes('fade') || text.includes('slide') || text.includes('bounce')) {
+      return 'animation';
+    }
+    
+    if (text.includes('show') || text.includes('hide') || text.includes('toggle') || 
+        text.includes('enable') || text.includes('disable')) {
+      return 'behavior';
+    }
+    
+    return 'general';
   }
 
   /**

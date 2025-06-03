@@ -597,6 +597,7 @@ export interface FigmaCommentsResponse {
 export interface EnhancedFigmaNodeWithComments extends EnhancedFigmaNode {
   comments?: FigmaComment[];
   commentInstructions?: CommentInstruction[];
+  aiInstructions?: CommentInstruction[]; // Simplified instructions for AI agents
 }
 
 export interface CommentInstruction {
@@ -605,4 +606,5 @@ export interface CommentInstruction {
   author: string;
   timestamp: string;
   confidence: number; // 0-1 score of how likely this is an implementation instruction
+  coordinates?: { x: number; y: number }; // Optional coordinates for spatial matching
 } 
