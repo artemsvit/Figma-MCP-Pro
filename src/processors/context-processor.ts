@@ -964,98 +964,7 @@ export class ContextProcessor {
     return 'general';
   }
 
-  /**
-   * Analyze comment for implementation instructions
-   */
-  private analyzeCommentForInstructions(comment: FigmaComment): CommentInstruction | null {
-    const message = comment.message.toLowerCase();
-    
-    // Keywords that suggest implementation instructions
-    const animationKeywords = [
-      'animate', 'animation', 'transition', 'fade', 'slide', 'bounce', 'scale', 'rotate', 
-      'duration', 'easing', 'timing', 'delay', 'spring', 'cubic-bezier', 'ease-in', 'ease-out',
-      'transform', 'opacity', 'translate', 'zoom', 'flip', 'spin'
-    ];
-    
-    const interactionKeywords = [
-      'hover', 'click', 'tap', 'focus', 'active', 'disabled', 'press', 'interaction', 'state',
-      'on-click', 'on-hover', 'on-focus', 'mouse', 'touch', 'gesture', 'trigger', 'event'
-    ];
-    
-    const behaviorKeywords = [
-      'behavior', 'behaviour', 'should', 'when', 'if', 'then', 'toggle', 'show', 'hide',
-      'open', 'close', 'expand', 'collapse', 'reveal', 'display', 'visible', 'hidden',
-      'enable', 'disable', 'activate', 'deactivate'
-    ];
-    
-    const uiPatternKeywords = [
-      'modal', 'dropdown', 'tooltip', 'accordion', 'tab', 'carousel', 'slider', 'sidebar',
-      'menu', 'navigation', 'pagination', 'form', 'validation', 'loading', 'spinner'
-    ];
 
-    let type: 'animation' | 'interaction' | 'behavior' | 'general' = 'general';
-    let confidence = 0.1; // Base confidence for any comment
-    
-    // Check for animation instructions
-    const animationMatches = animationKeywords.filter(keyword => message.includes(keyword));
-    if (animationMatches.length > 0) {
-      type = 'animation';
-      confidence += animationMatches.length * 0.15;
-    }
-    
-    // Check for interaction instructions
-    const interactionMatches = interactionKeywords.filter(keyword => message.includes(keyword));
-    if (interactionMatches.length > 0) {
-      type = 'interaction';
-      confidence += interactionMatches.length * 0.15;
-    }
-    
-    // Check for behavior instructions
-    const behaviorMatches = behaviorKeywords.filter(keyword => message.includes(keyword));
-    if (behaviorMatches.length > 0) {
-      type = 'behavior';
-      confidence += behaviorMatches.length * 0.12;
-    }
-    
-    // Check for UI pattern keywords
-    const patternMatches = uiPatternKeywords.filter(keyword => message.includes(keyword));
-    if (patternMatches.length > 0) {
-      confidence += patternMatches.length * 0.1;
-    }
-    
-    // Boost confidence for imperative language
-    const imperativeWords = ['should', 'must', 'need', 'add', 'create', 'implement', 'make', 'ensure'];
-    const imperativeMatches = imperativeWords.filter(word => message.includes(word));
-    if (imperativeMatches.length > 0) {
-      confidence += 0.25;
-    }
-    
-    // Boost confidence for specific measurements or values
-    if (message.match(/\d+(px|ms|s|%|em|rem)/)) {
-      confidence += 0.2;
-    }
-    
-    // Boost confidence for code-like syntax
-    if (message.includes('css') || message.includes('javascript') || message.includes('js') || message.includes('react')) {
-      confidence += 0.15;
-    }
-    
-    // Cap confidence at 1.0
-    confidence = Math.min(confidence, 1.0);
-    
-    // Only return instruction if confidence is reasonable
-    if (confidence < 0.25) {
-      return null;
-    }
-    
-    return {
-      type,
-      instruction: comment.message,
-      author: comment.user.handle,
-      timestamp: comment.created_at,
-      confidence
-    };
-  }
 
   /**
    * Extract all node IDs from a node tree for comment filtering
@@ -1105,6 +1014,15 @@ export class ContextProcessor {
     // Essential CSS properties only
     if (node.cssProperties && Object.keys(node.cssProperties).length > 0) {
       optimized.css = this.cleanCSSProperties(node.cssProperties);
+    }
+
+    // Detect and mark exportable images/icons
+    const imageInfo = this.detectExportableImage(node);
+    if (imageInfo) {
+      optimized.image = imageInfo;
+      // Override type to be more specific
+      if (imageInfo.category === 'icon') optimized.type = 'ICON';
+      if (imageInfo.category === 'image') optimized.type = 'IMAGE';
     }
 
     // Semantic information for AI
@@ -1205,5 +1123,61 @@ export class ContextProcessor {
     }
     
     return `${top}px ${right}px ${bottom}px ${left}px`;
+  }
+
+  /**
+   * Detect if a node represents an exportable image/icon
+   */
+  private detectExportableImage(node: any): { category: 'icon' | 'image' | 'logo'; formats: string[]; isExportable: boolean } | null {
+    // Check for image fills (actual images)
+    const hasImageFill = node.fills && node.fills.some((fill: any) => 
+      fill.type === 'IMAGE' && fill.imageRef
+    );
+    
+    // Check for vector/icon characteristics
+    const isSmallSquare = node.absoluteBoundingBox && 
+      node.absoluteBoundingBox.width <= 100 && 
+      node.absoluteBoundingBox.height <= 100 &&
+      Math.abs(node.absoluteBoundingBox.width - node.absoluteBoundingBox.height) <= 10;
+    
+    // Check naming patterns
+    const name = node.name.toLowerCase();
+    const isIcon = name.includes('icon') || name.includes('logo') || 
+                   name.includes('svg') || isSmallSquare;
+    const isImage = hasImageFill || name.includes('image') || name.includes('photo');
+    
+    // Check if it's a component or has export settings
+    const isComponent = node.type === 'COMPONENT' || node.type === 'INSTANCE';
+    const hasExportSettings = node.exportSettings && node.exportSettings.length > 0;
+    
+    // Check if it's a visual element (not a layout container)
+    const hasSimpleStructure = !node.children || node.children.length <= 1;
+    const isVisualElement = hasImageFill || isComponent || hasSimpleStructure;
+    
+    if (isIcon || isImage || (isComponent && isVisualElement)) {
+      let category: 'icon' | 'image' | 'logo' = 'icon';
+      
+      if (hasImageFill) category = 'image';
+      else if (name.includes('logo')) category = 'logo';
+      else if (isIcon) category = 'icon';
+      
+      // Determine best export formats
+      let formats: string[] = [];
+      if (hasImageFill) {
+        formats = ['png', 'jpg']; // Raster images
+      } else if (category === 'icon' || category === 'logo') {
+        formats = ['svg', 'png']; // Vector graphics
+      } else {
+        formats = ['png']; // Default
+      }
+      
+      return {
+        category,
+        formats,
+        isExportable: true
+      };
+    }
+    
+    return null;
   }
 } 

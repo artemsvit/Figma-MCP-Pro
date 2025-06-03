@@ -256,7 +256,7 @@ class CustomFigmaMcpServer {
       );
     }
     
-    const { fileKey, framework, includeImages, includeComments, customRules } = parsed;
+    const { fileKey, framework, includeComments, customRules } = parsed;
     const depth = parsed.depth || 5;
 
     // Convert node ID format from URL format (1530-166) to API format (1530:166)
@@ -385,22 +385,8 @@ class CustomFigmaMcpServer {
       // Get processing stats
       const stats = this.contextProcessor.getStats();
       
-      // Include images if requested
-      let imageUrls: Record<string, string> = {};
-      if (includeImages && enhancedData.children) {
-        const nodeIds = this.extractNodeIds(enhancedData);
-        if (nodeIds.length > 0) {
-          try {
-            const imageResponse = await this.figmaApi.getImages(fileKey, nodeIds, {
-              format: 'png',
-              scale: 2
-            });
-            imageUrls = imageResponse.images;
-          } catch (error) {
-            this.logError('Failed to fetch images:', error);
-          }
-        }
-      }
+      // Note: Image fetching removed - exportable images are detected in data structure
+      // Use download_figma_images tool for actual image downloads
 
       this.log(`[Figma MCP] Successfully processed ${stats.nodesProcessed} nodes`);
 
@@ -418,8 +404,8 @@ class CustomFigmaMcpServer {
               // Optional: Include full data for debugging (if needed)
               // fullData: enhancedData,
               
-              // Only include images for nodes that actually need them
-              images: this.filterEssentialImages(imageUrls, enhancedData),
+              // Note: Exportable images are now detected and marked within the data structure
+              // Use download_figma_images tool for actual image downloads
               
               // Simplified metadata
               metadata: {
@@ -549,61 +535,7 @@ class CustomFigmaMcpServer {
     }
   }
 
-  private extractNodeIds(node: any): string[] {
-    const nodeIds: string[] = [];
-    
-    if (node.id) {
-      nodeIds.push(node.id);
-    }
-    
-    if (node.children) {
-      for (const child of node.children) {
-        nodeIds.push(...this.extractNodeIds(child));
-      }
-    }
-    
-    return nodeIds;
-  }
 
-  /**
-   * Filter images to only include essential ones (components, frames with actual visual content)
-   * Skip individual text elements and simple geometric shapes that don't need image exports
-   */
-  private filterEssentialImages(imageUrls: Record<string, string>, node: any): Record<string, string> {
-    const essential: Record<string, string> = {};
-    
-    const shouldIncludeImage = (nodeData: any): boolean => {
-      // Include components and instances
-      if (nodeData.type === 'COMPONENT' || nodeData.type === 'INSTANCE') {
-        return true;
-      }
-      
-      // Include frames with complex content (multiple children or specific backgrounds)
-      if (nodeData.type === 'FRAME') {
-        const hasMultipleChildren = nodeData.children && nodeData.children.length > 2;
-        const hasComplexBackground = nodeData.fills && 
-          nodeData.fills.some((fill: any) => fill.type === 'IMAGE' || fill.type === 'GRADIENT_LINEAR');
-        return hasMultipleChildren || hasComplexBackground;
-      }
-      
-      // Skip simple text, rectangles, and basic shapes
-      return false;
-    };
-    
-    const checkNode = (nodeData: any) => {
-      const imageUrl = imageUrls[nodeData.id];
-      if (shouldIncludeImage(nodeData) && imageUrl) {
-        essential[nodeData.id] = imageUrl;
-      }
-      
-      if (nodeData.children) {
-        nodeData.children.forEach(checkNode);
-      }
-    };
-    
-    checkNode(node);
-    return essential;
-  }
 
   private setupErrorHandling(): void {
     this.server.onerror = (error) => {

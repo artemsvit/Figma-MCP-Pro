@@ -1,0 +1,339 @@
+{
+  "data": {
+    "id": "1530:166",
+    "name": "feature/3",
+    "type": "FRAME",
+    "children": [
+      {
+        "id": "1530:167",
+        "name": "title+text",
+        "type": "FRAME",
+        "children": [
+          {
+            "id": "1530:168",
+            "name": "SysIQ Commerce",
+            "type": "FRAME",
+            "bounds": {
+              "x": -861,
+              "y": 946,
+              "width": 60,
+              "height": 60
+            },
+            "css": {
+              "width": "60px",
+              "height": "60px"
+            },
+            "accessibility": {
+              "ariaLabel": "SysIQ Commerce"
+            }
+          },
+          {
+            "id": "1530:169",
+            "name": "title",
+            "type": "TEXT",
+            "bounds": {
+              "x": -861,
+              "y": 1022,
+              "width": 220,
+              "height": 24
+            },
+            "css": {
+              "width": "220px",
+              "height": "24px",
+              "backgroundColor": "rgb(46, 43, 38)",
+              "fontSize": "18px",
+              "fontFamily": "Inter"
+            },
+            "role": {
+              "type": "text",
+              "hierarchy": 4
+            },
+            "accessibility": {
+              "ariaLabel": "title"
+            },
+            "tokens": [
+              {
+                "name": "title-fill-0",
+                "value": "rgb(46, 43, 38)",
+                "type": "color"
+              },
+              {
+                "name": "title-font-size",
+                "value": "18px",
+                "type": "typography"
+              },
+              {
+                "name": "title-line-height",
+                "value": "24px",
+                "type": "typography"
+              }
+            ],
+            "text": "Astound Digital",
+            "textStyle": {
+              "fontFamily": "Inter",
+              "fontSize": 18,
+              "lineHeight": 24
+            }
+          },
+          {
+            "id": "1530:170",
+            "name": "text",
+            "type": "TEXT",
+            "bounds": {
+              "x": -861,
+              "y": 1062,
+              "width": 220,
+              "height": 140
+            },
+            "css": {
+              "width": "220px",
+              "height": "140px",
+              "backgroundColor": "rgb(46, 43, 38)",
+              "fontSize": "16px",
+              "fontFamily": "Inter"
+            },
+            "role": {
+              "type": "text",
+              "hierarchy": 5
+            },
+            "accessibility": {
+              "ariaLabel": "text"
+            },
+            "tokens": [
+              {
+                "name": "text-fill-0",
+                "value": "rgb(46, 43, 38)",
+                "type": "color"
+              },
+              {
+                "name": "text-font-size",
+                "value": "16px",
+                "type": "typography"
+              },
+              {
+                "name": "text-line-height",
+                "value": "24px",
+                "type": "typography"
+              }
+            ],
+            "text": "UX AND UI DESIGNER\n\n・E-commerce\n・Research\n・Wireframing\n・UX and UI Design",
+            "textStyle": {
+              "fontFamily": "Inter",
+              "fontSize": 16,
+              "lineHeight": 24
+            }
+          },
+          {
+            "id": "1530:171",
+            "name": "tag",
+            "type": "FRAME",
+            "children": [
+              {
+                "id": "1530:172",
+                "name": "Dec 2012 - Nov 2013",
+                "type": "TEXT",
+                "bounds": {
+                  "x": -849,
+                  "y": 1222,
+                  "width": 160,
+                  "height": 24
+                },
+                "css": {
+                  "width": "160px",
+                  "height": "24px",
+                  "backgroundColor": "rgb(132, 132, 132)",
+                  "fontSize": "16px",
+                  "fontFamily": "Inter"
+                },
+                "role": {
+                  "type": "text",
+                  "hierarchy": 5
+                },
+                "accessibility": {
+                  "ariaLabel": "Dec 2012 - Nov 2013"
+                },
+                "tokens": [
+                  {
+                    "name": "Dec 2012 - Nov 2013-fill-0",
+                    "value": "rgb(132, 132, 132)",
+                    "type": "color"
+                  },
+                  {
+                    "name": "Dec 2012 - Nov 2013-font-size",
+                    "value": "16px",
+                    "type": "typography"
+                  },
+                  {
+                    "name": "Dec 2012 - Nov 2013-line-height",
+                    "value": "24px",
+                    "type": "typography"
+                  }
+                ],
+                "text": "Dec 2012 - Nov 2013",
+                "textStyle": {
+                  "fontFamily": "Inter",
+                  "fontSize": 16,
+                  "lineHeight": 24
+                }
+              }
+            ],
+            "bounds": {
+              "x": -861,
+              "y": 1218,
+              "width": 184,
+              "height": 32
+            },
+            "css": {
+              "width": "184px",
+              "height": "32px",
+              "padding": "4px 12px 4px 12px",
+              "gap": "10px",
+              "backgroundColor": "rgb(240, 240, 240)",
+              "borderRadius": "20px",
+              "display": "flex",
+              "flexDirection": "row"
+            },
+            "role": {
+              "type": "button"
+            },
+            "accessibility": {
+              "ariaRole": "button",
+              "focusable": true
+            },
+            "tokens": [
+              {
+                "name": "tag-fill-0",
+                "value": "rgb(240, 240, 240)",
+                "type": "color"
+              },
+              {
+                "name": "tag-padding",
+                "value": "4px 12px 4px 12px",
+                "type": "spacing"
+              },
+              {
+                "name": "tag-border-radius",
+                "value": "20px",
+                "type": "border"
+              }
+            ],
+            "interactions": [
+              {
+                "trigger": "hover",
+                "changes": {
+                  "opacity": "0.8"
+                }
+              },
+              {
+                "trigger": "active",
+                "changes": {
+                  "transform": "scale(0.95)"
+                }
+              }
+            ],
+            "layout": {
+              "mode": "HORIZONTAL",
+              "direction": "row",
+              "gap": 10,
+              "padding": "4px 12px 4px 12px"
+            }
+          }
+        ],
+        "bounds": {
+          "x": -861,
+          "y": 946,
+          "width": 220,
+          "height": 304
+        },
+        "css": {
+          "width": "220px",
+          "height": "304px",
+          "gap": "16px",
+          "display": "flex",
+          "flexDirection": "column"
+        },
+        "role": {
+          "type": "container",
+          "purpose": "layout"
+        },
+        "accessibility": {
+          "ariaLabel": "title+text"
+        },
+        "layout": {
+          "mode": "VERTICAL",
+          "direction": "column",
+          "gap": 16
+        }
+      }
+    ],
+    "bounds": {
+      "x": -881,
+      "y": 926,
+      "width": 260,
+      "height": 350
+    },
+    "css": {
+      "width": "260px",
+      "height": "350px",
+      "padding": "20px 20px 20px 20px",
+      "gap": "20px",
+      "backgroundColor": "rgb(255, 255, 255)",
+      "boxShadow": "inset 0 0 0 1px rgb(214, 214, 214)",
+      "display": "flex",
+      "flexDirection": "column"
+    },
+    "role": {
+      "type": "container",
+      "purpose": "layout"
+    },
+    "accessibility": {
+      "ariaLabel": "feature/3"
+    },
+    "tokens": [
+      {
+        "name": "feature/3-fill-0",
+        "value": "rgb(255, 255, 255)",
+        "type": "color"
+      },
+      {
+        "name": "feature/3-padding",
+        "value": "20px 20px 20px 20px",
+        "type": "spacing"
+      },
+      {
+        "name": "feature/3-border",
+        "value": "1px solid rgb(214, 214, 214)",
+        "type": "border"
+      }
+    ],
+    "layout": {
+      "mode": "VERTICAL",
+      "direction": "column",
+      "gap": 20,
+      "padding": "20px"
+    },
+    "instructions": [
+      {
+        "type": "interaction",
+        "instruction": "Jumping animation on hover.",
+        "confidence": 1
+      }
+    ]
+  },
+  "images": {
+    "1530:167": "https://figma-alpha-api.s3.us-west-2.amazonaws.com/images/41b9a476-e166-49aa-883b-49746f98f863",
+    "1530:168": "https://figma-alpha-api.s3.us-west-2.amazonaws.com/images/b3117795-f994-47ad-95c0-bbf8ad6d507a"
+  },
+  "metadata": {
+    "fileKey": "ZVnXdidh7cqIeJuI8e4c6g",
+    "nodeId": "1530:166",
+    "framework": "html",
+    "isSpecificSelection": true,
+    "includeComments": true,
+    "stats": {
+      "nodesProcessed": 7,
+      "commentsFound": 1
+    },
+    "timestamp": "2025-06-03T07:33:17.722Z"
+  }
+}
