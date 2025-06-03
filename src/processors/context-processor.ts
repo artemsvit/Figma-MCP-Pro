@@ -882,11 +882,9 @@ export class ContextProcessor {
     const availableInstructions = simplifiedInstructions.filter((_, index) => !usedInstructions.has(index));
     console.error(`  Available instructions for this node: ${availableInstructions.length}`);
     
-    // Special case: if we have hover/animation instructions and this node is a parent,
-    // try to find the most appropriate child element
-    const semanticInstructions = this.findSemanticMatches(node, availableInstructions);
-    
-    const matchedInstructions = this.matchInstructionsToNode(node, semanticInstructions.length > 0 ? semanticInstructions : availableInstructions);
+    // Use ONLY coordinate-based matching - no semantic override
+    // Children have already claimed their instructions, now parent gets remaining ones that coordinate-match
+    const matchedInstructions = this.matchInstructionsToNode(node, availableInstructions);
 
     // Create enhanced node with comments
     const enhancedNodeWithComments: EnhancedFigmaNodeWithComments = {
@@ -935,85 +933,7 @@ export class ContextProcessor {
     }
   }
 
-  /**
-   * Find semantic matches - prefer instructions to go to appropriate interactive elements
-   */
-  private findSemanticMatches(
-    node: EnhancedFigmaNode,
-    instructions: Array<{ instruction: string; coordinates: { x: number; y: number }; nodeId?: string }>
-  ): Array<{ instruction: string; coordinates: { x: number; y: number }; nodeId?: string }> {
-    // Only apply semantic matching for parent containers
-    if (!node.children || node.children.length === 0) {
-      return instructions;
-    }
 
-    console.error(`  Applying semantic matching for parent node: ${node.name}`);
-    
-    const semanticMatches: typeof instructions = [];
-    
-    for (const inst of instructions) {
-      const instructionText = inst.instruction.toLowerCase();
-      
-      // Look for interaction instructions that should be on interactive elements
-      if (instructionText.includes('hover') || 
-          instructionText.includes('click') || 
-          instructionText.includes('animation') ||
-          instructionText.includes('jump') ||
-          instructionText.includes('bounce')) {
-        
-        console.error(`    Found interaction instruction: "${inst.instruction}"`);
-        
-        // Find the best child element for this instruction
-        const targetChild = this.findBestChildForInstruction(node, inst);
-        
-        if (targetChild) {
-          console.error(`    Redirecting to child: ${targetChild.name}`);
-          // Don't include this instruction for the parent - let the child handle it
-          continue;
-        }
-      }
-      
-      // Keep non-interaction instructions or those without better targets
-      semanticMatches.push(inst);
-    }
-    
-    console.error(`  Semantic matching result: ${semanticMatches.length}/${instructions.length} instructions kept for parent`);
-    return semanticMatches;
-  }
-
-  /**
-   * Find the best child element for a specific instruction
-   */
-  private findBestChildForInstruction(
-    parentNode: EnhancedFigmaNode,
-    instruction: { instruction: string; coordinates: { x: number; y: number }; nodeId?: string }
-  ): EnhancedFigmaNode | null {
-    if (!parentNode.children) return null;
-
-    const instructionText = instruction.instruction.toLowerCase();
-    
-    // Look for children that match the instruction semantically
-    for (const child of parentNode.children) {
-      const childName = child.name.toLowerCase();
-      
-      // Check for interactive elements
-      if (instructionText.includes('hover') || instructionText.includes('animation')) {
-        if (childName.includes('tag') || 
-            childName.includes('button') || 
-            childName.includes('link') ||
-            child.type === 'FRAME' && childName.includes('action')) {
-          console.error(`      Found semantic match: ${child.name} for "${instruction.instruction}"`);
-          return child as EnhancedFigmaNode;
-        }
-      }
-      
-      // Recursively check grandchildren
-      const grandchild = this.findBestChildForInstruction(child as EnhancedFigmaNode, instruction);
-      if (grandchild) return grandchild;
-    }
-    
-    return null;
-  }
 
   /**
    * Extract only essential data from comments: instruction + coordinates
@@ -1044,7 +964,7 @@ export class ContextProcessor {
   }
 
   /**
-   * Match instructions to nodes using improved coordinate proximity and smart prioritization
+   * Match instructions to nodes using precise coordinate matching with specificity priority
    */
   private matchInstructionsToNode(
     node: EnhancedFigmaNode, 
@@ -1066,96 +986,68 @@ export class ContextProcessor {
     const directMatches = instructions.filter(inst => inst.nodeId === node.id);
     console.error(`  Direct ID matches: ${directMatches.length}`);
     
-    // Smart coordinate-based matching with proximity scoring
+    // Precise coordinate-based matching - prioritize smaller, more specific elements
     let coordinateMatches: typeof instructions = [];
     if (node.absoluteBoundingBox && instructions.length > directMatches.length) {
       const bounds = node.absoluteBoundingBox;
-      const tolerance = 20; // 20px tolerance for fuzzy matching
+      const nodeArea = bounds.width * bounds.height; // Calculate area for specificity
       
       coordinateMatches = instructions.filter(inst => 
         !inst.nodeId || inst.nodeId !== node.id // Don't double-count direct matches
       ).filter(inst => {
         const { x, y } = inst.coordinates;
         
-        // Strict coordinate matching first
-        const strictMatch = x >= bounds.x && 
-                           x <= bounds.x + bounds.width &&
-                           y >= bounds.y && 
-                           y <= bounds.y + bounds.height;
+        // STRICT coordinate matching only - no fuzzy tolerance for precision
+        const exactMatch = x >= bounds.x && 
+                          x <= bounds.x + bounds.width &&
+                          y >= bounds.y && 
+                          y <= bounds.y + bounds.height;
         
-        // Fuzzy matching with tolerance for near-misses
-        const fuzzyMatch = !strictMatch && (
-          (x >= bounds.x - tolerance && x <= bounds.x + bounds.width + tolerance &&
-           y >= bounds.y - tolerance && y <= bounds.y + bounds.height + tolerance)
-        );
-        
-        // Semantic matching: match interaction instructions to interactive elements
-        const instructionText = inst.instruction.toLowerCase();
-        const nodeName = node.name.toLowerCase();
-        
-        // Check if this is an interactive instruction
-        const isInteractionInstruction = instructionText.includes('hover') || 
-                                        instructionText.includes('click') || 
-                                        instructionText.includes('animation') ||
-                                        instructionText.includes('jump') ||
-                                        instructionText.includes('bounce');
-        
-        // Check if this is an interactive element
-        const isInteractiveElement = (
-          node.type === 'FRAME' && 
-          (nodeName.includes('button') || 
-           nodeName.includes('tag') || 
-           nodeName.includes('link') ||
-           nodeName.includes('action'))
-        ) || (
-          // Also check semantic role
-          node.semanticRole?.type === 'button' ||
-          // Or check if it has hover interactions already
-          (node as any).interactions?.some?.((int: any) => int.trigger === 'hover')
-        );
-        
-        // Smart matching logic
-        let matches = false;
-        
-        if (strictMatch) {
-          matches = true; // Always match if coordinates are perfect
-        } else if (fuzzyMatch && isInteractionInstruction && isInteractiveElement) {
-          // Strongly prefer interactive elements for interaction instructions
-          matches = true;
-        } else if (fuzzyMatch && !isInteractionInstruction) {
-          // For non-interaction instructions, use loose matching
-          matches = true;
+        if (exactMatch) {
+          console.error(`    EXACT COORDINATE MATCH: "${inst.instruction}" at (${x}, ${y}) in node area ${nodeArea}px²`);
+          return true;
         }
-        console.error(`    Checking instruction "${inst.instruction}" at (${x}, ${y}): ${matches ? (strictMatch ? 'STRICT MATCH' : 'FUZZY MATCH') : 'NO MATCH'}`);
-        return matches;
+        
+        console.error(`    NO MATCH: "${inst.instruction}" at (${x}, ${y}) outside bounds`);
+        return false;
       });
     }
-    console.error(`  Coordinate matches: ${coordinateMatches.length}`);
+    console.error(`  Precise coordinate matches: ${coordinateMatches.length}`);
 
-    // Convert to CommentInstruction format
+    // Convert to CommentInstruction format with specificity-based confidence
     [...directMatches, ...coordinateMatches].forEach(match => {
       const instructionType = this.categorizeInstruction(match.instruction);
       let confidence = 1.0;
       
-      // Adjust confidence based on match type
+      // Adjust confidence based on match type and node specificity
       if (match.nodeId === node.id) {
         confidence = 1.0; // Direct node ID match
+      } else if (node.absoluteBoundingBox) {
+        const bounds = node.absoluteBoundingBox;
+        const nodeArea = bounds.width * bounds.height;
+        
+        // Higher confidence for smaller, more specific elements
+        // Elements smaller than 10,000px² (100x100) get higher confidence
+        if (nodeArea < 10000) {
+          confidence = 0.95; // High confidence for small, specific elements like logos/icons
+        } else if (nodeArea < 50000) {
+          confidence = 0.85; // Medium confidence for medium elements like buttons
+        } else {
+          confidence = 0.7; // Lower confidence for large containers
+        }
+        
+        console.error(`    Assigned confidence ${confidence} based on node area ${nodeArea}px²`);
       } else {
-        // Check if it's a strict coordinate match
-        const bounds = node.absoluteBoundingBox!;
-        const { x, y } = match.coordinates;
-        const strictMatch = x >= bounds.x && x <= bounds.x + bounds.width &&
-                           y >= bounds.y && y <= bounds.y + bounds.height;
-        confidence = strictMatch ? 0.9 : 0.7; // Lower confidence for fuzzy matches
+        confidence = 0.5; // Low confidence for nodes without bounds
       }
       
       matchedInstructions.push({
         type: instructionType,
         instruction: match.instruction,
-        author: 'Designer', // Simplified - no need for full user data
-        timestamp: new Date().toISOString(), // Simplified timestamp
+        author: 'Designer',
+        timestamp: new Date().toISOString(),
         confidence,
-        coordinates: match.coordinates // Keep coordinates for reference
+        coordinates: match.coordinates
       });
     });
 
