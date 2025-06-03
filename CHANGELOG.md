@@ -5,6 +5,29 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [3.0.14] - 2025-01-21
+
+### 🔧 **CRITICAL FIX: Complete Dynamic Import Removal**
+- **FIXED**: Remaining dynamic imports causing path resolution failures in both `createVisualReference` and `handleCheckReference` methods
+- **ISSUE**: Previous fix in v3.0.13 missed dynamic imports in the actual tool handlers, still causing `/assets` vs `./assets` path resolution errors
+- **SOLUTION**: 
+  - Added static imports for `path` and `fs` at top of `src/index.ts`
+  - Removed all remaining `await import('path')` and `await import('fs/promises')` dynamic imports
+  - Fixed both `createVisualReference` method and `handleCheckReference` method to use static imports
+  - All path resolution now uses consistent, reliable static module imports
+
+### What Was Fixed
+- **Before**: Dynamic imports in 3 places causing path resolution to fail ❌
+- **After**: All static imports, consistent path resolution across all methods ✅
+
+### Technical Details
+- **Static Imports Added**: `import path from 'path'` and `import fs from 'fs/promises'` in `src/index.ts`
+- **Removed Dynamic Imports**: All `await import('path')` and `await import('fs/promises')` calls
+- **Methods Fixed**: Both `createVisualReference` and `handleCheckReference` methods
+- **Consistent Resolution**: All path operations now use the same reliable static module imports
+
+**Result**: Directory creation now works reliably - no more `/assets` at filesystem root errors! 📁
+
 ## [3.0.12] - 2025-01-01
 
 ### 🔧 **FIXED: check_reference Tool Improvements**

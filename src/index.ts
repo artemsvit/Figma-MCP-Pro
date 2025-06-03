@@ -10,6 +10,8 @@ import { z } from 'zod';
 import { Command } from 'commander';
 import dotenv from 'dotenv';
 import chalk from 'chalk';
+import path from 'path';
+import fs from 'fs/promises';
 import { VERSION } from './version.js';
 
 // Load environment variables
@@ -876,8 +878,6 @@ class CustomFigmaMcpServer {
 
     try {
       // Resolve the assets path using robust path resolution
-      const path = await import('path');
-      
       // Normalize and validate the input path to prevent encoding issues
       const normalizedPath = assetsPath.trim().replace(/[^\x20-\x7E]/g, ''); // Remove non-ASCII characters
       
@@ -899,7 +899,6 @@ class CustomFigmaMcpServer {
       }
       
       // Check if reference.png exists
-      const fs = await import('fs/promises');
       const referencePath = path.join(resolvedPath, 'reference.png');
       
       let referenceExists = false;
@@ -1295,9 +1294,6 @@ class CustomFigmaMcpServer {
              // Rename to reference.png
        const originalFile = referenceDownload.downloaded[0];
        if (originalFile && originalFile.success) {
-         const path = await import('path');
-         const fs = await import('fs/promises');
-         
          const referenceFilePath = path.join(localPath, 'reference.png');
          
          try {
