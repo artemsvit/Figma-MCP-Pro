@@ -364,6 +364,83 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Docker support (planned)
 - Extensive documentation and examples
 
+## [2.3.0] - 2024-12-XX
+
+### 🚨 **CRITICAL: Strengthened AI Behavior Control + Automatic Image Downloads**
+
+**ISSUE**: Previous fixes were too subtle - AI continued using broken workflow (get_figma_data + separate download_figma_images calls)
+
+### Fixed
+- **🎯 Much stronger tool descriptions** with clear priorities and emojis
+- **⚠️ Marked get_figma_data as LEGACY** - forces AI to use analyze_figma_url for URLs
+- **📁 Made analyze_figma_url include automatic image downloads** - complete workflow in one tool
+- **📝 Added explicit step-by-step workflow** in tool descriptions
+
+### Tool Description Changes
+- **analyze_figma_url**: "🎯 PRIMARY TOOL - Automatically downloads images and analyzes design"
+- **get_figma_data**: "⚠️ LEGACY TOOL - Use analyze_figma_url instead when user provides Figma URLs!"
+- **download_figma_images**: "📁 ADDITIONAL DOWNLOADS - For extra downloads beyond analyze_figma_url"
+- **optimize_for_framework**: "🔄 SECONDARY TOOL - Use only to change framework AFTER initial analysis"
+
+### Enhanced Workflow
+- **analyze_figma_url now defaults to includeImages=true** - automatic downloads included
+- **Single integrated tool call** instead of separate get_figma_data + download_figma_images
+- **Complete workflow**: URL → Framework selection → Analysis + Downloads in one step
+
+### Added Documentation
+- **docs/CORRECT_WORKFLOW.md**: Updated to show integrated workflow with automatic downloads
+- Clear examples of single tool call vs broken separate calls
+- Step-by-step workflow rules
+
+**Perfect integrated workflow: Framework selection + Analysis + Image downloads in one tool! 🎯**
+
+## [2.2.2] - 2024-12-XX
+
+### 🚀 **NEW: Framework-First URL Analysis + Fixed AI Auto-Behavior + Fixed Comment Positioning**
+
+**FIXED MULTIPLE CRITICAL ISSUES!** 
+
+### Added
+- **`analyze_figma_url` tool**: New primary tool that takes full Figma URLs + framework preference
+- **Framework-first workflow**: Choose framework BEFORE data fetching (React/Vue/Angular/Svelte/HTML)
+- **Smart URL parsing**: Automatically extracts fileKey and nodeId from any Figma URL
+- **AI framework question**: AI now asks "What framework would you like me to optimize for?" when unclear
+- **New documentation**: `docs/AI_BEHAVIOR_GUIDE.md` for proper AI tool usage
+
+### Fixed
+- **🚨 CRITICAL**: AI no longer automatically calls `download_figma_images` when using `optimize_for_framework`
+- **🚨 CRITICAL**: AI asks for framework preference instead of silently defaulting to HTML
+- **🚨 CRITICAL**: Fixed comment coordinate mapping - instructions now attached to **specific elements** instead of dumped at end
+- **❌ OLD BROKEN**: AI immediately calls `get_figma_data` + `download_figma_images` when seeing URLs
+- **✅ NEW FIXED**: AI calls `analyze_figma_url` with user's framework preference upfront
+- **✅ NEW FIXED**: Comments mapped to most specific element using bottom-up coordinate matching
+- **Auto-behavior prevented**: Added explicit AI guidance in tool descriptions to prevent unwanted automatic behavior
+- **TypeScript error**: Fixed fileKey type assignment error in URL parsing
+
+### Improved
+- **Precise comment positioning**: Instructions appear in the exact element they belong to, not at end of response
+- **Bottom-up coordinate matching**: Children elements get priority over parent containers for comment assignment
+- **Predictable AI behavior**: AI only calls tools user explicitly requests
+- **Framework questions**: AI asks for clarification when framework preference is unclear  
+- **One-step analysis**: URL + framework → perfectly optimized data
+- **Better IDE experience**: "Analyze this for React: [URL]" works perfectly
+- **Controlled image downloads**: Only when user explicitly requests images
+- **No more "helpful" auto-calls**: AI won't automatically call extra tools
+
+### Technical
+- **Smart coordinate matching**: Uses bottom-up approach to find most specific element for each comment
+- **Instruction deduplication**: Prevents comments from being attached to multiple elements
+- **Enhanced comment processing**: Instructions appear directly in element metadata where they belong
+- Added URL parsing logic for Figma design links with proper type safety
+- Framework selection happens before API calls
+- Enhanced tool descriptions with explicit AI behavior guidance
+- Maintains all existing tools for backwards compatibility
+- Added protective descriptions: "DO NOT automatically call...", "ONLY call when user EXPLICITLY requests"
+
+## [2.1.0] - 2024-12-17
+
+// ... existing code ...
+
 ## [Unreleased]
 
 ### Planned

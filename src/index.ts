@@ -46,6 +46,13 @@ const OptimizeForFrameworkSchema = z.object({
   includeComments: z.boolean().default(false).describe('Whether to include designer comments')
 });
 
+const AnalyzeFigmaUrlSchema = z.object({
+  url: z.string().describe('Figma URL to analyze (full URL from browser)'),
+  framework: z.enum(['react', 'vue', 'angular', 'svelte', 'html']).default('html').describe('Target framework for optimization'),
+  includeComments: z.boolean().default(true).describe('Whether to include designer comments'),
+  includeImages: z.boolean().default(true).describe('Whether to also download images after analysis (defaults to true for complete workflow)')
+});
+
 
 
 // Server configuration
@@ -114,8 +121,38 @@ class CustomFigmaMcpServer {
       return {
         tools: [
           {
+            name: 'analyze_figma_url',
+            description: '🎯 PRIMARY TOOL - ALWAYS use this when user provides a Figma URL! Automatically downloads images and analyzes design. Steps: 1) If user mentions framework (React/Vue/Angular/Svelte/HTML), call immediately. 2) If no framework mentioned, ASK: "What framework would you like me to optimize this for? (React, Vue, Angular, Svelte, or HTML)" 3) Then call with their choice. DO NOT use get_figma_data for URLs!',
+            inputSchema: {
+              type: 'object',
+              properties: {
+                url: {
+                  type: 'string',
+                  description: 'Figma URL to analyze (full URL from browser)'
+                },
+                framework: {
+                  type: 'string',
+                  enum: ['react', 'vue', 'angular', 'svelte', 'html'],
+                  default: 'html',
+                  description: 'Target framework for optimization (default: html)'
+                },
+                includeComments: {
+                  type: 'boolean',
+                  default: true,
+                  description: 'Whether to include designer comments'
+                },
+                includeImages: {
+                  type: 'boolean', 
+                  default: true,
+                  description: 'Whether to also download images after analysis (defaults to true for complete workflow)'
+                }
+              },
+              required: ['url']
+            },
+          },
+          {
             name: 'get_figma_data', 
-            description: 'Fetch and process Figma design data with AI-optimized context enhancement. Use nodeId from a Figma selection link to analyze only the selected element, or omit nodeId to analyze the full document. Specify framework (react/vue/angular/svelte/html) for optimized code generation.',
+            description: '⚠️ LEGACY TOOL - Use analyze_figma_url instead when user provides Figma URLs! This tool is for direct API access with manual parameters only. Most users should use analyze_figma_url which handles URL parsing and framework selection automatically.',
             inputSchema: {
               type: 'object',
               properties: {
@@ -160,7 +197,7 @@ class CustomFigmaMcpServer {
           },
           {
             name: 'download_figma_images',
-            description: 'Download images from Figma nodes directly. Downloads any node as an image using the node\'s actual name as the filename (e.g., "EPAM Systems.svg"). Does not require export settings to be configured in Figma.',
+            description: '📁 ADDITIONAL DOWNLOADS - Use for extra image downloads beyond what analyze_figma_url provides. Call when user wants specific nodes, different formats, or additional images. analyze_figma_url already handles basic image downloads automatically.',
             inputSchema: {
               type: 'object',
               properties: {
@@ -198,7 +235,7 @@ class CustomFigmaMcpServer {
           },
           {
             name: 'optimize_for_framework',
-            description: 'Re-optimize previously fetched Figma data for a specific framework (React, Vue, Angular, Svelte, HTML). Use this when you want to convert the design data to a different framework after initial analysis.',
+            description: '🔄 SECONDARY TOOL - Use only to change framework AFTER initial analysis. Example: User says "convert this to React" after getting HTML data. DO NOT use for initial URL analysis (use analyze_figma_url). DO NOT call download_figma_images after this.',
             inputSchema: {
               type: 'object',
               properties: {
@@ -250,6 +287,8 @@ class CustomFigmaMcpServer {
 
       try {
         switch (name) {
+          case 'analyze_figma_url':
+            return await this.handleAnalyzeFigmaUrl(args);
           case 'get_figma_data':
             return await this.handleGetFigmaData(args);
           case 'optimize_for_framework':
@@ -464,6 +503,116 @@ class CustomFigmaMcpServer {
         `Failed to fetch Figma data: ${error instanceof Error ? error.message : String(error)}`
       );
     }
+  }
+
+  private async handleAnalyzeFigmaUrl(args: any) {
+    this.log(`[Figma MCP] Analyzing Figma URL:`, JSON.stringify(args, null, 2));
+    
+    let parsed;
+    try {
+      parsed = AnalyzeFigmaUrlSchema.parse(args);
+    } catch (error) {
+      this.logError(`[Figma MCP] Schema validation error:`, error);
+      throw new McpError(
+        ErrorCode.InvalidParams,
+        `Invalid parameters: ${error instanceof Error ? error.message : String(error)}`
+      );
+    }
+    
+    const { url, framework, includeComments, includeImages } = parsed;
+
+    // Parse Figma URL to extract fileKey and nodeId
+    let fileKey: string;
+    let nodeId: string | undefined;
+    
+    try {
+      const urlObj = new URL(url);
+      
+      // Extract fileKey from URL path like /design/ZVnXdidh7cqIeJuI8e4c6g/...
+      const pathParts = urlObj.pathname.split('/');
+      const designIndex = pathParts.findIndex(part => part === 'design' || part === 'file');
+      
+      if (designIndex === -1 || designIndex >= pathParts.length - 1) {
+        throw new Error('Invalid Figma URL: could not extract file key');
+      }
+      
+      const extractedFileKey = pathParts[designIndex + 1];
+      if (!extractedFileKey) {
+        throw new Error('Invalid Figma URL: file key not found after design path');
+      }
+      fileKey = extractedFileKey;
+      
+      // Extract nodeId from query params like ?node-id=1530-166
+      const nodeIdParam = urlObj.searchParams.get('node-id');
+      if (nodeIdParam) {
+        nodeId = nodeIdParam;
+      }
+      
+      this.log(`[Figma MCP] Parsed URL - fileKey: ${fileKey}, nodeId: ${nodeId}, framework: ${framework}`);
+      
+    } catch (error) {
+      this.logError(`[Figma MCP] Error parsing Figma URL:`, error);
+      throw new McpError(
+        ErrorCode.InvalidParams,
+        `Invalid Figma URL: ${error instanceof Error ? error.message : String(error)}`
+      );
+    }
+
+    // Call get_figma_data with parsed parameters
+    const figmaDataArgs: any = {
+      fileKey,
+      framework,
+      includeComments,
+      depth: 5
+    };
+    
+    if (nodeId) {
+      figmaDataArgs.nodeId = nodeId;
+    }
+
+    this.log(`[Figma MCP] Calling get_figma_data with framework: ${framework}`);
+    const figmaDataResult = await this.handleGetFigmaData(figmaDataArgs);
+
+    // If images requested, also download them
+    if (includeImages && nodeId) {
+      this.log(`[Figma MCP] Also downloading images as requested`);
+      const validNodeId = nodeId as string; // Type assertion since we know it exists
+      try {
+        const downloadArgs = {
+          fileKey,
+          nodeIds: [validNodeId.replace(/-/g, ':')], // Convert to API format
+          localPath: './images',
+          format: 'svg' as 'svg'
+        };
+        
+        const downloadResult = await this.handleDownloadFigmaImages(downloadArgs);
+        
+        // Combine results
+        const figmaData = figmaDataResult?.content?.[0]?.text ? JSON.parse(figmaDataResult.content[0].text) : {};
+        const downloadData = downloadResult?.content?.[0]?.text ? JSON.parse(downloadResult.content[0].text) : {};
+        
+        const combinedResult = {
+          ...figmaData,
+          imageDownloads: downloadData
+        };
+        
+        return {
+          content: [
+            {
+              type: 'text',
+              text: JSON.stringify(combinedResult, null, 2)
+            }
+          ]
+        };
+        
+      } catch (error) {
+        this.logError(`[Figma MCP] Error downloading images:`, error);
+        // Return figma data even if image download fails
+        return figmaDataResult;
+      }
+    }
+
+    return figmaDataResult;
   }
 
   private async handleOptimizeForFramework(args: any) {

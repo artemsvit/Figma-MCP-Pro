@@ -832,6 +832,7 @@ export class ContextProcessor {
 
   /**
    * Process comments and associate them with nodes using coordinate matching
+   * Uses bottom-up approach to find the most specific element for each comment
    */
   processCommentsForNode(
     node: EnhancedFigmaNode, 
@@ -840,37 +841,43 @@ export class ContextProcessor {
     // Extract simplified comment instructions with coordinates
     const simplifiedInstructions = this.extractSimplifiedInstructions(comments);
     
-    // Match instructions to this node and its children using coordinates
-    const matchedInstructions = this.matchInstructionsToNode(node, simplifiedInstructions);
-
-    if (matchedInstructions.length === 0) {
-      // Process children recursively
-      if (node.children) {
-        const enhancedNodeWithComments: EnhancedFigmaNodeWithComments = {
-          ...node,
-          children: node.children.map(child => 
-            this.processCommentsForNode(child as EnhancedFigmaNode, comments)
-          )
-        };
-        return enhancedNodeWithComments;
+    // Process children first (bottom-up approach)
+    const processedChildren: EnhancedFigmaNodeWithComments[] = [];
+    const usedInstructions = new Set<number>(); // Track which instructions have been used
+    
+    if (node.children) {
+      for (const child of node.children) {
+        const processedChild = this.processCommentsForNode(child as EnhancedFigmaNode, comments);
+        processedChildren.push(processedChild);
+        
+        // Mark instructions used by children
+        if (processedChild.aiInstructions) {
+          processedChild.aiInstructions.forEach(inst => {
+            const index = simplifiedInstructions.findIndex(si => 
+              si.instruction === inst.instruction && 
+              si.coordinates.x === inst.coordinates!.x && 
+              si.coordinates.y === inst.coordinates!.y
+            );
+            if (index >= 0) usedInstructions.add(index);
+          });
+        }
       }
-      return node as EnhancedFigmaNodeWithComments;
     }
 
-    // Attach matched instructions directly to node
+    // Only match instructions to this node if they haven't been used by children
+    const availableInstructions = simplifiedInstructions.filter((_, index) => !usedInstructions.has(index));
+    const matchedInstructions = this.matchInstructionsToNode(node, availableInstructions);
+
+    // Create enhanced node with comments
     const enhancedNodeWithComments: EnhancedFigmaNodeWithComments = {
       ...node,
-      // Add instructions as direct properties for AI agents
-      aiInstructions: matchedInstructions,
-      // Also keep as commentInstructions for backward compatibility
-      commentInstructions: matchedInstructions
+      children: processedChildren.length > 0 ? processedChildren : undefined
     };
 
-    // Process children recursively
-    if (node.children) {
-      enhancedNodeWithComments.children = node.children.map(child => 
-        this.processCommentsForNode(child as EnhancedFigmaNode, comments)
-      );
+    // Only attach instructions if there are any for this specific node
+    if (matchedInstructions.length > 0) {
+      enhancedNodeWithComments.aiInstructions = matchedInstructions;
+      enhancedNodeWithComments.commentInstructions = matchedInstructions;
     }
 
     return enhancedNodeWithComments;

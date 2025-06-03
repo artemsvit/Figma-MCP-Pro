@@ -1,7 +1,7 @@
 {
   "name": "figma-mcp-pro",
-  "version": "2.1.0",
-  "description": "Professional Figma MCP Server with AI-optimized design analysis, intelligent image downloads respecting export settings, and enhanced context processing for code generation",
+  "version": "2.3.0",
+  "description": "Professional Figma MCP Server with enhanced AI context processing and framework-first URL analysis",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
   "type": "module",
