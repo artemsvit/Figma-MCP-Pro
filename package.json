@@ -1,6 +1,6 @@
 {
   "name": "figma-mcp-pro",
-  "version": "2.3.3",
+  "version": "2.3.4",
   "description": "Professional Figma MCP Server with enhanced AI context processing and framework-first URL analysis",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
