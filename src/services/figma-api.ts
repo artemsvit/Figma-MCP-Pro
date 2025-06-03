@@ -472,13 +472,14 @@ export class FigmaApiService {
   /**
    * Resolve and validate file paths safely for different MCP environments
    */
-  private static async resolvePath(inputPath: string): Promise<string> {
-    const path = await import('path');
-    
+  private static resolvePath(inputPath: string): string {
     // Normalize and validate the input path to prevent encoding issues
     const normalizedPath = inputPath.trim().replace(/[^\x20-\x7E]/g, ''); // Remove non-ASCII characters
     
+    console.error(`[Figma API] Input path: "${inputPath}" -> normalized: "${normalizedPath}"`);
+    
     if (path.isAbsolute(normalizedPath)) {
+      console.error(`[Figma API] Path is absolute: ${normalizedPath}`);
       return normalizedPath;
     } else {
       // For relative paths, ensure we resolve from a known base directory
@@ -486,10 +487,18 @@ export class FigmaApiService {
       console.error(`[Figma API] Current working directory: ${cwd}`);
       
       // Clean the relative path and resolve it properly
-      const cleanPath = normalizedPath
+      let cleanPath = normalizedPath
         .replace(/^\.\//, '') // Remove leading ./
         .replace(/^\//, ''); // Remove leading / if accidentally added
-      return path.resolve(cwd, cleanPath);
+      
+      // Ensure we don't have an empty path
+      if (!cleanPath) {
+        cleanPath = '.';
+      }
+      
+      const resolvedPath = path.resolve(cwd, cleanPath);
+      console.error(`[Figma API] Relative path resolution: "${cleanPath}" -> "${resolvedPath}"`);
+      return resolvedPath;
     }
   }
 
@@ -497,7 +506,6 @@ export class FigmaApiService {
    * Create directory with robust error handling
    */
   private static async createDirectorySafely(resolvedPath: string, originalPath: string): Promise<void> {
-    const fs = await import('fs/promises');
     
     // Validate the resolved path
     if (!resolvedPath || resolvedPath.length === 0) {
@@ -546,7 +554,7 @@ export class FigmaApiService {
     };
   }> {
     // Resolve and ensure local directory exists
-    const resolvedPath = await FigmaApiService.resolvePath(localPath);
+    const resolvedPath = FigmaApiService.resolvePath(localPath);
     await FigmaApiService.createDirectorySafely(resolvedPath, localPath);
 
     const results: Array<{
@@ -702,7 +710,7 @@ export class FigmaApiService {
     };
   }> {
     // Resolve and ensure local directory exists
-    const resolvedPath = await FigmaApiService.resolvePath(localPath);
+    const resolvedPath = FigmaApiService.resolvePath(localPath);
     await FigmaApiService.createDirectorySafely(resolvedPath, localPath);
 
     const results: Array<{

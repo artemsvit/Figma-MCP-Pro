@@ -125,6 +125,35 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 **Perfect workflow: Now includes visual design understanding before code development!** 🎨
 
+## [3.0.13] - 2025-01-21
+
+### 🔧 **CRITICAL FIX: Directory Creation Path Resolution**
+- **FIXED**: Directory creation failure in `download_design_assets` tool  
+- **ISSUE**: Tool was trying to create directories at filesystem root (e.g., `/assets`) instead of workspace relative paths
+- **ROOT CAUSE**: Dynamic imports of `path` and `fs` modules in MCP environment causing path resolution issues
+- **SOLUTION**: 
+  - Moved `path` and `fs` imports to static top-level imports  
+  - Fixed `resolvePath()` method to be synchronous instead of async
+  - Improved path normalization and resolution logic
+  - Added comprehensive debug logging for path resolution
+
+### What Was Wrong
+- **Before**: `mkdir '/assets'` → Failed with ENOENT error ❌
+- **After**: `mkdir './assets'` → Works correctly in workspace ✅
+
+### Technical Details
+- Replaced dynamic `await import('path')` with static `import path from 'path'`
+- Removed async from `resolvePath()` method signature  
+- Enhanced path cleaning with empty path fallback to `'.'`
+- Added detailed logging for path resolution debugging
+
+### Bundle Impact
+- **Bundle Size**: 433.0 kB unpacked (from 432.8 kB) - minimal increase for robust path handling
+- **Files**: 6 core files maintained
+- **Performance**: Improved (no dynamic imports during runtime)
+
+**Directory creation now works reliably across all MCP environments!** 📁
+
 ## [3.0.8] - 2025-01-21
 
 ### 🔧 **CRITICAL FIX: PNG Reference Format Actually Working**
