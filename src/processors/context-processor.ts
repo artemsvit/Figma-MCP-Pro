@@ -891,7 +891,7 @@ export class ContextProcessor {
     coordinates: { x: number; y: number };
     nodeId?: string;
   }> {
-    return comments
+    const instructions = comments
       .filter(comment => comment.message && comment.client_meta?.node_offset)
       .map(comment => ({
         instruction: comment.message,
@@ -901,6 +901,14 @@ export class ContextProcessor {
         },
         nodeId: comment.client_meta?.node_id
       }));
+
+    // Debug logging for comment coordinates
+    console.error(`[Context Processor] Extracted ${instructions.length} instructions with coordinates:`);
+    instructions.forEach((inst, index) => {
+      console.error(`  ${index}: "${inst.instruction}" at (${inst.coordinates.x}, ${inst.coordinates.y}) node_id: ${inst.nodeId || 'none'}`);
+    });
+
+    return instructions;
   }
 
   /**
@@ -912,8 +920,19 @@ export class ContextProcessor {
   ): CommentInstruction[] {
     const matchedInstructions: CommentInstruction[] = [];
 
+    // Debug logging for this node
+    console.error(`[Context Processor] Matching instructions for node: ${node.name} (${node.id})`);
+    if (node.absoluteBoundingBox) {
+      const bounds = node.absoluteBoundingBox;
+      console.error(`  Node bounds: x=${bounds.x}, y=${bounds.y}, width=${bounds.width}, height=${bounds.height}`);
+      console.error(`  Bounds range: x=${bounds.x} to ${bounds.x + bounds.width}, y=${bounds.y} to ${bounds.y + bounds.height}`);
+    } else {
+      console.error(`  Node has no absoluteBoundingBox`);
+    }
+
     // Direct node ID match (highest priority)
     const directMatches = instructions.filter(inst => inst.nodeId === node.id);
+    console.error(`  Direct ID matches: ${directMatches.length}`);
     
     // Coordinate-based matching for nodes with bounds
     let coordinateMatches: typeof instructions = [];
@@ -923,12 +942,15 @@ export class ContextProcessor {
         !inst.nodeId || inst.nodeId !== node.id // Don't double-count direct matches
       ).filter(inst => {
         const { x, y } = inst.coordinates;
-        return x >= bounds.x && 
-               x <= bounds.x + bounds.width &&
-               y >= bounds.y && 
-               y <= bounds.y + bounds.height;
+        const matches = x >= bounds.x && 
+                       x <= bounds.x + bounds.width &&
+                       y >= bounds.y && 
+                       y <= bounds.y + bounds.height;
+        console.error(`    Checking instruction "${inst.instruction}" at (${x}, ${y}): ${matches ? 'MATCH' : 'NO MATCH'}`);
+        return matches;
       });
     }
+    console.error(`  Coordinate matches: ${coordinateMatches.length}`);
 
     // Convert to CommentInstruction format
     [...directMatches, ...coordinateMatches].forEach(match => {
@@ -945,6 +967,7 @@ export class ContextProcessor {
       });
     });
 
+    console.error(`  Total matched instructions: ${matchedInstructions.length}`);
     return matchedInstructions;
   }
 

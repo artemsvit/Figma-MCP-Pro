@@ -122,7 +122,7 @@ class CustomFigmaMcpServer {
         tools: [
           {
             name: 'analyze_figma_url',
-            description: '🎯 PRIMARY TOOL - ALWAYS use this when user provides a Figma URL! Automatically downloads images and analyzes design. Steps: 1) If user mentions framework (React/Vue/Angular/Svelte/HTML), call immediately. 2) If no framework mentioned, ASK: "What framework would you like me to optimize this for? (React, Vue, Angular, Svelte, or HTML)" 3) Then call with their choice. DO NOT use get_figma_data for URLs!',
+            description: 'PRIMARY TOOL - ALWAYS use this when user provides a Figma URL! Automatically downloads images and analyzes design. Steps: 1) If user mentions framework (React/Vue/Angular/Svelte/HTML), call immediately. 2) If no framework mentioned, ASK: "What framework would you like me to optimize this for? (React, Vue, Angular, Svelte, or HTML)" 3) Then call with their choice. DO NOT use get_figma_data for URLs!',
             inputSchema: {
               type: 'object',
               properties: {
@@ -152,7 +152,7 @@ class CustomFigmaMcpServer {
           },
           {
             name: 'get_figma_data', 
-            description: '⚠️ LEGACY TOOL - Use analyze_figma_url instead when user provides Figma URLs! This tool is for direct API access with manual parameters only. Most users should use analyze_figma_url which handles URL parsing and framework selection automatically.',
+            description: 'LEGACY TOOL - Use analyze_figma_url instead when user provides Figma URLs! This tool is for direct API access with manual parameters only. Most users should use analyze_figma_url which handles URL parsing and framework selection automatically.',
             inputSchema: {
               type: 'object',
               properties: {
@@ -197,7 +197,7 @@ class CustomFigmaMcpServer {
           },
           {
             name: 'download_figma_images',
-            description: '📁 ADDITIONAL DOWNLOADS - Use for extra image downloads beyond what analyze_figma_url provides. Call when user wants specific nodes, different formats, or additional images. analyze_figma_url already handles basic image downloads automatically. ⚠️ IMPORTANT: Only provide specific node IDs - never download entire documents.',
+            description: 'ADDITIONAL DOWNLOADS - Use for extra image downloads beyond what analyze_figma_url provides. Call when user wants specific nodes, different formats, or additional images. analyze_figma_url already handles basic image downloads automatically. IMPORTANT: Only provide specific node IDs - never download entire documents.',
             inputSchema: {
               type: 'object',
               properties: {
@@ -235,7 +235,7 @@ class CustomFigmaMcpServer {
           },
           {
             name: 'optimize_for_framework',
-            description: '🔄 SECONDARY TOOL - Use only to change framework AFTER initial analysis. Example: User says "convert this to React" after getting HTML data. DO NOT use for initial URL analysis (use analyze_figma_url). DO NOT call download_figma_images after this.',
+            description: 'SECONDARY TOOL - Use only to change framework AFTER initial analysis. Example: User says "convert this to React" after getting HTML data. DO NOT use for initial URL analysis (use analyze_figma_url). DO NOT call download_figma_images after this.',
             inputSchema: {
               type: 'object',
               properties: {
