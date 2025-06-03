@@ -39,6 +39,13 @@ const DownloadFigmaImagesSchema = z.object({
   format: z.enum(['jpg', 'png', 'svg', 'pdf']).default('svg').optional().describe('Image format')
 });
 
+const OptimizeForFrameworkSchema = z.object({
+  fileKey: z.string().describe('The Figma file key from previous get_figma_data call'),
+  nodeId: z.string().optional().describe('Specific node ID (if used in previous call)'),
+  framework: z.enum(['react', 'vue', 'angular', 'svelte', 'html']).describe('Target framework to optimize for'),
+  includeComments: z.boolean().default(false).describe('Whether to include designer comments')
+});
+
 
 
 // Server configuration
@@ -190,6 +197,34 @@ class CustomFigmaMcpServer {
             },
           },
           {
+            name: 'optimize_for_framework',
+            description: 'Re-optimize previously fetched Figma data for a specific framework (React, Vue, Angular, Svelte, HTML). Use this when you want to convert the design data to a different framework after initial analysis.',
+            inputSchema: {
+              type: 'object',
+              properties: {
+                fileKey: {
+                  type: 'string',
+                  description: 'The Figma file key from previous get_figma_data call'
+                },
+                nodeId: {
+                  type: 'string',
+                  description: 'Specific node ID (if used in previous call)'
+                },
+                framework: {
+                  type: 'string',
+                  enum: ['react', 'vue', 'angular', 'svelte', 'html'],
+                  description: 'Target framework to optimize for'
+                },
+                includeComments: {
+                  type: 'boolean',
+                  default: false,
+                  description: 'Whether to include designer comments'
+                }
+              },
+              required: ['fileKey', 'framework']
+            },
+          },
+          {
             name: 'get_server_stats',
             description: 'Get server performance and usage statistics',
             inputSchema: {
@@ -217,6 +252,8 @@ class CustomFigmaMcpServer {
         switch (name) {
           case 'get_figma_data':
             return await this.handleGetFigmaData(args);
+          case 'optimize_for_framework':
+            return await this.handleOptimizeForFramework(args);
           case 'download_figma_images':
             return await this.handleDownloadFigmaImages(args);
           case 'get_server_stats':
@@ -425,6 +462,135 @@ class CustomFigmaMcpServer {
       throw new McpError(
         ErrorCode.InternalError,
         `Failed to fetch Figma data: ${error instanceof Error ? error.message : String(error)}`
+      );
+    }
+  }
+
+  private async handleOptimizeForFramework(args: any) {
+    this.log(`[Figma MCP] Optimizing for framework:`, JSON.stringify(args, null, 2));
+    
+    let parsed;
+    try {
+      parsed = OptimizeForFrameworkSchema.parse(args);
+    } catch (error) {
+      this.logError(`[Figma MCP] Schema validation error:`, error);
+      throw new McpError(
+        ErrorCode.InvalidParams,
+        `Invalid parameters: ${error instanceof Error ? error.message : String(error)}`
+      );
+    }
+    
+    const { fileKey, framework, includeComments } = parsed;
+    
+    // Convert node ID format from URL format to API format if provided
+    const apiNodeId = parsed.nodeId ? parsed.nodeId.replace(/-/g, ':') : undefined;
+
+    this.log(`[Figma MCP] Re-optimizing data for framework: ${framework}`);
+    
+    try {
+      let figmaData;
+      let isSpecificNode = false;
+      
+      if (apiNodeId) {
+        // Fetch specific node
+        this.log(`[Figma MCP] Fetching specific node: ${apiNodeId}`);
+        try {
+          const nodeResponse = await this.figmaApi.getFileNodes(fileKey, [apiNodeId], {
+            depth: 5,
+            use_absolute_bounds: true
+          });
+          const nodeWrapper = nodeResponse.nodes[apiNodeId];
+          if (!nodeWrapper) {
+            throw new Error(`Node ${apiNodeId} not found in file ${fileKey}`);
+          }
+          figmaData = nodeWrapper.document;
+          isSpecificNode = true;
+        } catch (apiError) {
+          this.logError(`[Figma MCP] API error fetching node ${apiNodeId}:`, apiError);
+          throw apiError;
+        }
+      } else {
+        // Fetch entire file
+        this.log(`[Figma MCP] Fetching entire document for framework optimization`);
+        try {
+          const fileResponse = await this.figmaApi.getFile(fileKey, {
+            depth: 5,
+            use_absolute_bounds: true
+          });
+          figmaData = fileResponse.document;
+        } catch (apiError) {
+          this.logError(`[Figma MCP] API error fetching file ${fileKey}:`, apiError);
+          throw apiError;
+        }
+      }
+
+      // Process with the specified framework
+      const processingContext: ProcessingContext = {
+        fileKey,
+        depth: 0,
+        siblingIndex: 0,
+        totalSiblings: 1,
+        framework
+      };
+
+      let enhancedData = await this.contextProcessor.processNode(figmaData, processingContext);
+
+      // Process comments if requested
+      let commentsData = null;
+      if (includeComments) {
+        try {
+          this.log(`[Figma MCP] Fetching comments for framework optimization`);
+          const commentsResponse = await this.figmaApi.getComments(fileKey);
+          commentsData = commentsResponse.comments;
+          
+          const allNodeIds = this.contextProcessor.extractAllNodeIds(figmaData);
+          const relevantComments = commentsData.filter(comment => {
+            const nodeId = comment.client_meta?.node_id;
+            return nodeId && allNodeIds.includes(nodeId);
+          });
+          
+          if (relevantComments.length > 0) {
+            enhancedData = this.contextProcessor.processCommentsForNode(enhancedData, relevantComments);
+          }
+        } catch (error) {
+          this.logError(`[Figma MCP] Failed to fetch comments:`, error);
+        }
+      }
+
+      // Get processing stats
+      const stats = this.contextProcessor.getStats();
+
+      // Generate optimized data for the specified framework
+      const optimizedData = this.contextProcessor.optimizeForAI(enhancedData);
+
+      this.log(`[Figma MCP] Successfully optimized for ${framework}: ${stats.nodesProcessed} nodes`);
+
+      return {
+        content: [
+          {
+            type: 'text',
+            text: JSON.stringify({
+              // Framework-optimized data
+              data: optimizedData,
+              
+              // Essential metadata
+              metadata: {
+                framework: framework,
+                source: isSpecificNode ? 'selection' : 'document',
+                processed: stats.nodesProcessed,
+                comments: includeComments ? (commentsData?.length || 0) : 0,
+                optimizedFor: `Framework changed to ${framework}`
+              }
+            }, null, 2)
+          }
+        ]
+      };
+
+    } catch (error) {
+      this.logError(`[Figma MCP] Error optimizing for framework:`, error);
+      throw new McpError(
+        ErrorCode.InternalError,
+        `Failed to optimize for framework ${framework}: ${error instanceof Error ? error.message : String(error)}`
       );
     }
   }
