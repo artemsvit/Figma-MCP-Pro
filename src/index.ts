@@ -197,7 +197,7 @@ class CustomFigmaMcpServer {
           },
           {
             name: 'download_figma_images',
-            description: '📁 ADDITIONAL DOWNLOADS - Use for extra image downloads beyond what analyze_figma_url provides. Call when user wants specific nodes, different formats, or additional images. analyze_figma_url already handles basic image downloads automatically.',
+            description: '📁 ADDITIONAL DOWNLOADS - Use for extra image downloads beyond what analyze_figma_url provides. Call when user wants specific nodes, different formats, or additional images. analyze_figma_url already handles basic image downloads automatically. ⚠️ IMPORTANT: Only provide specific node IDs - never download entire documents.',
             inputSchema: {
               type: 'object',
               properties: {
@@ -573,14 +573,24 @@ class CustomFigmaMcpServer {
     this.log(`[Figma MCP] Calling get_figma_data with framework: ${framework}`);
     const figmaDataResult = await this.handleGetFigmaData(figmaDataArgs);
 
-    // If images requested, also download them
+    // If images requested, also download them (ONLY from specific selection)
     if (includeImages && nodeId) {
-      this.log(`[Figma MCP] Also downloading images as requested`);
+      this.log(`[Figma MCP] Also downloading images from SPECIFIC NODE SELECTION ONLY: ${nodeId}`);
       const validNodeId = nodeId as string; // Type assertion since we know it exists
+      
+      // Validate that we have a specific node, not downloading entire document
+      if (!validNodeId || validNodeId.trim() === '') {
+        this.log(`[Figma MCP] WARNING: No specific node selected, skipping image downloads to prevent downloading entire document`);
+        return figmaDataResult;
+      }
+      
       try {
+        const apiNodeId = validNodeId.replace(/-/g, ':'); // Convert to API format
+        this.log(`[Figma MCP] Converting node ID ${validNodeId} -> ${apiNodeId} for download`);
+        
         const downloadArgs = {
           fileKey,
-          nodeIds: [validNodeId.replace(/-/g, ':')], // Convert to API format
+          nodeIds: [apiNodeId], // ONLY the selected node
           localPath: './images',
           format: 'svg' as 'svg'
         };
@@ -748,7 +758,16 @@ class CustomFigmaMcpServer {
     const parsed = DownloadFigmaImagesSchema.parse(args);
     const { fileKey, nodeIds, localPath, scale, format } = parsed;
 
-    this.log(`[Figma MCP] Downloading ${nodeIds.length} nodes as ${format || 'svg'} images to ${localPath}`);
+    // Validate node count to prevent accidental whole-document downloads
+    if (nodeIds.length > 50) {
+      this.logError(`[Figma MCP] WARNING: Attempting to download ${nodeIds.length} nodes - this may indicate downloading entire document instead of specific selection`);
+      throw new McpError(
+        ErrorCode.InvalidParams,
+        `Too many nodes (${nodeIds.length}). Maximum 50 nodes per download to prevent accidental whole-document downloads. Use specific node selections only.`
+      );
+    }
+
+    this.log(`[Figma MCP] Downloading ${nodeIds.length} SPECIFIC nodes as ${format || 'svg'} images to ${localPath}`);
 
     try {
       // Download images directly using node names as filenames

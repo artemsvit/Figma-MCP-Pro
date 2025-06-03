@@ -494,11 +494,19 @@ export class FigmaApiService {
       failed: number;
     };
   }> {
-    // Ensure local directory exists
+    // Resolve and ensure local directory exists
+    let resolvedPath: string;
     try {
-      await fs.mkdir(localPath, { recursive: true });
+      // Resolve path relative to current working directory
+      resolvedPath = path.resolve(process.cwd(), localPath);
+      console.error(`[Figma API] Resolved path: ${localPath} -> ${resolvedPath}`);
+      
+      // Create directory with proper error handling
+      await fs.mkdir(resolvedPath, { recursive: true });
+      console.error(`[Figma API] Successfully created/verified directory: ${resolvedPath}`);
     } catch (error) {
-      throw new FigmaApiError(`Failed to create directory ${localPath}: ${error}`);
+      console.error(`[Figma API] Directory creation failed for ${localPath}:`, error);
+      throw new FigmaApiError(`Failed to create directory ${localPath}: ${error instanceof Error ? error.message : String(error)}`);
     }
 
     const results: Array<{
@@ -567,7 +575,7 @@ export class FigmaApiService {
           .trim();
         const extension = format;
         const filename = `${sanitizedNodeName}.${extension}`;
-        const filePath = path.join(localPath, filename);
+        const filePath = path.join(resolvedPath, filename);
 
         // Debug logging to understand the filename issue
         console.error(`[Figma API] Debug - Node ID: ${nodeId}, Node Name: "${nodeName}", Filename: "${filename}"`);
@@ -653,11 +661,19 @@ export class FigmaApiService {
       skipped: number;
     };
   }> {
-    // Ensure local directory exists
+    // Resolve and ensure local directory exists
+    let resolvedPath: string;
     try {
-      await fs.mkdir(localPath, { recursive: true });
+      // Resolve path relative to current working directory
+      resolvedPath = path.resolve(process.cwd(), localPath);
+      console.error(`[Figma API] Resolved path: ${localPath} -> ${resolvedPath}`);
+      
+      // Create directory with proper error handling
+      await fs.mkdir(resolvedPath, { recursive: true });
+      console.error(`[Figma API] Successfully created/verified directory: ${resolvedPath}`);
     } catch (error) {
-      throw new FigmaApiError(`Failed to create directory ${localPath}: ${error}`);
+      console.error(`[Figma API] Directory creation failed for ${localPath}:`, error);
+      throw new FigmaApiError(`Failed to create directory ${localPath}: ${error instanceof Error ? error.message : String(error)}`);
     }
 
     const results: Array<{
@@ -789,7 +805,7 @@ export class FigmaApiService {
               }
             }
             
-            const filePath = path.join(localPath, filename);
+            const filePath = path.join(resolvedPath, filename);
 
             try {
               // Download the image
