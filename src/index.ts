@@ -404,27 +404,34 @@ class CustomFigmaMcpServer {
 
       this.log(`[Figma MCP] Successfully processed ${stats.nodesProcessed} nodes`);
 
+      // Generate optimized data for AI (removing redundant information)
+      const optimizedData = this.contextProcessor.optimizeForAI(enhancedData);
+
       return {
         content: [
           {
             type: 'text',
             text: JSON.stringify({
-              data: enhancedData,
-              images: imageUrls,
+              // Primary data: AI-optimized and clean
+              data: optimizedData,
+              
+              // Optional: Include full data for debugging (if needed)
+              // fullData: enhancedData,
+              
+              // Only include images for nodes that actually need them
+              images: this.filterEssentialImages(imageUrls, enhancedData),
+              
+              // Simplified metadata
               metadata: {
                 fileKey,
                 nodeId: parsed.nodeId,
                 framework,
                 isSpecificSelection: isSpecificNode,
-                selectionType: isSpecificNode ? 'user_selection' : 'full_document',
                 includeComments,
-                commentStats: includeComments ? {
-                  totalComments: commentsData?.length || 0,
-                  relevantComments: commentsData?.filter(c => 
-                    this.contextProcessor.extractAllNodeIds(figmaData).includes(c.client_meta?.node_id || '')
-                  ).length || 0
-                } : undefined,
-                processingStats: stats,
+                stats: {
+                  nodesProcessed: stats.nodesProcessed,
+                  commentsFound: includeComments ? (commentsData?.length || 0) : 0
+                },
                 timestamp: new Date().toISOString()
               }
             }, null, 2)
@@ -556,6 +563,46 @@ class CustomFigmaMcpServer {
     }
     
     return nodeIds;
+  }
+
+  /**
+   * Filter images to only include essential ones (components, frames with actual visual content)
+   * Skip individual text elements and simple geometric shapes that don't need image exports
+   */
+  private filterEssentialImages(imageUrls: Record<string, string>, node: any): Record<string, string> {
+    const essential: Record<string, string> = {};
+    
+    const shouldIncludeImage = (nodeData: any): boolean => {
+      // Include components and instances
+      if (nodeData.type === 'COMPONENT' || nodeData.type === 'INSTANCE') {
+        return true;
+      }
+      
+      // Include frames with complex content (multiple children or specific backgrounds)
+      if (nodeData.type === 'FRAME') {
+        const hasMultipleChildren = nodeData.children && nodeData.children.length > 2;
+        const hasComplexBackground = nodeData.fills && 
+          nodeData.fills.some((fill: any) => fill.type === 'IMAGE' || fill.type === 'GRADIENT_LINEAR');
+        return hasMultipleChildren || hasComplexBackground;
+      }
+      
+      // Skip simple text, rectangles, and basic shapes
+      return false;
+    };
+    
+    const checkNode = (nodeData: any) => {
+      const imageUrl = imageUrls[nodeData.id];
+      if (shouldIncludeImage(nodeData) && imageUrl) {
+        essential[nodeData.id] = imageUrl;
+      }
+      
+      if (nodeData.children) {
+        nodeData.children.forEach(checkNode);
+      }
+    };
+    
+    checkNode(node);
+    return essential;
   }
 
   private setupErrorHandling(): void {

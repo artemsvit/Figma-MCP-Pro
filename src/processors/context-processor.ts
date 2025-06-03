@@ -1071,4 +1071,139 @@ export class ContextProcessor {
     
     return nodeIds;
   }
+
+  /**
+   * Generate optimized data structure for AI code generation
+   * Removes redundant and non-valuable information, focuses on development needs
+   */
+  optimizeForAI(node: EnhancedFigmaNodeWithComments): any {
+    const optimized: any = {
+      // Core identification
+      id: node.id,
+      name: node.name,
+      type: node.type,
+    };
+
+    // Only include valuable properties
+    if (node.visible === false) optimized.visible = false; // Only if hidden
+    if (node.children && node.children.length > 0) {
+      optimized.children = node.children.map(child => 
+        this.optimizeForAI(child as EnhancedFigmaNodeWithComments)
+      );
+    }
+
+    // AI-friendly positioning (simplified)
+    if (node.absoluteBoundingBox) {
+      optimized.bounds = {
+        x: node.absoluteBoundingBox.x,
+        y: node.absoluteBoundingBox.y,
+        width: node.absoluteBoundingBox.width,
+        height: node.absoluteBoundingBox.height
+      };
+    }
+
+    // Essential CSS properties only
+    if (node.cssProperties && Object.keys(node.cssProperties).length > 0) {
+      optimized.css = this.cleanCSSProperties(node.cssProperties);
+    }
+
+    // Semantic information for AI
+    if (node.semanticRole) {
+      optimized.role = node.semanticRole;
+    }
+
+    // Accessibility information
+    if (node.accessibilityInfo && Object.keys(node.accessibilityInfo).length > 0) {
+      optimized.accessibility = node.accessibilityInfo;
+    }
+
+    // Design tokens (valuable for design systems)
+    if (node.designTokens && node.designTokens.length > 0) {
+      optimized.tokens = node.designTokens.map(token => ({
+        name: token.name,
+        value: token.value,
+        type: token.type
+      }));
+    }
+
+    // Interaction states (valuable for components)
+    if (node.interactionStates && node.interactionStates.length > 0) {
+      optimized.interactions = node.interactionStates;
+    }
+
+    // Text content (essential)
+    if (node.type === 'TEXT' && node.characters) {
+      optimized.text = node.characters;
+      
+      // Simplified text styling (no complex overrides)
+      if (node.style) {
+        optimized.textStyle = {
+          fontFamily: node.style.fontFamily,
+          fontSize: node.style.fontSize,
+          lineHeight: node.style.lineHeightPx
+        };
+      }
+    }
+
+    // Layout information (essential for containers)
+    if (node.layoutMode) {
+      optimized.layout = {
+        mode: node.layoutMode,
+        direction: node.layoutMode === 'HORIZONTAL' ? 'row' : 'column',
+        gap: node.itemSpacing,
+        padding: this.simplifyPadding(node)
+      };
+    }
+
+    // AI Instructions (the most valuable!)
+    if (node.aiInstructions && node.aiInstructions.length > 0) {
+      optimized.instructions = node.aiInstructions.map(inst => ({
+        type: inst.type,
+        instruction: inst.instruction,
+        confidence: inst.confidence
+      }));
+    }
+
+    return optimized;
+  }
+
+  /**
+   * Clean CSS properties - remove redundant and keep only development-relevant ones
+   */
+  private cleanCSSProperties(css: any): any {
+    const essential = ['width', 'height', 'padding', 'margin', 'gap', 
+                     'backgroundColor', 'color', 'fontSize', 'fontFamily', 
+                     'borderRadius', 'border', 'boxShadow', 'display', 
+                     'flexDirection', 'justifyContent', 'alignItems'];
+    
+    const cleaned: any = {};
+    essential.forEach(prop => {
+      if (css[prop] && css[prop] !== '0px' && css[prop] !== 'none') {
+        cleaned[prop] = css[prop];
+      }
+    });
+    
+    return Object.keys(cleaned).length > 0 ? cleaned : undefined;
+  }
+
+  /**
+   * Simplify padding to a single property
+   */
+  private simplifyPadding(node: any): string | undefined {
+    if (!node.paddingTop && !node.paddingRight && !node.paddingBottom && !node.paddingLeft) {
+      return undefined;
+    }
+    
+    const top = node.paddingTop || 0;
+    const right = node.paddingRight || 0;
+    const bottom = node.paddingBottom || 0;
+    const left = node.paddingLeft || 0;
+    
+    // Check if all sides are equal
+    if (top === right && right === bottom && bottom === left) {
+      return `${top}px`;
+    }
+    
+    return `${top}px ${right}px ${bottom}px ${left}px`;
+  }
 } 
