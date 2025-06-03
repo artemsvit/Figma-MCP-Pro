@@ -107,8 +107,8 @@ class CustomFigmaMcpServer {
       return {
         tools: [
           {
-            name: 'get_figma_data',
-            description: 'Fetch and process Figma design data with AI-optimized context enhancement. Use nodeId from a Figma selection link to analyze only the selected element, or omit nodeId to analyze the full document.',
+            name: 'get_figma_data', 
+            description: 'Fetch and process Figma design data with AI-optimized context enhancement. Use nodeId from a Figma selection link to analyze only the selected element, or omit nodeId to analyze the full document. Specify framework (react/vue/angular/svelte/html) for optimized code generation.',
             inputSchema: {
               type: 'object',
               properties: {
@@ -130,7 +130,8 @@ class CustomFigmaMcpServer {
                 framework: {
                   type: 'string',
                   enum: ['react', 'vue', 'angular', 'svelte', 'html'],
-                  description: 'Target framework for optimization'
+                  default: 'html',
+                  description: 'Target framework for optimized CSS and component generation (default: html)'
                 },
                 includeImages: {
                   type: 'boolean',
@@ -407,18 +408,12 @@ class CustomFigmaMcpServer {
               // Note: Exportable images are now detected and marked within the data structure
               // Use download_figma_images tool for actual image downloads
               
-              // Simplified metadata
+              // Essential metadata for development
               metadata: {
-                fileKey,
-                nodeId: parsed.nodeId,
-                framework,
-                isSpecificSelection: isSpecificNode,
-                includeComments,
-                stats: {
-                  nodesProcessed: stats.nodesProcessed,
-                  commentsFound: includeComments ? (commentsData?.length || 0) : 0
-                },
-                timestamp: new Date().toISOString()
+                framework: framework || 'html',
+                source: isSpecificNode ? 'selection' : 'document',
+                processed: stats.nodesProcessed,
+                comments: includeComments ? (commentsData?.length || 0) : 0
               }
             }, null, 2)
           }
