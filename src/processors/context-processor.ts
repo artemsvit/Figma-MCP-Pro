@@ -844,6 +844,15 @@ export class ContextProcessor {
     console.error(`[Context Processor] Processing comments for node: ${node.name} (${node.id})`);
     console.error(`  Available instructions: ${simplifiedInstructions.length}`);
     
+    // COMPREHENSIVE COORDINATE DEBUG: Show all element bounds vs comment coordinates
+    if (simplifiedInstructions.length > 0) {
+      console.error(`[Context Processor] COORDINATE ANALYSIS:`);
+      simplifiedInstructions.forEach((inst, instIndex) => {
+        console.error(`  Comment ${instIndex}: "${inst.instruction}" at (${inst.coordinates.x}, ${inst.coordinates.y})`);
+        this.debugElementCoordinates(node, inst.coordinates, `    `);
+      });
+    }
+    
     // Process children first (bottom-up approach) - this is crucial for specificity
     const processedChildren: EnhancedFigmaNodeWithComments[] = [];
     const usedInstructions = new Set<number>(); // Track which instructions have been used
@@ -943,6 +952,19 @@ export class ContextProcessor {
     coordinates: { x: number; y: number };
     nodeId?: string;
   }> {
+    console.error(`[Context Processor] FULL COMMENT DATA DEBUG:`);
+    comments.forEach((comment, index) => {
+      console.error(`  Comment ${index}:`);
+      console.error(`    message: "${comment.message}"`);
+      console.error(`    client_meta:`, JSON.stringify(comment.client_meta, null, 2));
+      if (comment.client_meta?.node_offset) {
+        console.error(`    coordinates: (${comment.client_meta.node_offset.x}, ${comment.client_meta.node_offset.y})`);
+      }
+      if (comment.client_meta?.node_id) {
+        console.error(`    target_node_id: ${comment.client_meta.node_id}`);
+      }
+    });
+
     const instructions = comments
       .filter(comment => comment.message && comment.client_meta?.node_offset)
       .map(comment => ({
@@ -954,7 +976,7 @@ export class ContextProcessor {
         nodeId: comment.client_meta?.node_id
       }));
 
-    // Debug logging for comment coordinates
+    // Enhanced debug logging for comment coordinates
     console.error(`[Context Processor] Extracted ${instructions.length} instructions with coordinates:`);
     instructions.forEach((inst, index) => {
       console.error(`  ${index}: "${inst.instruction}" at (${inst.coordinates.x}, ${inst.coordinates.y}) node_id: ${inst.nodeId || 'none'}`);
@@ -1053,6 +1075,31 @@ export class ContextProcessor {
 
     console.error(`  Total matched instructions: ${matchedInstructions.length}`);
     return matchedInstructions;
+  }
+
+  /**
+   * Debug helper: Recursively show all element bounds compared to comment coordinates
+   */
+  private debugElementCoordinates(node: EnhancedFigmaNode, commentCoords: { x: number; y: number }, indent: string): void {
+    if (node.absoluteBoundingBox) {
+      const bounds = node.absoluteBoundingBox;
+      const isInside = commentCoords.x >= bounds.x && 
+                      commentCoords.x <= bounds.x + bounds.width &&
+                      commentCoords.y >= bounds.y && 
+                      commentCoords.y <= bounds.y + bounds.height;
+      const area = bounds.width * bounds.height;
+      
+      console.error(`${indent}${node.name} (${node.type}): bounds(${bounds.x},${bounds.y}) to (${bounds.x + bounds.width},${bounds.y + bounds.height}) area=${area}px² ${isInside ? '✓ CONTAINS' : '✗ outside'}`);
+    } else {
+      console.error(`${indent}${node.name} (${node.type}): NO BOUNDS`);
+    }
+    
+    // Recursively check children
+    if (node.children) {
+      node.children.forEach(child => {
+        this.debugElementCoordinates(child as EnhancedFigmaNode, commentCoords, indent + '  ');
+      });
+    }
   }
 
   /**
