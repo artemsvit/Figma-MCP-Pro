@@ -19,7 +19,7 @@ dotenv.config();
 import { FigmaApiService, FigmaApiConfig } from './services/figma-api.js';
 import { ContextProcessor, ProcessingContext } from './processors/context-processor.js';
 import { ContextRules } from './config/rules.js';
-import { Framework, frameworkDescriptions, getFrameworkRules, isValidFramework } from './config/frameworks/index.js';
+import { getFrameworkRules } from './config/frameworks/index.js';
 
 // Tool schemas  
 const ShowFrameworksSchema = z.object({});
@@ -50,6 +50,11 @@ const DownloadFigmaImagesSchema = z.object({
 const ProcessDesignCommentsSchema = z.object({
   url: z.string().describe('Figma URL to scan for comments (full URL from browser)'),
   framework: z.enum(['react', 'vue', 'angular', 'svelte', 'html']).describe('Target framework for code suggestions')
+});
+
+const CheckReferenceSchema = z.object({
+  assetsPath: z.string().describe('Path to assets folder containing reference.png file'),
+  framework: z.enum(['react', 'vue', 'angular', 'svelte', 'html']).optional().describe('Target framework for development context (optional)')
 });
 
 
@@ -195,7 +200,7 @@ class CustomFigmaMcpServer {
           },
           {
             name: 'download_design_assets',
-            description: 'STEP 4: Automatically scan selected area for ALL export-ready assets and download them with reference.svg. Takes Figma URL, finds all nodes with export settings in selected area, downloads them with Figma export settings, plus creates reference.svg of whole selection.',
+            description: 'STEP 4: Automatically scan selected area for ALL export-ready assets and download them with reference.png. Takes Figma URL, finds all nodes with export settings in selected area, downloads them with Figma export settings, plus creates reference.png of whole selection.',
             inputSchema: {
               type: 'object',
               properties: {
@@ -231,6 +236,25 @@ class CustomFigmaMcpServer {
               },
               required: ['localPath']
             },
+          },
+          {
+            name: 'check_reference',
+            description: 'STEP 5: Analyze reference.png file for design understanding. Provides design context, layout analysis, component structure guidance, and framework-specific development recommendations before starting code implementation.',
+            inputSchema: {
+              type: 'object',
+              properties: {
+                assetsPath: {
+                  type: 'string',
+                  description: 'Path to assets folder containing reference.png file'
+                },
+                framework: {
+                  type: 'string',
+                  enum: ['react', 'vue', 'angular', 'svelte', 'html'],
+                  description: 'Target framework for development context (optional)'
+                }
+              },
+              required: ['assetsPath']
+            },
           }
         ],
       };
@@ -250,6 +274,8 @@ class CustomFigmaMcpServer {
             return await this.handleProcessDesignComments(args);
           case 'download_design_assets':
             return await this.handleDownloadDesignAssets(args);
+          case 'check_reference':
+            return await this.handleCheckReference(args);
           default:
             throw new McpError(
               ErrorCode.MethodNotFound,
@@ -274,10 +300,9 @@ class CustomFigmaMcpServer {
     this.log(`[Figma MCP] Showing available frameworks, received args:`, JSON.stringify(args));
     this.log(`[Figma MCP] Args type:`, typeof args);
     
-    let parsed;
     try {
       // Handle both undefined and empty object cases
-      parsed = ShowFrameworksSchema.parse(args || {});
+      ShowFrameworksSchema.parse(args || {});
     } catch (error) {
       this.logError(`[Figma MCP] Schema validation error for args:`, args);
       this.logError(`[Figma MCP] Schema validation error:`, error);
@@ -293,18 +318,23 @@ class CustomFigmaMcpServer {
           type: 'text',
           text: JSON.stringify({
             STOP_AND_WAIT: '🛑 CRITICAL: User must choose framework before proceeding',
-            message: 'Available frameworks for code generation:',
-            availableFrameworks: frameworkDescriptions,
+            message: 'Choose your framework:',
+            frameworks: {
+              'React': 'TypeScript, Hooks, CSS Modules',
+              'Vue': 'Composition API, TypeScript, Scoped Styles', 
+              'Angular': 'TypeScript, Components, Services',
+              'Svelte': 'TypeScript, Reactive, Scoped Styles',
+              'HTML/CSS/JS': 'Semantic HTML, Pure CSS, Vanilla JS'
+            },
             USER_ACTION_REQUIRED: 'Tell me which framework you want to use',
-            INSTRUCTIONS: 'After you choose, I will proceed directly to get_figma_data with your selected framework',
             EXAMPLES: [
               'I want to use React',
-              'Let\'s go with Vue',
+              'Let\'s go with Vue', 
               'I choose HTML/CSS/JS',
               'Use Angular please',
               'Svelte would be perfect'
             ],
-            workflow: 'show_frameworks ✅ → USER CHOICE → get_figma_data → process_design_comments → download_design_assets'
+            workflow: 'Framework Choice → Design Data → Comments → Assets → Code'
           }, null, 2)
         }
       ]
@@ -665,80 +695,87 @@ class CustomFigmaMcpServer {
       const elementsWithBounds = this.extractElementsWithBounds(analysisData.data);
       this.log(`[Figma MCP] Extracted ${elementsWithBounds.length} elements with bounds for matching`);
 
-      // Process each comment and match with elements
-      const processedComments = [];
+      // Process each comment and create clean implementation instructions
+      const implementations = [];
       
       this.log(`[Figma MCP] Debug - Relevant comments structure:`, JSON.stringify(relevantComments, null, 2));
       this.log(`[Figma MCP] Debug - Elements with bounds:`, elementsWithBounds.length);
-      this.log(`[Figma MCP] Debug - Sample elements:`, JSON.stringify(elementsWithBounds.slice(0, 3), null, 2));
 
       for (const comment of relevantComments) {
         this.log(`[Figma MCP] Debug - Processing comment:`, JSON.stringify(comment, null, 2));
-        try {
-          const commentData = this.processComment(comment, elementsWithBounds, framework);
-          if (commentData) {
-            processedComments.push(commentData);
-            this.log(`[Figma MCP] Successfully processed comment: "${comment.message}"`);
-          } else {
-            this.log(`[Figma MCP] Debug - Comment processing returned null for:`, comment.message);
-            // Force process even if null returned
-            const fallbackData = {
-              comment: {
-                id: comment.id || 'unknown',
-                message: comment.message || 'No message',
-                author: comment.user?.handle || 'Unknown',
-                timestamp: comment.created_at || new Date().toISOString(),
-                coordinates: null
-              },
-              targetElement: null,
-              matching: {
-                method: 'fallback-processing',
-                reason: 'processComment returned null'
-              },
-              instruction: this.analyzeCommentInstruction(comment.message || ''),
-              aiPrompt: `Please implement: "${comment.message}" using ${framework}`
-            };
-            processedComments.push(fallbackData);
-            this.log(`[Figma MCP] Used fallback processing for comment: "${comment.message}"`);
-          }
-        } catch (error) {
-          this.logError(`[Figma MCP] Error processing comment "${comment.message}":`, error);
-          // Create error fallback
-          const errorData = {
-            comment: {
-              id: comment.id || 'unknown',
-              message: comment.message || 'No message',
-              author: comment.user?.handle || 'Unknown',
-              timestamp: comment.created_at || new Date().toISOString(),
-              coordinates: null
-            },
-            targetElement: null,
-            matching: {
-              method: 'error-fallback',
-              reason: `Processing error: ${error instanceof Error ? error.message : String(error)}`
-            },
-            instruction: { type: 'general', keywords: [], confidence: 0.1, actionable: false },
-            aiPrompt: `Please implement: "${comment.message}" using ${framework}`
+        
+        // Extract coordinates from comment structure
+        let coordinates = null;
+        if (comment.client_meta?.node_offset) {
+          coordinates = {
+            x: comment.client_meta.node_offset.x,
+            y: comment.client_meta.node_offset.y
           };
-          processedComments.push(errorData);
+          this.log(`[Figma MCP] Found coordinates: (${coordinates.x}, ${coordinates.y})`);
+                 } else {
+           this.log(`[Figma MCP] No coordinates in client_meta.node_offset`);
+           this.log(`[Figma MCP] Available client_meta:`, comment.client_meta || 'null');
+         }
+        
+        // Find target element if coordinates available
+        let targetElement = null;
+        if (coordinates) {
+          // Find element containing or near the comment
+          const candidateElements = elementsWithBounds.filter(element => {
+            const bounds = element.bounds;
+            const isInside = coordinates.x >= bounds.x && 
+                            coordinates.x <= bounds.x + bounds.width &&
+                            coordinates.y >= bounds.y && 
+                            coordinates.y <= bounds.y + bounds.height;
+            
+            if (!isInside) {
+              // Check if comment is near the element (within 100px)
+              const centerX = bounds.x + bounds.width / 2;
+              const centerY = bounds.y + bounds.height / 2;
+              const distance = Math.sqrt(Math.pow(coordinates.x - centerX, 2) + Math.pow(coordinates.y - centerY, 2));
+              return distance <= 100;
+            }
+            return true;
+          });
+          
+          if (candidateElements.length > 0) {
+            // Sort by proximity and take closest
+            candidateElements.sort((a, b) => {
+              const distA = Math.sqrt(
+                Math.pow(coordinates.x - (a.bounds.x + a.bounds.width / 2), 2) + 
+                Math.pow(coordinates.y - (a.bounds.y + a.bounds.height / 2), 2)
+              );
+              const distB = Math.sqrt(
+                Math.pow(coordinates.x - (b.bounds.x + b.bounds.width / 2), 2) + 
+                Math.pow(coordinates.y - (b.bounds.y + b.bounds.height / 2), 2)
+              );
+              return distA - distB;
+            });
+            targetElement = candidateElements[0]?.name;
+            this.log(`[Figma MCP] Matched comment to element: ${targetElement}`);
+          }
         }
+        
+        // Create clean implementation instruction
+        const implementation = {
+          instruction: comment.message,
+          targetElement: targetElement || "Apply to relevant design element",
+          author: comment.user?.handle || 'Designer',
+          coordinates: coordinates
+        };
+        
+        implementations.push(implementation);
+        this.log(`[Figma MCP] Added implementation: "${comment.message}" → ${targetElement || 'General'}`);
       }
-
-      this.log(`[Figma MCP] Processed ${processedComments.length} comments with element matches`);
 
       return {
         content: [
           {
             type: 'text',
             text: JSON.stringify({
-              summary: {
-                totalComments: relevantComments.length,
-                processedComments: processedComments.length,
-                elementsFound: elementsWithBounds.length
-              },
-              comments: processedComments,
+              implementations: implementations,
               framework: framework,
-              nodeSelection: nodeId ? `Processed comments for node: ${nodeId}` : 'Processed comments for entire file'
+              nodeContext: nodeId ? `Comments for node: ${nodeId}` : 'Comments for entire file'
             }, null, 2)
           }
         ]
@@ -821,378 +858,152 @@ class CustomFigmaMcpServer {
     return elements;
   }
 
-  /**
-   * Process a single comment and match it with design elements
-   */
-  private processComment(
-    comment: any, 
-    elements: Array<{
-      id: string;
-      name: string;
-      type: string;
-      bounds: { x: number; y: number; width: number; height: number };
-      path: string;
-    }>, 
-    framework: string
-  ): any {
-    this.log(`[Figma MCP] Debug - Comment full structure:`, JSON.stringify(comment, null, 2));
+  private async handleCheckReference(args: any) {
+    this.log(`[Figma MCP] Checking reference image:`, JSON.stringify(args, null, 2));
     
-    // Get comment coordinates from Figma API structure
-    let commentX = null;
-    let commentY = null;
-    
-    // Primary source: client_meta.node_offset (standard Figma comment positioning)
-    if (comment.client_meta?.node_offset?.x !== undefined && comment.client_meta?.node_offset?.y !== undefined) {
-      commentX = comment.client_meta.node_offset.x;
-      commentY = comment.client_meta.node_offset.y;
-      this.log(`[Figma MCP] Found coordinates in client_meta.node_offset: (${commentX}, ${commentY})`);
-    }
-    // Fallback: check if coordinates are at client_meta level  
-    else if (comment.client_meta?.x !== undefined && comment.client_meta?.y !== undefined) {
-      commentX = comment.client_meta.x;
-      commentY = comment.client_meta.y;
-      this.log(`[Figma MCP] Found coordinates in client_meta: (${commentX}, ${commentY})`);
-    }
-    // Last fallback: root level coordinates (rare)
-    else if (comment.x !== undefined && comment.y !== undefined) {
-      commentX = comment.x;
-      commentY = comment.y;
-      this.log(`[Figma MCP] Found coordinates at root level: (${commentX}, ${commentY})`);
+    let parsed;
+    try {
+      parsed = CheckReferenceSchema.parse(args);
+    } catch (error) {
+      this.logError(`[Figma MCP] Schema validation error:`, error);
+      throw new McpError(
+        ErrorCode.InvalidParams,
+        `Invalid parameters: ${error instanceof Error ? error.message : String(error)}`
+      );
     }
     
-    if (commentX === null || commentY === null) {
-      this.log(`[Figma MCP] No coordinates found for comment "${comment.message}"`);
-      this.log(`[Figma MCP] Comment structure:`, JSON.stringify(comment, null, 2));
-      this.log(`[Figma MCP] Available fields:`, Object.keys(comment));
-      if (comment.client_meta) {
-        this.log(`[Figma MCP] client_meta fields:`, Object.keys(comment.client_meta));
+    const { assetsPath, framework } = parsed;
+
+    try {
+      // Resolve the assets path using robust path resolution
+      const path = await import('path');
+      
+      // Normalize and validate the input path to prevent encoding issues
+      const normalizedPath = assetsPath.trim().replace(/[^\x20-\x7E]/g, ''); // Remove non-ASCII characters
+      
+      let resolvedPath: string;
+      if (path.isAbsolute(normalizedPath)) {
+        resolvedPath = normalizedPath;
+      } else {
+        const cwd = process.cwd();
+        // Clean the relative path and resolve it properly
+        const cleanPath = normalizedPath
+          .replace(/^\.\//, '') // Remove leading ./
+          .replace(/^\//, ''); // Remove leading / if accidentally added
+        resolvedPath = path.resolve(cwd, cleanPath);
       }
-    }
-    
-    if (commentX === null || commentY === null) {
-      this.log(`[Figma MCP] Comment "${comment.message}" has no coordinates, processing without coordinates`);
-      // Create a simple AI prompt even without coordinates
-      const instruction = this.analyzeCommentInstruction(comment.message);
-      const simplePrompt = this.generateSimpleAIPrompt(comment, framework);
       
-      this.log(`[Figma MCP] Generated fallback prompt for comment: "${comment.message}"`);
+      // Validate the resolved path
+      if (!resolvedPath || resolvedPath.length === 0) {
+        throw new Error('Invalid or empty path after resolution');
+      }
       
+      // Check if reference.png exists
+      const fs = await import('fs/promises');
+      const referencePath = path.join(resolvedPath, 'reference.png');
+      
+      let referenceExists = false;
+      let fileStats = null;
+      try {
+        fileStats = await fs.stat(referencePath);
+        referenceExists = fileStats.isFile();
+      } catch (error) {
+        // File doesn't exist
+      }
+
+      if (!referenceExists) {
+        const expectedPath = path.join(assetsPath, 'reference.png');
+        return {
+          content: [
+            {
+              type: 'text',
+              text: JSON.stringify({
+                status: 'error',
+                message: 'reference.png not found in assets folder',
+                expectedPath: expectedPath,
+                suggestion: 'Run download_design_assets first to generate reference.png'
+              }, null, 2)
+            }
+          ]
+        };
+      }
+
+      // Get file information
+      const fileSizeKB = Math.round(fileStats!.size / 1024);
+      
+      // Generate design analysis guidance
+      const analysisGuidance = this.generateDesignAnalysisGuidance(framework);
+
+      // Use relative path for response
+      const relativePath = path.join(assetsPath, 'reference.png');
+
       return {
-        comment: {
-          id: comment.id,
-          message: comment.message,
-          author: comment.user?.handle || 'Unknown',
-          timestamp: comment.created_at,
-          coordinates: null
-        },
-        targetElement: null,
-        matching: {
-          method: 'no-coordinates',
-          reason: 'No coordinates found in comment data'
-        },
-        instruction: instruction,
-        aiPrompt: simplePrompt
+        content: [
+          {
+            type: 'text',
+            text: JSON.stringify({
+              status: 'success',
+              message: `Please inspect the reference.png file at ${relativePath} for complete design context`,
+              reference: {
+                path: relativePath,
+                size: `${fileSizeKB} KB`
+              },
+              analysisGuidance: analysisGuidance,
+              framework: framework || 'not specified',
+              instruction: 'Open reference.png to understand the complete design layout and visual hierarchy before implementing code'
+            }, null, 2)
+          }
+        ]
       };
-    }
 
-    this.log(`[Figma MCP] Processing comment at (${commentX}, ${commentY}): "${comment.message}"`);
-
-    // Find elements that could be targeted by this comment
-    // Strategy: Find elements that contain the comment point or are close to it
-    const candidateElements = elements.filter(element => {
-      const bounds = element.bounds;
-      
-      // Check if comment is inside the element
-      const isInside = commentX >= bounds.x && 
-                      commentX <= bounds.x + bounds.width &&
-                      commentY >= bounds.y && 
-                      commentY <= bounds.y + bounds.height;
-
-      // Check if comment is near the element (within 50px)
-      const centerX = bounds.x + bounds.width / 2;
-      const centerY = bounds.y + bounds.height / 2;
-      const distance = Math.sqrt(Math.pow(commentX - centerX, 2) + Math.pow(commentY - centerY, 2));
-      const isNear = distance <= 100; // 100px tolerance
-
-      return isInside || isNear;
-    });
-
-    // Sort by proximity (closest first)
-    candidateElements.sort((a, b) => {
-      const distA = Math.sqrt(
-        Math.pow(commentX - (a.bounds.x + a.bounds.width / 2), 2) + 
-        Math.pow(commentY - (a.bounds.y + a.bounds.height / 2), 2)
+    } catch (error) {
+      this.logError(`[Figma MCP] Error checking reference:`, error);
+      throw new McpError(
+        ErrorCode.InternalError,
+        `Failed to check reference: ${error instanceof Error ? error.message : String(error)}`
       );
-      const distB = Math.sqrt(
-        Math.pow(commentX - (b.bounds.x + b.bounds.width / 2), 2) + 
-        Math.pow(commentY - (b.bounds.y + b.bounds.height / 2), 2)
-      );
-      return distA - distB;
-    });
-
-    if (candidateElements.length === 0) {
-      this.log(`[Figma MCP] No elements found near comment "${comment.message}"`);
-      return null;
     }
-
-    // Take the closest element as the target
-    const targetElement = candidateElements[0];
-    if (!targetElement) {
-      this.log(`[Figma MCP] No valid target element found for comment "${comment.message}"`);
-      return null;
-    }
-
-    const distance = Math.sqrt(
-      Math.pow(commentX - (targetElement.bounds.x + targetElement.bounds.width / 2), 2) + 
-      Math.pow(commentY - (targetElement.bounds.y + targetElement.bounds.height / 2), 2)
-    );
-
-    this.log(`[Figma MCP] Matched comment to element "${targetElement.name}" (${targetElement.type}) at distance ${Math.round(distance)}px`);
-
-    // Analyze comment for implementation instructions
-    const instruction = this.analyzeCommentInstruction(comment.message);
-
-    // Generate AI prompt
-    const aiPrompt = this.generateAIPrompt(comment, targetElement, instruction, framework);
-
-    return {
-      comment: {
-        id: comment.id,
-        message: comment.message,
-        author: comment.user.handle,
-        timestamp: comment.created_at,
-        coordinates: { x: commentX, y: commentY }
-      },
-      targetElement: {
-        id: targetElement.id,
-        name: targetElement.name,
-        type: targetElement.type,
-        bounds: targetElement.bounds,
-        path: targetElement.path
-      },
-      matching: {
-        distance: Math.round(distance),
-        method: distance === 0 ? 'exact' : (distance <= 100 ? 'proximity' : 'fallback')
-      },
-      instruction: instruction,
-      aiPrompt: aiPrompt
-    };
   }
 
   /**
-   * Analyze comment message for implementation instructions
+   * Generate design analysis guidance based on framework
    */
-  private analyzeCommentInstruction(message: string): {
-    type: 'animation' | 'interaction' | 'behavior' | 'style' | 'general';
-    keywords: string[];
-    confidence: number;
-    actionable: boolean;
-  } {
-    const lowerMessage = message.toLowerCase();
+  private generateDesignAnalysisGuidance(framework?: string): string[] {
+    const guidance = [
+      'Main layout structure (header, main content, sidebar, footer)',
+      'Responsive breakpoints and grid systems', 
+      'Color palette and theme consistency',
+      'Typography hierarchy (headings, body text, captions)',
+      'Component boundaries and groupings',
+      'Interactive elements (buttons, forms, navigation)',
+      'Spacing patterns and alignment',
+      'Visual hierarchy and emphasis'
+    ];
     
-    const animationKeywords = ['animate', 'animation', 'transition', 'fade', 'slide', 'bounce', 'scale', 'rotate', 'duration', 'easing', 'hover', 'jumping'];
-    const interactionKeywords = ['click', 'tap', 'focus', 'active', 'disabled', 'press', 'interaction', 'state', 'hover'];
-    const behaviorKeywords = ['should', 'when', 'if', 'then', 'toggle', 'show', 'hide', 'open', 'close'];
-    const styleKeywords = ['color', 'background', 'border', 'shadow', 'opacity', 'size', 'font', 'margin', 'padding'];
-
-    let type: 'animation' | 'interaction' | 'behavior' | 'style' | 'general' = 'general';
-    let foundKeywords: string[] = [];
-    let confidence = 0.1;
-
-    // Check for different types of instructions
-    const animationMatches = animationKeywords.filter(keyword => lowerMessage.includes(keyword));
-    const interactionMatches = interactionKeywords.filter(keyword => lowerMessage.includes(keyword));
-    const behaviorMatches = behaviorKeywords.filter(keyword => lowerMessage.includes(keyword));
-    const styleMatches = styleKeywords.filter(keyword => lowerMessage.includes(keyword));
-
-    if (animationMatches.length > 0) {
-      type = 'animation';
-      foundKeywords = animationMatches;
-      confidence += animationMatches.length * 0.3;
-    } else if (interactionMatches.length > 0) {
-      type = 'interaction';
-      foundKeywords = interactionMatches;
-      confidence += interactionMatches.length * 0.25;
-    } else if (behaviorMatches.length > 0) {
-      type = 'behavior';
-      foundKeywords = behaviorMatches;
-      confidence += behaviorMatches.length * 0.2;
-    } else if (styleMatches.length > 0) {
-      type = 'style';
-      foundKeywords = styleMatches;
-      confidence += styleMatches.length * 0.2;
+    switch (framework) {
+      case 'react':
+        guidance.push('React component boundaries and prop flow');
+        break;
+      case 'vue':
+        guidance.push('Vue component composition and reactive patterns');
+        break;
+      case 'angular':
+        guidance.push('Angular component architecture and services');
+        break;
+      case 'svelte':
+        guidance.push('Svelte component boundaries and reactive statements');
+        break;
+      case 'html':
+        guidance.push('Semantic HTML structure and CSS Grid/Flexbox');
+        break;
     }
 
-    // Boost confidence for imperative language
-    if (lowerMessage.includes('should') || lowerMessage.includes('must') || lowerMessage.includes('need')) {
-      confidence += 0.3;
-    }
-
-    confidence = Math.min(confidence, 1.0);
-    const actionable = confidence >= 0.3;
-
-    return {
-      type,
-      keywords: foundKeywords,
-      confidence,
-      actionable
-    };
+    return guidance;
   }
-
-  /**
-   * Generate AI prompt for implementing the comment instruction
-   */
-  private generateAIPrompt(
-    comment: any, 
-    element: any, 
-    instruction: any, 
-    framework: string
-  ): string {
-    const frameworkMap = {
-      'react': 'React/JSX',
-      'vue': 'Vue.js',
-      'angular': 'Angular',
-      'svelte': 'Svelte',
-      'html': 'HTML/CSS/JavaScript'
-    };
-
-    const frameworkName = frameworkMap[framework as keyof typeof frameworkMap] || framework;
-
-    // Simple, direct prompt as requested by user
-    let prompt = `Please add "${comment.message}" to ${element.name} element (${element.type}).
-
-**Framework**: ${frameworkName}
-**Element Path**: ${element.path}
-**Element Position**: x=${element.bounds.x}, y=${element.bounds.y} (${element.bounds.width}×${element.bounds.height}px)
-**Comment Author**: ${comment.user?.handle || 'Designer'}
-
-**Implementation Details**:`;
-
-    if (instruction.actionable) {
-      switch (instruction.type) {
-        case 'animation':
-          prompt += `
-- Add smooth animations/transitions as specified
-- Consider hover states, timing, and easing functions
-- Ensure performance optimization`;
-          break;
-        case 'interaction':
-          prompt += `
-- Add interactive behaviors as specified
-- Handle user events (click, hover, focus) appropriately
-- Ensure accessibility compliance`;
-          break;
-        case 'behavior':
-          prompt += `
-- Implement the specified behavior logic
-- Consider state management and user flow
-- Follow ${frameworkName} best practices`;
-          break;
-        case 'style':
-          prompt += `
-- Apply the specified visual styling
-- Use appropriate CSS properties and values
-- Consider responsive design`;
-          break;
-        default:
-          prompt += `
-- Implement the designer's instruction as specified
-- Follow ${frameworkName} best practices
-- Ensure code quality and maintainability`;
-      }
-    } else {
-      prompt += `
-- Consider this as informational context for the design intent
-- Apply general improvements if applicable`;
-    }
-
-    prompt += `
-
-**Instruction Type**: ${instruction.type} (${Math.round(instruction.confidence * 100)}% confidence)
-**Keywords Found**: ${instruction.keywords.join(', ')}`;
-
-    return prompt;
-  }
-
-  /**
-   * Generate simple AI prompt when no coordinates are available
-   */
-  private generateSimpleAIPrompt(comment: any, framework: string): string {
-    const frameworkMap = {
-      'react': 'React/JSX',
-      'vue': 'Vue.js',
-      'angular': 'Angular',
-      'svelte': 'Svelte',
-      'html': 'HTML/CSS/JavaScript'
-    };
-
-    const frameworkName = frameworkMap[framework as keyof typeof frameworkMap] || framework;
-    const instruction = this.analyzeCommentInstruction(comment.message);
-
-    let prompt = `## Designer Comment Implementation
-
-**Comment**: "${comment.message}"
-**Author**: ${comment.user?.handle || 'Unknown'}
-**Framework**: ${frameworkName}
-**Note**: No specific element coordinates available - apply to relevant design elements
-
-**Analysis**:
-- Instruction Type: ${instruction.type}
-- Confidence: ${Math.round(instruction.confidence * 100)}%
-- Keywords Found: ${instruction.keywords.join(', ')}
-- Actionable: ${instruction.actionable ? 'Yes' : 'No'}
-
-**Implementation Task**:
-Please implement the designer's instruction "${comment.message}" using ${frameworkName}.
-`;
-
-    if (instruction.actionable) {
-      switch (instruction.type) {
-        case 'animation':
-          prompt += `
-Focus on:
-- Creating smooth animations/transitions
-- Considering hover states and timing
-- Using appropriate easing functions
-- Ensuring performance optimization`;
-          break;
-        case 'interaction':
-          prompt += `
-Focus on:
-- Adding interactive behaviors
-- Handling user events (click, hover, focus)
-- Managing component state changes
-- Ensuring accessibility`;
-          break;
-        case 'style':
-          prompt += `
-Focus on:
-- Visual styling and appearance
-- CSS properties and values
-- Responsive design considerations
-- Design system consistency`;
-          break;
-        default:
-          prompt += `
-Focus on:
-- Understanding the designer's intent
-- Implementing appropriate solution
-- Following ${frameworkName} best practices
-- Ensuring code quality and maintainability`;
-      }
-    } else {
-      prompt += `
-**Note**: This comment appears to be informational rather than actionable. Consider it as context for understanding the design intent.`;
-    }
-
-    return prompt;
-  }
-
-
 
   private async handleDownloadDesignAssets(args: any) {
     const parsed = DownloadFigmaImagesSchema.parse(args);
-    const { localPath, scale, format } = parsed;
+    const { localPath } = parsed;
 
     // Extract fileKey and nodeId from URL if provided, otherwise use direct parameters
     let fileKey: string;
@@ -1280,7 +1091,7 @@ Focus on:
       if (exportableNodes.length === 0) {
         this.log(`[Figma MCP] No export settings found in selected area`);
         
-        // Still create reference.svg of the selected area
+                // Still create reference.png of the selected area
         let referenceResult = null;
         try {
           this.log(`[Figma MCP] Creating visual reference of selected area...`);
@@ -1297,7 +1108,7 @@ Focus on:
                 downloads: [],
                 summary: { total: 0, successful: 0, failed: 0 },
                 reference: referenceResult,
-                message: 'No export settings found in selected area. Only reference.svg created.',
+                message: 'No export settings found in selected area. Only reference.png created.',
                 instructions: this.generateDownloadInstructions([], referenceResult)
               }, null, 2)
             }
@@ -1340,7 +1151,7 @@ Focus on:
               },
               message: downloadResult.summary.total === 0 
                 ? 'No export assets found to download.'
-                : `Downloaded ${downloadResult.summary.successful} export-ready assets with Figma export settings, plus reference.svg of selected area.`,
+                : `Downloaded ${downloadResult.summary.successful} export-ready assets with Figma export settings, plus reference.png of selected area.`,
               instructions: this.generateDownloadInstructions(downloadResult.downloaded, referenceResult)
             }, null, 2)
           }
@@ -1387,63 +1198,7 @@ Focus on:
     return exportableNodes;
   }
 
-  /**
-   * Extract nodes that have explicit export settings configured in Figma
-   */
-  private extractNodesWithExportSettings(node: any): string[] {
-    const nodeIds: string[] = [];
-    
-    const extractIds = (currentNode: any) => {
-      // Only collect nodes marked as exportable by detectExportableImage (which now only detects nodes with export settings)
-      if (currentNode.image?.isExportable === true) {
-        nodeIds.push(currentNode.id);
-      }
-      
-      // Recursively check children
-      if (currentNode.children && Array.isArray(currentNode.children)) {
-        currentNode.children.forEach((child: any) => {
-          extractIds(child);
-        });
-      }
-    };
-    
-    if (node) {
-      extractIds(node);
-    }
-    
-    return [...new Set(nodeIds)]; // Remove duplicates
-  }
 
-  /**
-   * Extract all element bounds for coordinate debugging
-   */
-  private extractAllElementBounds(node: any): any[] {
-    const bounds: any[] = [];
-    
-    const extractBounds = (currentNode: any, path: string = '') => {
-      const fullPath = path ? `${path} > ${currentNode.name}` : currentNode.name;
-      
-      if (currentNode.bounds) {
-        bounds.push({
-          path: fullPath,
-          id: currentNode.id,
-          name: currentNode.name,
-          type: currentNode.type,
-          bounds: currentNode.bounds,
-          area: currentNode.bounds.width * currentNode.bounds.height
-        });
-      }
-      
-      if (currentNode.children && Array.isArray(currentNode.children)) {
-        currentNode.children.forEach((child: any) => {
-          extractBounds(child, fullPath);
-        });
-      }
-    };
-    
-    extractBounds(node);
-    return bounds.sort((a, b) => a.area - b.area); // Sort by area (smallest first)
-  }
 
   /**
    * Create visual context reference by finding and downloading the parent context
@@ -1517,14 +1272,14 @@ Focus on:
 
       this.log(`[Figma MCP] Creating reference from ${contextType}: "${contextName}" (${referenceNodeId})`);
 
-      // Download the reference as SVG with lower resolution for overview
+      // Download the reference as PNG with good resolution for overview
       const referenceDownload = await this.figmaApi.downloadImages(
         fileKey,
         [referenceNodeId],
         localPath,
         {
-          scale: 1, // Lower resolution for reference
-          format: 'svg'
+          scale: 2, // Good resolution for PNG reference
+          format: 'png'
         }
       );
 
@@ -1537,19 +1292,19 @@ Focus on:
         };
       }
 
-             // Rename to reference.svg
+             // Rename to reference.png
        const originalFile = referenceDownload.downloaded[0];
        if (originalFile && originalFile.success) {
          const path = await import('path');
          const fs = await import('fs/promises');
          
-         const referenceFilePath = path.join(localPath, 'reference.svg');
+         const referenceFilePath = path.join(localPath, 'reference.png');
          
          try {
-           // Rename/copy to reference.svg
+           // Rename/copy to reference.png
            await fs.rename(originalFile.filePath, referenceFilePath);
            
-           this.log(`[Figma MCP] Created visual reference: reference.svg`);
+           this.log(`[Figma MCP] Created visual reference: reference.png`);
            
            return {
              success: true,
@@ -1605,16 +1360,16 @@ Focus on:
 
     if (referenceResult?.success) {
       instructions.push(`🎯 Visual Context Reference:`);
-      instructions.push(`   📄 reference.svg → Shows ${referenceResult.contextType} context: "${referenceResult.contextName}"`);
+      instructions.push(`   📄 reference.png → Shows ${referenceResult.contextType} context: "${referenceResult.contextName}"`);
       instructions.push(`   💡 Use this reference to understand how downloaded assets fit in the overall design`);
-      instructions.push(`   🔍 Open reference.svg to see layout, positioning, and relationship between elements`);
+      instructions.push(`   🔍 Open reference.png to see layout, positioning, and relationship between elements`);
       instructions.push('');
     }
 
     instructions.push(`🛠️ Development Workflow:`);
-    instructions.push(`   1. Open reference.svg to understand the design context and layout`);
+    instructions.push(`   1. Open reference.png to understand the design context and layout`);
     instructions.push(`   2. Use individual asset files for implementation`);
-    instructions.push(`   3. Reference the SVG for accurate positioning and relationships`);
+    instructions.push(`   3. Reference the PNG for accurate positioning and relationships`);
     instructions.push(`   4. Maintain design consistency using the visual context`);
 
     return instructions;

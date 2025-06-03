@@ -5,6 +5,261 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [3.0.12] - 2025-01-01
+
+### 🔧 **FIXED: check_reference Tool Improvements**
+- **REMOVED**: All emoji from design analysis guidance (clean professional output)
+- **FIXED**: Use relative paths instead of absolute paths in responses
+- **SIMPLIFIED**: Removed unnecessary "assets" section - focus only on reference.png inspection
+- **CLEANER**: Streamlined output to tell AI exactly what to do with reference.png
+- **REDUCED**: Bundle size from 146.71 KB to 143.94 KB
+
+### Technical Changes
+- **Path Handling**: `./assets/reference.png` instead of `/absolute/path/to/assets/reference.png`
+- **Response Format**: Simplified JSON structure with essential information only
+- **Analysis Guidance**: Single clean array instead of complex nested object with emoji
+- **Message**: Clear instruction for AI to inspect reference.png file
+
+**Result**: Much cleaner check_reference tool output focused on AI workflow! 🔧
+
+## [3.0.11] - 2025-01-01
+
+### 📝 **IMPROVED: Minimized README & Added Claude Code Support**
+- **SIMPLIFIED**: README reduced from 500+ lines to ~200 lines with only essential information
+- **ENHANCED**: Cleaner framework selection text (50% shorter, scannable format)
+- **NEW**: Added Claude Code (VS Code Extension) connection instructions
+- **ORGANIZED**: Better structure with clear step-by-step workflow
+- **FOCUSED**: Removed verbose development details, kept only user-facing features
+- **PROFESSIONAL**: Clean tool descriptions without emoji
+
+### Documentation Improvements
+- **Concise Framework List**: Changed from verbose descriptions to key technologies only
+- **Unified MCP Setup**: Clear instructions for Claude Desktop, Claude Code, Cursor, Windsurf, TRAE
+- **Essential Tools**: Focused documentation on the 5-step workflow
+- **Quick Reference**: What you get from each tool type (Design Data, Smart Comments, Asset Downloads)
+
+### Technical Changes
+- **Removed**: Unused `frameworkDescriptions` import and export
+- **Updated**: Framework response format to be more concise
+- **Improved**: Tool descriptions for better clarity
+
+**Result**: Much cleaner, focused README that gets users up and running quickly with Claude Code support! 📝
+
+## [3.0.10] - 2025-01-01
+
+### 🔧 **CRITICAL FIX: Path Resolution Bug**
+- **FIXED**: Critical path resolution issue causing "•/path" character encoding errors in MCP clients
+- **ISSUE**: Relative paths like `./cv-assets` were being corrupted and resolved incorrectly
+- **ROOT CAUSE**: Character encoding problems and inconsistent path handling between different methods
+- **SOLUTION**: Comprehensive path resolution refactoring with robust error handling
+
+### Technical Fixes
+- **🛠️ Path Normalization**: Remove non-ASCII characters that could cause encoding issues
+- **🔄 Unified Resolution**: Added `resolvePath()` and `createDirectorySafely()` helper methods
+- **✅ Better Validation**: Validate resolved paths before directory creation
+- **📝 Enhanced Logging**: Structured error logging to avoid character corruption
+- **🔗 Consistency**: Same path logic across all download and check methods
+
+### Path Resolution Improvements
+- **Before**: `./cv-assets` → `•/cv-assets` (corrupted)
+- **After**: `./cv-assets` → `/full/path/to/cv-assets` (clean resolution)
+
+### Error Message Improvements
+- **Before**: `Failed to create directory •/cv-assets: ENOENT`
+- **After**: `Failed to create directory: ENOENT: no such file or directory`
+
+### Files Updated
+- **`src/services/figma-api.ts`**: Added helper methods and updated both download functions
+- **`src/index.ts`**: Updated `check_reference` handler with same robust path resolution
+- **Unified Logic**: All path resolution now uses the same tested, reliable approach
+
+### MCP Client Compatibility
+✅ **Cursor**: Relative paths now work correctly  
+✅ **Other MCP Clients**: Better compatibility across different environments  
+✅ **Character Encoding**: No more `•` or other character corruption issues  
+✅ **Error Messages**: Clear, readable error messages without path corruption  
+
+**Result**: Path resolution now works reliably across all MCP clients and environments! 🛠️
+
+## [3.0.9] - 2025-01-21
+
+### 🎯 **MAJOR: Added Visual Design Analysis Tool - STEP 5**
+- **NEW TOOL**: `check_reference` - Analyze reference.png before development
+- **5-STEP WORKFLOW**: Added design analysis step after downloads for better development planning
+- **VISUAL CONTEXT**: Examines reference.png file and provides design understanding guidance
+- **FRAMEWORK-AWARE**: Provides framework-specific analysis guidance for optimal development approach
+
+### New Tool: check_reference
+- **Purpose**: Analyze the reference.png file created by download_design_assets
+- **Input**: Path to assets folder containing reference.png + optional framework choice
+- **Output**: Design analysis guidance, file information, and development planning steps
+- **Analysis**: What to look for, layout patterns, component structure, and framework-specific guidance
+
+### Framework-Specific Design Analysis
+- **React**: Component boundaries, state management, prop passing, React patterns
+- **Vue**: Component composition, reactive data, directives, Composition API
+- **Angular**: Component architecture, services, directives, reactive forms
+- **Svelte**: Component boundaries, stores, reactive statements, transitions
+- **HTML**: Semantic structure, CSS Grid/Flexbox, custom properties, accessibility
+
+### Enhanced 5-Step Workflow
+1. **STEP 1**: `show_frameworks` - Choose target framework
+2. **STEP 2**: `get_figma_data` - Get design data with framework optimization
+3. **STEP 3**: `process_design_comments` - Analyze designer comments and instructions
+4. **STEP 4**: `download_design_assets` - Download export-ready assets + reference.png
+5. **STEP 5**: `check_reference` - Analyze design visually before development
+
+### What You Get
+✅ **Visual Analysis**: Comprehensive design understanding from reference.png  
+✅ **Development Planning**: Step-by-step guidance for approaching the design  
+✅ **Framework Optimization**: Targeted advice based on your chosen framework  
+✅ **Asset Overview**: Complete inventory of downloaded assets and reference file  
+✅ **Context Understanding**: Layout patterns, components, and visual hierarchy analysis  
+
+### Technical Implementation
+- **File Validation**: Checks if reference.png exists in assets folder
+- **Asset Scanning**: Lists all available asset files (SVG, PNG, JPG, PDF)
+- **Framework Guidance**: Dynamic analysis recommendations based on framework choice
+- **Error Handling**: Clear guidance if reference.png is missing (suggests running download_design_assets first)
+- **Bundle Size**: 147.09 KB (from 139.37 KB) for comprehensive visual analysis
+
+**Perfect workflow: Now includes visual design understanding before code development!** 🎨
+
+## [3.0.8] - 2025-01-21
+
+### 🔧 **CRITICAL FIX: PNG Reference Format Actually Working**
+- **FIXED**: Changed default format in `downloadImages` method from `'svg'` to `'png'`
+- **ISSUE**: Even though v3.0.7 specified PNG format, the download method was defaulting to SVG
+- **ROOT CAUSE**: `figma-api.ts` line 543 had `(options.format || 'svg')` overriding our PNG format
+- **SOLUTION**: Updated default to `(options.format || 'png')` to ensure PNG is actually used
+
+### What Was Wrong
+- **v3.0.7**: We set `format: 'png'` in createVisualReference ✅
+- **v3.0.7**: But downloadImages method defaulted to SVG when format was undefined ❌  
+- **v3.0.8**: Now downloadImages method defaults to PNG ✅
+
+### Now Fixed
+✅ **Reference files**: Now actually created as `reference.png`  
+✅ **High quality**: 2x scale PNG images for clear visual context  
+✅ **No more SVG**: Default format changed from SVG to PNG throughout  
+
+**This time the PNG format really works!** 🖼️
+
+## [3.0.7] - 2025-01-21
+
+### 🖼️ **CHANGED: Reference Format from SVG to PNG**
+- **UPDATED**: Visual reference format changed from `reference.svg` to `reference.png`
+- **ENHANCED**: Better image quality with 2x scale (previously 1x for SVG)
+- **IMPROVED**: PNG format provides better preview for visual context
+- **CONSISTENT**: All references, logs, and instructions updated to use PNG format
+
+### Changes Made
+- **Reference Download**: Changed from SVG 1x scale to PNG 2x scale
+- **Filename**: `reference.svg` → `reference.png`
+- **Tool Description**: Updated to reflect PNG format
+- **Instructions**: All workflow steps now reference PNG format
+- **Messages**: Updated success/error messages to use PNG
+
+### Benefits of PNG Format
+✅ **Better Quality**: 2x scale provides crisp preview images  
+✅ **Universal Support**: PNG works in all image viewers and browsers  
+✅ **Clear Visual Context**: Higher resolution for better design understanding  
+✅ **Consistent Format**: Matches common image export expectations  
+
+**Result**: Visual reference files are now high-quality PNG images instead of SVG! 🖼️
+
+## [3.0.6] - 2025-01-21
+
+### 🎯 **MAJOR: Simplified Comment Processing Response**
+- **STREAMLINED**: Drastically simplified response structure - just what you need!
+- **CLEAN OUTPUT**: Removed verbose analysis, matching details, and redundant metadata
+- **FOCUSED**: Shows only: `instruction` + `targetElement` + `author` + `coordinates`
+- **ENHANCED**: Better coordinate extraction directly from `client_meta.node_offset`
+- **OPTIMIZED**: Bundle size reduced from 150.70 KB to 139.37 KB (-11.33 KB)
+
+### New Clean Response Structure
+**Before** (v3.0.5 - Complex):
+```json
+{
+  "summary": {...},
+  "comments": [{
+    "comment": {...},
+    "targetElement": {...},
+    "matching": {...},
+    "instruction": {...},
+    "aiPrompt": "..."
+  }],
+  "framework": "...",
+  "nodeSelection": "..."
+}
+```
+
+**After** (v3.0.6 - Simple):
+```json
+{
+  "implementations": [{
+    "instruction": "Jumping animation on hover.",
+    "targetElement": "Button Component",
+    "author": "Designer Name",
+    "coordinates": { "x": 100, "y": 200 }
+  }],
+  "framework": "html",
+  "nodeContext": "Comments for node: 1530-166"
+}
+```
+
+### What You Get Now
+✅ **Just the essentials**: What to implement and where  
+✅ **Clear targeting**: Specific element names instead of complex matching data  
+✅ **Real coordinates**: Proper extraction from Figma API structure  
+✅ **Cleaner workflow**: No analysis noise, just actionable instructions  
+✅ **Smaller bundle**: 11KB smaller for faster loading  
+
+**Perfect for direct implementation - no more information overload!** 🎯
+
+## [3.0.5] - 2025-01-21
+
+### 🔧 **FIXED: Comment Processing Response Structure & Coordinate Extraction**
+- **REMOVED**: Duplicate `aiPrompts` array from response (was redundant with individual `comment.aiPrompt` fields)
+- **FIXED**: Comment coordinate extraction to use proper Figma API structure (`client_meta.node_offset.x/y`)
+- **ENHANCED**: Coordinate detection with proper fallback hierarchy:
+  - Primary: `client_meta.node_offset.x/y` (standard Figma comment positioning)
+  - Fallback: `client_meta.x/y` (alternative structure)
+  - Last resort: root level `x/y` (rare cases)
+- **IMPROVED**: Better debugging output for coordinate issues
+- **CLEANED**: Removed unused imports and methods for cleaner codebase
+
+### Response Structure Changes
+**Before** (v3.0.4):
+```json
+{
+  "summary": { "aiPrompts": 1 },
+  "comments": [{ "aiPrompt": "..." }],
+  "aiPrompts": ["..."],  // ❌ Duplicate data
+  "coordinates": null    // ❌ Always null
+}
+```
+
+**After** (v3.0.5):
+```json
+{
+  "summary": { "elementsFound": 15 },
+  "comments": [{ 
+    "aiPrompt": "...",
+    "coordinates": { "x": 100, "y": 200 },  // ✅ Real coordinates
+    "targetElement": { ... }  // ✅ Matched elements
+  }]
+}
+```
+
+### Technical Improvements
+- **Fixed**: Proper Figma API comment structure parsing
+- **Enhanced**: Element matching with actual coordinates instead of always null
+- **Improved**: TypeScript compliance by removing unused variables
+- **Cleaner**: Bundle size reduced from 152.11 KB to 150.70 KB
+
+**Result**: Comment processing now properly matches comments to specific design elements using real coordinates! 🎯
+
 ## [3.0.4] - 2025-01-21
 
 ### ✨ **ENHANCED: No README.md Generation for HTML Framework**

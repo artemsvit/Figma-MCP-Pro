@@ -470,6 +470,57 @@ export class FigmaApiService {
   }
 
   /**
+   * Resolve and validate file paths safely for different MCP environments
+   */
+  private static async resolvePath(inputPath: string): Promise<string> {
+    const path = await import('path');
+    
+    // Normalize and validate the input path to prevent encoding issues
+    const normalizedPath = inputPath.trim().replace(/[^\x20-\x7E]/g, ''); // Remove non-ASCII characters
+    
+    if (path.isAbsolute(normalizedPath)) {
+      return normalizedPath;
+    } else {
+      // For relative paths, ensure we resolve from a known base directory
+      const cwd = process.cwd();
+      console.error(`[Figma API] Current working directory: ${cwd}`);
+      
+      // Clean the relative path and resolve it properly
+      const cleanPath = normalizedPath
+        .replace(/^\.\//, '') // Remove leading ./
+        .replace(/^\//, ''); // Remove leading / if accidentally added
+      return path.resolve(cwd, cleanPath);
+    }
+  }
+
+  /**
+   * Create directory with robust error handling
+   */
+  private static async createDirectorySafely(resolvedPath: string, originalPath: string): Promise<void> {
+    const fs = await import('fs/promises');
+    
+    // Validate the resolved path
+    if (!resolvedPath || resolvedPath.length === 0) {
+      throw new Error('Invalid or empty path after resolution');
+    }
+    
+    console.error(`[Figma API] Path resolution: "${originalPath}" -> "${resolvedPath}"`);
+    
+    try {
+      await fs.mkdir(resolvedPath, { recursive: true });
+      console.error(`[Figma API] Successfully created/verified directory: ${resolvedPath}`);
+    } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : String(error);
+      console.error(`[Figma API] Directory creation failed:`, { 
+        originalPath, 
+        resolvedPath,
+        error: errorMessage 
+      });
+      throw new FigmaApiError(`Failed to create directory: ${errorMessage}`);
+    }
+  }
+
+  /**
    * Download images for specific nodes directly (without requiring export settings)
    */
   async downloadImages(
@@ -495,30 +546,8 @@ export class FigmaApiService {
     };
   }> {
     // Resolve and ensure local directory exists
-    let resolvedPath: string;
-    try {
-      // Fix path resolution: handle both absolute and relative paths properly
-      if (path.isAbsolute(localPath)) {
-        resolvedPath = localPath;
-      } else {
-        // For relative paths, ensure we resolve from a known base directory
-        // Get the current working directory at runtime
-        const cwd = process.cwd();
-        console.error(`[Figma API] Current working directory: ${cwd}`);
-        
-        // Clean the relative path and resolve it properly
-        const cleanPath = localPath.replace(/^\.\//, ''); // Remove leading ./
-        resolvedPath = path.join(cwd, cleanPath);
-      }
-      console.error(`[Figma API] Path resolution: "${localPath}" -> "${resolvedPath}"`);
-      
-      // Create directory with proper error handling
-      await fs.mkdir(resolvedPath, { recursive: true });
-      console.error(`[Figma API] Successfully created/verified directory: ${resolvedPath}`);
-    } catch (error) {
-      console.error(`[Figma API] Directory creation failed for ${localPath}:`, error);
-      throw new FigmaApiError(`Failed to create directory ${localPath}: ${error instanceof Error ? error.message : String(error)}`);
-    }
+    const resolvedPath = await FigmaApiService.resolvePath(localPath);
+    await FigmaApiService.createDirectorySafely(resolvedPath, localPath);
 
     const results: Array<{
       nodeId: string;
@@ -536,7 +565,7 @@ export class FigmaApiService {
       });
 
       // Get image URLs for all nodes
-      const format = (options.format || 'svg').toLowerCase();
+      const format = (options.format || 'png').toLowerCase();
       let scale = options.scale || 1;
       
       // SVG only supports 1x scale according to Figma documentation
@@ -673,30 +702,8 @@ export class FigmaApiService {
     };
   }> {
     // Resolve and ensure local directory exists
-    let resolvedPath: string;
-    try {
-      // Fix path resolution: handle both absolute and relative paths properly
-      if (path.isAbsolute(localPath)) {
-        resolvedPath = localPath;
-      } else {
-        // For relative paths, ensure we resolve from a known base directory
-        // Get the current working directory at runtime
-        const cwd = process.cwd();
-        console.error(`[Figma API] Current working directory: ${cwd}`);
-        
-        // Clean the relative path and resolve it properly
-        const cleanPath = localPath.replace(/^\.\//, ''); // Remove leading ./
-        resolvedPath = path.join(cwd, cleanPath);
-      }
-      console.error(`[Figma API] Path resolution: "${localPath}" -> "${resolvedPath}"`);
-      
-      // Create directory with proper error handling
-      await fs.mkdir(resolvedPath, { recursive: true });
-      console.error(`[Figma API] Successfully created/verified directory: ${resolvedPath}`);
-    } catch (error) {
-      console.error(`[Figma API] Directory creation failed for ${localPath}:`, error);
-      throw new FigmaApiError(`Failed to create directory ${localPath}: ${error instanceof Error ? error.message : String(error)}`);
-    }
+    const resolvedPath = await FigmaApiService.resolvePath(localPath);
+    await FigmaApiService.createDirectorySafely(resolvedPath, localPath);
 
     const results: Array<{
       nodeId: string;
