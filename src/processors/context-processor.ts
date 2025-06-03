@@ -841,31 +841,47 @@ export class ContextProcessor {
     // Extract simplified comment instructions with coordinates
     const simplifiedInstructions = this.extractSimplifiedInstructions(comments);
     
-    // Process children first (bottom-up approach)
+    console.error(`[Context Processor] Processing comments for node: ${node.name} (${node.id})`);
+    console.error(`  Available instructions: ${simplifiedInstructions.length}`);
+    
+    // Process children first (bottom-up approach) - this is crucial for specificity
     const processedChildren: EnhancedFigmaNodeWithComments[] = [];
     const usedInstructions = new Set<number>(); // Track which instructions have been used
     
     if (node.children) {
+      console.error(`  Processing ${node.children.length} children first...`);
       for (const child of node.children) {
         const processedChild = this.processCommentsForNode(child as EnhancedFigmaNode, comments);
         processedChildren.push(processedChild);
         
-        // Mark instructions used by children
-        if (processedChild.aiInstructions) {
+        // Mark instructions used by children - be more aggressive about tracking
+        if (processedChild.aiInstructions && processedChild.aiInstructions.length > 0) {
+          console.error(`    Child ${child.name} claimed ${processedChild.aiInstructions.length} instructions`);
           processedChild.aiInstructions.forEach(inst => {
             const index = simplifiedInstructions.findIndex(si => 
               si.instruction === inst.instruction && 
+              si.coordinates &&
               si.coordinates.x === inst.coordinates!.x && 
               si.coordinates.y === inst.coordinates!.y
             );
-            if (index >= 0) usedInstructions.add(index);
+            if (index >= 0) {
+              usedInstructions.add(index);
+              console.error(`      Marked instruction ${index} as used: "${inst.instruction}"`);
+            }
           });
         }
+        
+        // Also recursively mark instructions from grandchildren
+        this.markUsedInstructionsRecursively(processedChild, simplifiedInstructions, usedInstructions);
       }
     }
 
+    console.error(`  Instructions used by children: ${usedInstructions.size}`);
+    
     // Only match instructions to this node if they haven't been used by children
     const availableInstructions = simplifiedInstructions.filter((_, index) => !usedInstructions.has(index));
+    console.error(`  Available instructions for this node: ${availableInstructions.length}`);
+    
     const matchedInstructions = this.matchInstructionsToNode(node, availableInstructions);
 
     // Create enhanced node with comments
@@ -876,11 +892,43 @@ export class ContextProcessor {
 
     // Only attach instructions if there are any for this specific node
     if (matchedInstructions.length > 0) {
+      console.error(`  Attaching ${matchedInstructions.length} instructions to ${node.name}`);
       enhancedNodeWithComments.aiInstructions = matchedInstructions;
       enhancedNodeWithComments.commentInstructions = matchedInstructions;
     }
 
     return enhancedNodeWithComments;
+  }
+
+  /**
+   * Recursively mark instructions as used from all descendants
+   */
+  private markUsedInstructionsRecursively(
+    node: EnhancedFigmaNodeWithComments,
+    simplifiedInstructions: Array<{ instruction: string; coordinates: { x: number; y: number }; nodeId?: string }>,
+    usedInstructions: Set<number>
+  ): void {
+    // Mark this node's instructions
+    if (node.aiInstructions) {
+      node.aiInstructions.forEach(inst => {
+        const index = simplifiedInstructions.findIndex(si => 
+          si.instruction === inst.instruction && 
+          si.coordinates &&
+          si.coordinates.x === inst.coordinates!.x && 
+          si.coordinates.y === inst.coordinates!.y
+        );
+        if (index >= 0) {
+          usedInstructions.add(index);
+        }
+      });
+    }
+    
+    // Recursively mark children's instructions
+    if (node.children) {
+      node.children.forEach(child => {
+        this.markUsedInstructionsRecursively(child as EnhancedFigmaNodeWithComments, simplifiedInstructions, usedInstructions);
+      });
+    }
   }
 
   /**
@@ -912,7 +960,7 @@ export class ContextProcessor {
   }
 
   /**
-   * Match instructions to nodes using coordinate proximity and node boundaries
+   * Match instructions to nodes using improved coordinate proximity and smart prioritization
    */
   private matchInstructionsToNode(
     node: EnhancedFigmaNode, 
@@ -934,19 +982,38 @@ export class ContextProcessor {
     const directMatches = instructions.filter(inst => inst.nodeId === node.id);
     console.error(`  Direct ID matches: ${directMatches.length}`);
     
-    // Coordinate-based matching for nodes with bounds
+    // Smart coordinate-based matching with proximity scoring
     let coordinateMatches: typeof instructions = [];
     if (node.absoluteBoundingBox && instructions.length > directMatches.length) {
       const bounds = node.absoluteBoundingBox;
+      const tolerance = 20; // 20px tolerance for fuzzy matching
+      
       coordinateMatches = instructions.filter(inst => 
         !inst.nodeId || inst.nodeId !== node.id // Don't double-count direct matches
       ).filter(inst => {
         const { x, y } = inst.coordinates;
-        const matches = x >= bounds.x && 
-                       x <= bounds.x + bounds.width &&
-                       y >= bounds.y && 
-                       y <= bounds.y + bounds.height;
-        console.error(`    Checking instruction "${inst.instruction}" at (${x}, ${y}): ${matches ? 'MATCH' : 'NO MATCH'}`);
+        
+        // Strict coordinate matching first
+        const strictMatch = x >= bounds.x && 
+                           x <= bounds.x + bounds.width &&
+                           y >= bounds.y && 
+                           y <= bounds.y + bounds.height;
+        
+        // Fuzzy matching with tolerance for near-misses
+        const fuzzyMatch = !strictMatch && (
+          (x >= bounds.x - tolerance && x <= bounds.x + bounds.width + tolerance &&
+           y >= bounds.y - tolerance && y <= bounds.y + bounds.height + tolerance)
+        );
+        
+        // Prioritize interactive elements (buttons, inputs, etc.)
+        const isInteractive = node.type === 'FRAME' && 
+                             (node.name.toLowerCase().includes('button') || 
+                              node.name.toLowerCase().includes('tag') ||
+                              inst.instruction.toLowerCase().includes('hover') ||
+                              inst.instruction.toLowerCase().includes('click'));
+        
+        const matches = strictMatch || (fuzzyMatch && isInteractive);
+        console.error(`    Checking instruction "${inst.instruction}" at (${x}, ${y}): ${matches ? (strictMatch ? 'STRICT MATCH' : 'FUZZY MATCH') : 'NO MATCH'}`);
         return matches;
       });
     }
@@ -955,7 +1022,19 @@ export class ContextProcessor {
     // Convert to CommentInstruction format
     [...directMatches, ...coordinateMatches].forEach(match => {
       const instructionType = this.categorizeInstruction(match.instruction);
-      const confidence = match.nodeId === node.id ? 1.0 : 0.7; // Higher confidence for direct node matches
+      let confidence = 1.0;
+      
+      // Adjust confidence based on match type
+      if (match.nodeId === node.id) {
+        confidence = 1.0; // Direct node ID match
+      } else {
+        // Check if it's a strict coordinate match
+        const bounds = node.absoluteBoundingBox!;
+        const { x, y } = match.coordinates;
+        const strictMatch = x >= bounds.x && x <= bounds.x + bounds.width &&
+                           y >= bounds.y && y <= bounds.y + bounds.height;
+        confidence = strictMatch ? 0.9 : 0.7; // Lower confidence for fuzzy matches
+      }
       
       matchedInstructions.push({
         type: instructionType,
