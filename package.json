@@ -28,7 +28,6 @@
     "format": "prettier --write src/**/*.ts",
     "type-check": "tsc --noEmit",
     "clean": "rm -rf dist",
-    "prepare": "npm run build",
     "prepublishOnly": "npm run clean && npm run build",
     "publish:dry": "npm pack --dry-run",
     "publish:script": "./scripts/publish.sh"

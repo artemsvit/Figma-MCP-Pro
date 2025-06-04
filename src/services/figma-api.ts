@@ -495,10 +495,11 @@ export class FigmaApiService {
       }
     }
     
-    // IDE-specific working directory detection
-    const workingDir = FigmaApiService.detectWorkingDirectory();
+    // CRITICAL FIX: Always prioritize process.cwd() for relative paths
+    // This ensures assets go to the user's current working directory, not npm directories
+    const workingDir = process.cwd();
     
-    console.error(`[Figma API] Detected working directory: ${workingDir}`);
+    console.error(`[Figma API] Using process.cwd() as base: ${workingDir}`);
     
     // Clean the path for consistent relative path handling
     let cleanPath = normalizedPath;
@@ -519,7 +520,7 @@ export class FigmaApiService {
       cleanPath = 'assets'; // Default directory name
     }
     
-    // Use path.resolve for consistent cross-platform path resolution
+    // Use path.resolve with process.cwd() as base for consistent cross-platform path resolution
     const resolvedPath = path.resolve(workingDir, cleanPath);
     
     // Final safety check - never allow dangerous paths
@@ -530,192 +531,16 @@ export class FigmaApiService {
     
     if (isResolvedDangerous) {
       console.error(`[Figma API] 🚨 BLOCKED dangerous resolved path: ${resolvedPath}`);
-      // Force a safe fallback path in user space
-      const safePath = path.resolve(process.env.HOME || '/tmp', 'figma-assets', cleanPath);
-      console.error(`[Figma API] Using emergency safe path: ${safePath}`);
+      // Force a safe fallback path in user space using process.cwd()
+      const safePath = path.resolve(workingDir, 'figma-assets', cleanPath);
+      console.error(`[Figma API] Using safe fallback path: ${safePath}`);
       return safePath;
     }
     
     console.error(`[Figma API] ✅ Path resolution: "${normalizedPath}" -> "${resolvedPath}"`);
-    console.error(`[Figma API] Environment: cwd="${process.cwd()}", PWD="${process.env.PWD}", resolved="${resolvedPath}"`);
+    console.error(`[Figma API] Environment: cwd="${workingDir}", PWD="${process.env.PWD}", resolved="${resolvedPath}"`);
     
     return resolvedPath;
-  }
-
-  /**
-   * Detect working directory with Cursor MCP-specific logic
-   */
-  private static detectWorkingDirectory(): string {
-    console.error(`[Figma API] 🔍 IDE Detection starting...`);
-    
-    // Get all available environment info
-    const cwd = process.cwd();
-    const envPwd = process.env.PWD;
-    const envInitCwd = process.env.INIT_CWD;
-    const envProjectRoot = process.env.PROJECT_ROOT;
-    const envWorkspaceRoot = process.env.WORKSPACE_ROOT;
-    const envHome = process.env.HOME;
-    
-    console.error(`[Figma API] Environment info:`, {
-      'process.cwd()': cwd,
-      'PWD': envPwd,
-      'INIT_CWD': envInitCwd,
-      'PROJECT_ROOT': envProjectRoot,
-      'WORKSPACE_ROOT': envWorkspaceRoot,
-      'HOME': envHome,
-      'process.argv0': process.argv0,
-      'process.execPath': process.execPath
-    });
-    
-    // CRITICAL: Detect Cursor MCP problematic environment
-    const isCursorMcpProblem = (cwd === '/' && (!envPwd || envPwd === '/'));
-    if (isCursorMcpProblem) {
-      console.error(`[Figma API] 🚨 DETECTED CURSOR MCP ISSUE: cwd='/' and PWD='/' - applying fixes`);
-      return FigmaApiService.fixCursorMcpWorkingDirectory();
-    }
-    
-    // Dangerous paths that should never be used as working directory
-    const dangerousPaths = ['/', '/bin', '/usr', '/etc', '/root', '/var', '/sys', '/proc'];
-    
-    // Strategy 1: Use INIT_CWD if available and safe (npm/yarn environments)
-    if (envInitCwd && !dangerousPaths.includes(envInitCwd) && envInitCwd !== '/') {
-      console.error(`[Figma API] 🎯 Using INIT_CWD: ${envInitCwd}`);
-      return envInitCwd;
-    }
-    
-    // Strategy 2: Use PWD if available and safe (most Unix environments)
-    if (envPwd && !dangerousPaths.includes(envPwd) && envPwd !== '/') {
-      console.error(`[Figma API] 🎯 Using PWD: ${envPwd}`);
-      return envPwd;
-    }
-    
-    // Strategy 3: Use process.cwd() if it's safe
-    if (cwd && !dangerousPaths.includes(cwd) && cwd !== '/') {
-      console.error(`[Figma API] 🎯 Using process.cwd(): ${cwd}`);
-      return cwd;
-    }
-    
-    // Strategy 4: Use explicit project/workspace roots
-    if (envProjectRoot) {
-      console.error(`[Figma API] 🎯 Using PROJECT_ROOT: ${envProjectRoot}`);
-      return envProjectRoot;
-    }
-    
-    if (envWorkspaceRoot) {
-      console.error(`[Figma API] 🎯 Using WORKSPACE_ROOT: ${envWorkspaceRoot}`);
-      return envWorkspaceRoot;
-    }
-    
-    // Strategy 5: IDE-specific detection
-    const ideWorkingDir = FigmaApiService.detectIdeSpecificWorkingDir();
-    if (ideWorkingDir) {
-      console.error(`[Figma API] 🎯 Using IDE-specific working dir: ${ideWorkingDir}`);
-      return ideWorkingDir;
-    }
-    
-    // Strategy 6: User home directory as fallback
-    if (envHome) {
-      const homeWorkspace = path.join(envHome, 'figma-workspace');
-      console.error(`[Figma API] 🎯 Using HOME-based workspace: ${homeWorkspace}`);
-      return homeWorkspace;
-    }
-    
-    // Final fallback - temp directory
-    const tempFallback = '/tmp/figma-assets';
-    console.error(`[Figma API] 🚨 Using emergency temp fallback: ${tempFallback}`);
-    return tempFallback;
-  }
-
-  /**
-   * Fix Cursor MCP working directory issue specifically
-   */
-  private static fixCursorMcpWorkingDirectory(): string {
-    console.error(`[Figma API] 🔧 Applying Cursor MCP-specific fixes...`);
-    
-    // Strategy 1: Try to extract working directory from process arguments
-    const processArgs = process.argv.join(' ');
-    console.error(`[Figma API] Process args: ${processArgs}`);
-    
-    // Strategy 2: Check if there are any environment variables that might hint at the real workspace
-    const envVars = process.env;
-    const workspaceHints = Object.keys(envVars)
-      .filter(key => key.toLowerCase().includes('workspace') || key.toLowerCase().includes('project'))
-      .map(key => ({ key, value: envVars[key] }));
-    
-    console.error(`[Figma API] Workspace hints from env:`, workspaceHints);
-    
-    // Strategy 3: Try alternative environment variables commonly available in MCP
-    const alternativeVars = [
-      process.env.MCP_WORKSPACE,
-      process.env.CURSOR_WORKSPACE, 
-      process.env.VSCODE_CWD,
-      process.env.ELECTRON_RUN_AS_NODE_CWD,
-      process.env.ORIGINAL_CWD,
-      process.env.npm_config_cache?.replace('/node_modules/.cache', ''),
-      process.env.APPDATA?.replace('\\AppData\\Roaming', ''),
-      process.env.USERPROFILE
-    ].filter(Boolean);
-    
-    console.error(`[Figma API] Alternative working dir candidates:`, alternativeVars);
-    
-    // Strategy 4: Use any valid alternative that exists and is safe
-    for (const candidate of alternativeVars) {
-      if (candidate && candidate !== '/' && candidate.length > 1) {
-        try {
-          // Don't use fs.access here as it's async, just return the candidate
-          // The directory creation will validate if it's usable
-          console.error(`[Figma API] 🎯 Using alternative working dir: ${candidate}`);
-          return candidate;
-        } catch (error) {
-          console.error(`[Figma API] Candidate ${candidate} not usable:`, error);
-        }
-      }
-    }
-    
-    // Strategy 5: Force a safe user-space directory for Cursor MCP
-    const safeDir = path.join(process.env.HOME || '/tmp', 'cursor-mcp-workspace');
-    console.error(`[Figma API] 🎯 Using forced safe directory for Cursor MCP: ${safeDir}`);
-    return safeDir;
-  }
-
-  /**
-   * Detect IDE-specific working directory patterns
-   */
-  private static detectIdeSpecificWorkingDir(): string | null {
-    // Cursor-specific detection
-    if (process.env.CURSOR_USER_DATA_PATH || process.env.CURSOR_EXTENSIONS_PATH) {
-      console.error(`[Figma API] 🎯 Detected Cursor IDE`);
-      // Try to find workspace from Cursor-specific environment
-      if (process.env.PWD && process.env.PWD !== '/') {
-        return process.env.PWD;
-      }
-    }
-    
-         // Windsurf-specific detection
-     if (process.env.WINDSURF_WORKSPACE || process.env.WINDSURF_ROOT) {
-       console.error(`[Figma API] 🎯 Detected Windsurf IDE`);
-       return process.env.WINDSURF_WORKSPACE || process.env.WINDSURF_ROOT || null;
-     }
-     
-     // TRAE-specific detection
-     if (process.env.TRAE_WORKSPACE || process.env.TRAE_PROJECT_ROOT) {
-       console.error(`[Figma API] 🎯 Detected TRAE IDE`);
-       return process.env.TRAE_WORKSPACE || process.env.TRAE_PROJECT_ROOT || null;
-     }
-     
-     // VS Code-specific detection
-     if (process.env.VSCODE_WORKSPACE || process.env.VSCODE_CWD) {
-       console.error(`[Figma API] 🎯 Detected VS Code`);
-       return process.env.VSCODE_WORKSPACE || process.env.VSCODE_CWD || null;
-     }
-     
-     // WebStorm/JetBrains-specific detection
-     if (process.env.IDEA_INITIAL_DIRECTORY || process.env.npm_config_prefix) {
-       console.error(`[Figma API] 🎯 Detected JetBrains IDE`);
-       return process.env.IDEA_INITIAL_DIRECTORY || process.env.npm_config_prefix || null;
-     }
-    
-    return null;
   }
 
   /**

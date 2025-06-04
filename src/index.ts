@@ -314,35 +314,64 @@ class CustomFigmaMcpServer {
       );
     }
 
+    // Create human-readable text that works across all AI models
+    const frameworkText = `
+🎯 **Choose Your Framework** (Type the number 1-10):
+
+**Web Frameworks:**
+1. **React** - Modern web framework with TypeScript and hooks
+2. **Vue** - Progressive framework with Composition API  
+3. **Angular** - Full-featured framework with TypeScript
+4. **Svelte** - Compile-time framework with reactive updates
+5. **HTML/CSS/JS** - Vanilla web technologies, no framework
+
+**Mobile & Desktop:**
+6. **SwiftUI** - Apple's declarative UI for iOS/macOS apps
+7. **UIKit** - Traditional Apple framework for iOS development
+8. **Electron** - Cross-platform desktop apps with web tech
+9. **Tauri** - Lightweight desktop apps with Rust backend
+10. **NW.js** - Desktop apps with Node.js and Chromium
+
+⚠️ **IMPORTANT**: Please type the number (1-10) of your chosen framework.
+
+🔄 **Workflow**: After framework selection → Design data → Comments → Assets → Reference analysis → Code generation
+`;
+
+    const jsonData = {
+      message: 'Choose your framework by typing the number:',
+      frameworks: {
+        '1': { name: 'React', description: 'Modern web framework with TypeScript and hooks' },
+        '2': { name: 'Vue', description: 'Progressive framework with Composition API' }, 
+        '3': { name: 'Angular', description: 'Full-featured framework with TypeScript' },
+        '4': { name: 'Svelte', description: 'Compile-time framework with reactive updates' },
+        '5': { name: 'HTML/CSS/JS', description: 'Vanilla web technologies, no framework' },
+        '6': { name: 'SwiftUI', description: 'Apple\'s declarative UI for iOS/macOS apps' },
+        '7': { name: 'UIKit', description: 'Traditional Apple framework for iOS development' },
+        '8': { name: 'Electron', description: 'Cross-platform desktop apps with web tech' },
+        '9': { name: 'Tauri', description: 'Lightweight desktop apps with Rust backend' },
+        '10': { name: 'NW.js', description: 'Desktop apps with Node.js and Chromium' }
+      },
+      AI_INSTRUCTIONS: {
+        CRITICAL: 'STOP HERE - DO NOT MAKE ANY MORE TOOL CALLS',
+        REQUIRED_ACTION: 'Wait for user to choose framework number (1-10)',
+        WORKFLOW_STEP: 'STEP 1 COMPLETE - User must choose framework before proceeding to STEP 2',
+        DO_NOT: [
+          'Do not call get_figma_data until user provides framework choice',
+          'Do not proceed to next step automatically',
+          'Do not assume or guess framework choice'
+        ]
+      }
+    };
+
     return {
       content: [
         {
           type: 'text',
-          text: JSON.stringify({
-            message: 'Choose your framework by typing the number:',
-            frameworks: {
-              '1': { name: 'React', description: 'Modern web framework with TypeScript and hooks' },
-              '2': { name: 'Vue', description: 'Progressive framework with Composition API' }, 
-              '3': { name: 'Angular', description: 'Full-featured framework with TypeScript' },
-              '4': { name: 'Svelte', description: 'Compile-time framework with reactive updates' },
-              '5': { name: 'HTML/CSS/JS', description: 'Vanilla web technologies, no framework' },
-              '6': { name: 'SwiftUI', description: 'Apple\'s declarative UI for iOS/macOS apps' },
-              '7': { name: 'UIKit', description: 'Traditional Apple framework for iOS development' },
-              '8': { name: 'Electron', description: 'Cross-platform desktop apps with web tech' },
-              '9': { name: 'Tauri', description: 'Lightweight desktop apps with Rust backend' },
-              '10': { name: 'NW.js', description: 'Desktop apps with Node.js and Chromium' }
-            },
-            AI_INSTRUCTIONS: {
-              CRITICAL: 'STOP HERE - DO NOT MAKE ANY MORE TOOL CALLS',
-              REQUIRED_ACTION: 'Wait for user to choose framework number (1-10)',
-              WORKFLOW_STEP: 'STEP 1 COMPLETE - User must choose framework before proceeding to STEP 2',
-              DO_NOT: [
-                'Do not call get_figma_data until user provides framework choice',
-                'Do not proceed to next step automatically',
-                'Do not assume or guess framework choice'
-              ]
-            }
-          }, null, 2)
+          text: frameworkText
+        },
+        {
+          type: 'text',
+          text: `\n\n**Technical Details (JSON):**\n\`\`\`json\n${JSON.stringify(jsonData, null, 2)}\n\`\`\``
         }
       ]
     };
@@ -931,15 +960,20 @@ class CustomFigmaMcpServer {
 
       if (!referenceExists) {
         const expectedPath = path.join(assetsPath, 'reference.png');
-      return {
-        content: [
-          {
-            type: 'text',
-            text: JSON.stringify({
+        return {
+          content: [
+            {
+              type: 'text',
+              text: JSON.stringify({
                 status: 'error',
                 message: 'reference.png not found in assets folder',
                 expectedPath: expectedPath,
-                suggestion: 'Run download_design_assets first to generate reference.png'
+                suggestion: 'Run download_design_assets first to generate reference.png',
+                CRITICAL_ERROR: 'MISSING REFERENCE FILE',
+                REQUIRED_ACTION: 'You MUST call download_design_assets tool first to create reference.png',
+                WORKFLOW_STEP: 'STEP 4 is missing - download_design_assets must be completed before STEP 5 (check_reference)',
+                NEXT_STEP: 'Call download_design_assets with the same Figma URL to download assets and create reference.png',
+                DO_NOT_SKIP: 'Cannot analyze design without reference.png - asset download is mandatory'
               }, null, 2)
             }
           ]
