@@ -3,7 +3,9 @@ import NodeCache from 'node-cache';
 import pRetry from 'p-retry';
 import pLimit from 'p-limit';
 import fs from 'fs/promises';
+import * as fsSync from 'fs';
 import path from 'path';
+import os from 'os';
 import {
   FigmaFileResponse,
   FigmaNodeResponse,
@@ -479,14 +481,9 @@ export class FigmaApiService {
     console.error(`[Figma API] Input path: "${inputPath}" -> normalized: "${normalizedPath}"`);
     
     // Handle absolute paths - if it's already absolute and valid, use as-is (but validate safety)
-    if (path.isAbsolute(normalizedPath) && normalizedPath !== '/' && normalizedPath.length > 1) {
-      // Still validate it's not a dangerous system path
-      const dangerousPaths = ['/', '/bin', '/usr', '/etc', '/root', '/var', '/sys', '/proc'];
-      const isDangerous = dangerousPaths.some(dangerous => 
-        normalizedPath === dangerous || normalizedPath.startsWith(dangerous + '/')
-      );
-      
-      if (!isDangerous) {
+    if (path.isAbsolute(normalizedPath) && !this.isSystemRoot(normalizedPath) && normalizedPath.length > 1) {
+      // Still validate it's not a dangerous system path using cross-platform logic
+      if (!this.isDangerousPath(normalizedPath)) {
         console.error(`[Figma API] Using safe absolute path: ${normalizedPath}`);
         return normalizedPath;
       } else {
@@ -495,11 +492,23 @@ export class FigmaApiService {
       }
     }
     
-    // CRITICAL FIX: Always prioritize process.cwd() for relative paths
-    // This ensures assets go to the user's current working directory, not npm directories
-    const workingDir = process.cwd();
+    // ENHANCED CURSOR IDE FIX: Use comprehensive workspace detection
+    const workspaceInfo = this.getActualWorkspaceDirectory();
     
-    console.error(`[Figma API] Using process.cwd() as base: ${workingDir}`);
+    console.error(`[Figma API] Using workspace directory: ${workspaceInfo.workspaceDir} (${workspaceInfo.confidence} confidence from ${workspaceInfo.source})`);
+    
+    // CRITICAL CURSOR BUG PREVENTION: If workspace directory is still dangerous, force safe fallback
+    if (this.isDangerousPath(workspaceInfo.workspaceDir) || this.isSystemRoot(workspaceInfo.workspaceDir)) {
+      console.error(`[Figma API] 🚨 CRITICAL: Workspace directory is dangerous/root: ${workspaceInfo.workspaceDir}`);
+      const userHome = os.homedir();
+      const safeFallbackWorkspace = path.join(userHome, 'figma-mcp-workspace');
+      console.error(`[Figma API] 🛡️ Using bulletproof safe workspace: ${safeFallbackWorkspace}`);
+      
+      // Override workspace info with safe fallback
+      workspaceInfo.workspaceDir = safeFallbackWorkspace;
+      workspaceInfo.confidence = 'low';
+      workspaceInfo.source = 'Emergency Safe Fallback';
+    }
     
     // Clean the path for consistent relative path handling
     let cleanPath = normalizedPath;
@@ -517,30 +526,280 @@ export class FigmaApiService {
     
     // Ensure we have a valid path
     if (!cleanPath || cleanPath === '.' || cleanPath === '') {
-      cleanPath = 'assets'; // Default directory name
+      cleanPath = 'figma-assets'; // Default directory name
     }
     
-    // Use path.resolve with process.cwd() as base for consistent cross-platform path resolution
-    const resolvedPath = path.resolve(workingDir, cleanPath);
+    // Use path.resolve with workspace directory as base for consistent cross-platform path resolution
+    const resolvedPath = path.resolve(workspaceInfo.workspaceDir, cleanPath);
     
-    // Final safety check - never allow dangerous paths
-    const dangerousPaths = ['/', '/bin', '/usr', '/etc', '/root', '/var', '/sys', '/proc'];
-    const isResolvedDangerous = dangerousPaths.some(dangerous => 
-      resolvedPath === dangerous || resolvedPath.startsWith(dangerous + '/')
-    );
-    
-    if (isResolvedDangerous) {
-      console.error(`[Figma API] 🚨 BLOCKED dangerous resolved path: ${resolvedPath}`);
-      // Force a safe fallback path in user space using process.cwd()
-      const safePath = path.resolve(workingDir, 'figma-assets', cleanPath);
-      console.error(`[Figma API] Using safe fallback path: ${safePath}`);
-      return safePath;
+    // FINAL BULLETPROOF SAFETY CHECK - Absolutely prevent any dangerous path resolution
+    if (this.isDangerousPath(resolvedPath) || this.isSystemRoot(path.dirname(resolvedPath))) {
+      console.error(`[Figma API] 🚨 EMERGENCY BLOCK: Resolved path is still dangerous: ${resolvedPath}`);
+      console.error(`[Figma API] 🚨 This indicates a severe Cursor IDE workspace detection failure`);
+      
+      // Force ultra-safe fallback that cannot possibly be system root
+      const userHome = os.homedir();
+      const emergencyPath = path.resolve(userHome, 'figma-emergency-downloads', cleanPath);
+      console.error(`[Figma API] 🛡️ Using emergency safe path: ${emergencyPath}`);
+      
+      // Triple-check the emergency path is safe (this should never fail)
+      if (this.isDangerousPath(emergencyPath)) {
+        console.error(`[Figma API] 💥 CRITICAL SYSTEM ERROR: Even emergency path is dangerous!`);
+        throw new FigmaApiError(`System error: Cannot create safe download path. Emergency path ${emergencyPath} is dangerous. Please check your system configuration.`);
+      }
+      
+      return emergencyPath;
     }
     
     console.error(`[Figma API] ✅ Path resolution: "${normalizedPath}" -> "${resolvedPath}"`);
-    console.error(`[Figma API] Environment: cwd="${workingDir}", PWD="${process.env.PWD}", resolved="${resolvedPath}"`);
+    console.error(`[Figma API] Environment: workspace="${workspaceInfo.workspaceDir}", PWD="${process.env.PWD}", resolved="${resolvedPath}"`);
     
     return resolvedPath;
+  }
+
+  /**
+   * Get reliable working directory with enhanced project detection
+   */
+  private static getReliableWorkingDirectory(): string {
+    // Detect Cursor IDE environment
+    const isCursorEnvironment = 
+      process.env.CURSOR_USER_DATA_DIR ||
+      process.env.CURSOR_CONFIG_DIR ||
+      process.env.VSCODE_IPC_HOOK_CLI ||
+      process.argv.some(arg => arg.includes('cursor')) ||
+      process.argv.some(arg => arg.includes('code-server')) ||
+      !!process.env.CURSOR_DEBUG;
+
+    if (isCursorEnvironment) {
+      console.error(`[Figma API] 🎯 Cursor IDE environment detected`);
+      
+      // Get standard working directory first
+      const standardCwd = process.cwd();
+      
+      // If process.cwd() returns system root, this is the Cursor bug (cross-platform detection)
+      if (this.isSystemRoot(standardCwd)) {
+        console.error(`[Figma API] 🚨 CURSOR BUG DETECTED: process.cwd() returned system root "${standardCwd}"`);
+        
+        // Enhanced project directory detection for Cursor
+        const projectDetectionCandidates = [
+          process.env.PWD,                    // Most reliable on Unix systems
+          process.env.INIT_CWD,               // npm's initial working directory
+          process.env.PROJECT_ROOT,           // Some IDEs set this
+          process.env.WORKSPACE_ROOT,         // Workspace root environment variable
+          process.env.VSCODE_WORKSPACE_ROOT,  // VS Code workspace root
+          process.env.CURSOR_WORKSPACE_ROOT,  // Cursor workspace root (if exists)
+          process.env.OLDPWD,                 // Previous working directory
+          // Try to find project by looking for common project files
+          ...this.findProjectDirectoryByMarkers()
+        ].filter(Boolean);
+        
+        for (const dir of projectDetectionCandidates) {
+          if (dir && !this.isSystemRoot(dir) && dir.length > 1) {
+            try {
+              fsSync.accessSync(dir);
+              const stats = fsSync.statSync(dir);
+              if (stats.isDirectory()) {
+                // Additional validation: check if this looks like a real project directory
+                if (this.isValidProjectDirectory(dir)) {
+                  console.error(`[Figma API] ✅ Found valid project directory for Cursor: ${dir}`);
+                  return dir;
+                }
+              }
+            } catch (error) {
+              console.error(`[Figma API] ⚠️ Directory not accessible: ${dir}`);
+              continue;
+            }
+          }
+        }
+        
+        // If we can't find the project directory, use a known fallback but warn the user
+        const fallbackDir = path.join(os.homedir(), 'figma-workspace');
+        console.error(`[Figma API] 🔧 Using fallback directory (assets will be moved to project later): ${fallbackDir}`);
+        return fallbackDir;
+      } else {
+        console.error(`[Figma API] ✅ Cursor working directory is valid: ${standardCwd}`);
+        return standardCwd;
+      }
+    } else {
+      // For non-Cursor environments, use standard process.cwd()
+      const workingDir = process.cwd();
+      console.error(`[Figma API] ✅ Standard IDE working directory: ${workingDir}`);
+      
+      // Final safety check: ensure even standard working directory is safe using cross-platform logic
+      if (this.isDangerousPath(workingDir)) {
+        console.error(`[Figma API] ⚠️ Standard working directory is dangerous: ${workingDir}`);
+        const safeFallback = path.join(os.homedir(), 'figma-workspace');
+        console.error(`[Figma API] 🔧 Using safe fallback: ${safeFallback}`);
+        return safeFallback;
+      }
+      
+      return workingDir;
+    }
+  }
+
+  /**
+   * Enhanced project directory detection by looking for common project markers
+   * Specifically optimized for Cursor IDE environment
+   */
+  private static findProjectDirectoryByMarkers(): string[] {
+    const candidates: string[] = [];
+    
+    // Enhanced project markers with scoring for better detection
+    const projectMarkers = [
+      { file: 'package.json', score: 10 },
+      { file: '.git', score: 8 },
+      { file: 'tsconfig.json', score: 7 },
+      { file: 'yarn.lock', score: 6 },
+      { file: 'package-lock.json', score: 6 },
+      { file: 'pnpm-lock.yaml', score: 6 },
+      { file: 'node_modules', score: 5 },
+      { file: 'src', score: 4 },
+      { file: 'dist', score: 3 },
+      { file: 'README.md', score: 2 },
+      { file: '.gitignore', score: 3 },
+      { file: 'index.js', score: 2 },
+      { file: 'index.ts', score: 2 }
+    ];
+    
+    // Multiple starting points for comprehensive search
+    const startingPoints: string[] = [];
+    
+    // Add environment-based starting points
+    if (process.env.PWD && !this.isSystemRoot(process.env.PWD)) {
+      startingPoints.push(process.env.PWD);
+    }
+    if (process.env.INIT_CWD && !this.isSystemRoot(process.env.INIT_CWD)) {
+      startingPoints.push(process.env.INIT_CWD);
+    }
+    
+    // Add process.cwd() if it's not system root
+    if (!this.isSystemRoot(process.cwd())) {
+      startingPoints.push(process.cwd());
+    }
+    
+    // Fallback to user directories
+    const userDirs = [
+      path.join(os.homedir(), 'Desktop'),
+      path.join(os.homedir(), 'Documents'),
+      path.join(os.homedir(), 'Projects'),
+      path.join(os.homedir(), 'Development'),
+      path.join(os.homedir(), 'Code'),
+      os.homedir()
+    ];
+    startingPoints.push(...userDirs);
+    
+    // Remove duplicates
+    const uniqueStartingPoints = [...new Set(startingPoints)];
+    
+    console.error(`[Figma API] 🔍 Project marker search starting from ${uniqueStartingPoints.length} locations`);
+    
+    for (const startDir of uniqueStartingPoints) {
+      try {
+        console.error(`[Figma API] 🔍 Searching from: ${startDir}`);
+        
+        // Search upward for project markers
+        let currentDir = startDir;
+        const maxLevels = 8; // Prevent infinite loops
+        
+        for (let level = 0; level < maxLevels; level++) {
+          let totalScore = 0;
+          
+          for (const marker of projectMarkers) {
+            const markerPath = path.join(currentDir, marker.file);
+            try {
+              fsSync.accessSync(markerPath);
+              totalScore += marker.score;
+              
+              // Special handling for key markers
+              if (marker.file === 'package.json') {
+                try {
+                  const packageContent = fsSync.readFileSync(markerPath, 'utf8');
+                  const packageJson = JSON.parse(packageContent);
+                  if (packageJson.name && !packageJson.name.startsWith('figma-mcp-workspace')) {
+                    totalScore += 5; // Bonus for real projects
+                  }
+                } catch {
+                  // Invalid package.json, but still counts
+                }
+              }
+            } catch {
+              // Marker not found
+            }
+          }
+          
+          // If we found enough markers, consider this a project directory
+          if (totalScore >= 10 && !candidates.includes(currentDir)) {
+            candidates.push(currentDir);
+            console.error(`[Figma API] ✅ Project found with score ${totalScore}: ${currentDir}`);
+          }
+          
+          const parentDir = path.dirname(currentDir);
+          if (parentDir === currentDir) break; // Reached root
+          currentDir = parentDir;
+        }
+        
+        // Also search one level down in the starting directory
+        if (startDir !== os.homedir()) { // Don't search all of home directory
+          try {
+            const entries = fsSync.readdirSync(startDir, { withFileTypes: true });
+            for (const entry of entries.slice(0, 20)) { // Limit to first 20 entries
+              if (entry.isDirectory() && !entry.name.startsWith('.') && entry.name !== 'node_modules') {
+                const subDir = path.join(startDir, entry.name);
+                
+                let totalScore = 0;
+                for (const marker of projectMarkers) {
+                  const markerPath = path.join(subDir, marker.file);
+                  try {
+                    fsSync.accessSync(markerPath);
+                    totalScore += marker.score;
+                  } catch {
+                    // Marker not found
+                  }
+                }
+                
+                if (totalScore >= 10 && !candidates.includes(subDir)) {
+                  candidates.push(subDir);
+                  console.error(`[Figma API] ✅ Project found (subdirectory) with score ${totalScore}: ${subDir}`);
+                }
+              }
+            }
+          } catch {
+            // Directory not readable
+          }
+        }
+      } catch (error) {
+        console.error(`[Figma API] ⚠️ Error searching from ${startDir}:`, error);
+      }
+    }
+    
+    console.error(`[Figma API] 📊 Project marker search found ${candidates.length} candidates`);
+    return candidates;
+  }
+
+  /**
+   * Check if a directory looks like a valid project directory
+   */
+  private static isValidProjectDirectory(dir: string): boolean {
+    const projectIndicators = [
+      'package.json',
+      'tsconfig.json',
+      '.git',
+      'src',
+      'node_modules'
+    ];
+    
+    let indicatorCount = 0;
+    for (const indicator of projectIndicators) {
+      try {
+        fsSync.accessSync(path.join(dir, indicator));
+        indicatorCount++;
+      } catch {
+        // Indicator not found
+      }
+    }
+    
+    // Consider it a project directory if it has at least 2 indicators
+    return indicatorCount >= 2;
   }
 
   /**
@@ -552,9 +811,8 @@ export class FigmaApiService {
       throw new Error('Invalid or empty path after resolution');
     }
     
-    // Enhanced safety check: prevent creating directories at dangerous locations
-    const dangerousPaths = ['/', '/bin', '/usr', '/etc', '/root', '/var', '/sys', '/proc'];
-    if (dangerousPaths.some(dangerous => resolvedPath === dangerous || resolvedPath.startsWith(dangerous + '/'))) {
+    // Enhanced safety check: prevent creating directories at dangerous locations (cross-platform)
+    if (this.isDangerousPath(resolvedPath)) {
       console.error(`[Figma API] SAFETY BLOCK: Refusing to create directory at dangerous location: ${resolvedPath}`);
       throw new FigmaApiError(`Blocked dangerous directory creation at: ${resolvedPath}. Original path: ${originalPath}`);
     }
@@ -607,39 +865,225 @@ export class FigmaApiService {
     verified: Array<{ path: string; exists: boolean; size?: number; relativePath?: string }>;
     summary: { total: number; found: number; missing: number };
   }> {
-    const results = [];
-    const workingDir = process.cwd();
+    const verified: Array<{ path: string; exists: boolean; size?: number; relativePath?: string }> = [];
     
-    for (const filePath of expectedPaths) {
+    for (const expectedPath of expectedPaths) {
       try {
-        const stats = await fs.stat(filePath);
-        const relativePath = path.relative(workingDir, filePath);
-        
-        results.push({
-          path: filePath,
+        const stat = await fs.stat(expectedPath);
+        const relativePath = path.relative(process.cwd(), expectedPath);
+        verified.push({
+          path: expectedPath,
           exists: true,
-          size: stats.size,
-          relativePath: relativePath.startsWith('.') ? relativePath : `./${relativePath}`
+          size: stat.size,
+          relativePath: relativePath.startsWith('..') ? expectedPath : relativePath
         });
-      } catch {
-        const relativePath = path.relative(workingDir, filePath);
-        results.push({
-          path: filePath,
-          exists: false,
-          relativePath: relativePath.startsWith('.') ? relativePath : `./${relativePath}`
+      } catch (error) {
+        verified.push({
+          path: expectedPath,
+          exists: false
         });
       }
     }
     
     const summary = {
-      total: results.length,
-      found: results.filter(r => r.exists).length,
-      missing: results.filter(r => !r.exists).length
+      total: verified.length,
+      found: verified.filter(v => v.exists).length,
+      missing: verified.filter(v => !v.exists).length
     };
     
-    console.error(`[Figma API] Asset verification: ${summary.found}/${summary.total} files found`);
+    return { verified, summary };
+  }
+
+  /**
+   * Advanced asset recovery system for IDE compatibility issues
+   * Searches common alternative download locations and recovers assets to project folder
+   */
+  private static async findAndRecoverMissingAssets(
+    expectedResults: Array<{ nodeId: string; nodeName: string; filePath: string; success: boolean }>,
+    targetDirectory: string
+  ): Promise<{
+    recovered: Array<{ nodeId: string; nodeName: string; oldPath: string; newPath: string; success: boolean }>;
+    summary: { total: number; found: number; recovered: number; failed: number };
+  }> {
+    const recovered: Array<{ nodeId: string; nodeName: string; oldPath: string; newPath: string; success: boolean }> = [];
+    const missingAssets = expectedResults.filter(r => r.success); // Only check supposedly successful downloads
     
-    return { verified: results, summary };
+    console.error(`[Figma API] 🔍 Searching for ${missingAssets.length} potentially misplaced assets...`);
+    
+    // Common alternative locations where files might have been downloaded (cross-platform)
+    const searchLocations = this.getAssetSearchLocations();
+    
+    // Remove duplicates and ensure target directory isn't in search list
+    const uniqueSearchLocations = [...new Set(searchLocations)].filter(loc => loc !== targetDirectory);
+    
+    // Also search recursively in some key directories
+    const recursiveSearchDirs = [
+      path.join(os.homedir(), 'figma-workspace'),
+      os.homedir()
+    ];
+    
+    for (const asset of missingAssets) {
+      const expectedPath = asset.filePath;
+      const filename = path.basename(expectedPath);
+      
+      // First verify it's actually missing from expected location
+      try {
+        await fs.access(expectedPath);
+        // File exists where expected, no recovery needed
+        continue;
+      } catch {
+        // File is missing, proceed with search
+      }
+      
+      console.error(`[Figma API] 🔍 Searching for missing file: ${filename}`);
+      
+      let foundPath: string | null = null;
+      
+      // First, search direct locations
+      for (const searchLoc of uniqueSearchLocations) {
+        try {
+          const candidatePath = path.join(searchLoc, filename);
+          await fs.access(candidatePath);
+          
+          // Found the file! Verify it's a reasonable size (not empty)
+          const stat = await fs.stat(candidatePath);
+          if (stat.size > 0) {
+            foundPath = candidatePath;
+            console.error(`[Figma API] ✅ Found ${filename} at: ${candidatePath} (${(stat.size / 1024).toFixed(1)}KB)`);
+            break;
+          }
+        } catch {
+          // File not found in this location, continue searching
+        }
+      }
+      
+      // If not found in direct locations, search recursively in key directories
+      if (!foundPath) {
+        foundPath = await this.searchFileRecursively(filename, recursiveSearchDirs);
+      }
+      
+      if (foundPath) {
+        // Attempt to move the file to the correct location
+        try {
+          // Ensure target directory exists
+          await FigmaApiService.createDirectorySafely(targetDirectory, targetDirectory);
+          
+          // Move the file
+          await fs.rename(foundPath, expectedPath);
+          
+          recovered.push({
+            nodeId: asset.nodeId,
+            nodeName: asset.nodeName,
+            oldPath: foundPath,
+            newPath: expectedPath,
+            success: true
+          });
+          
+          console.error(`[Figma API] ✅ Recovered ${filename}: ${foundPath} → ${expectedPath}`);
+          
+        } catch (moveError) {
+          // If move fails, try copy and delete
+          try {
+            await fs.copyFile(foundPath, expectedPath);
+            await fs.unlink(foundPath);
+            
+            recovered.push({
+              nodeId: asset.nodeId,
+              nodeName: asset.nodeName,
+              oldPath: foundPath,
+              newPath: expectedPath,
+              success: true
+            });
+            
+            console.error(`[Figma API] ✅ Recovered ${filename} via copy: ${foundPath} → ${expectedPath}`);
+            
+          } catch (copyError) {
+            recovered.push({
+              nodeId: asset.nodeId,
+              nodeName: asset.nodeName,
+              oldPath: foundPath,
+              newPath: expectedPath,
+              success: false
+            });
+            
+            console.error(`[Figma API] ❌ Failed to recover ${filename}:`, copyError);
+          }
+        }
+      } else {
+        console.error(`[Figma API] ❌ Could not locate missing file: ${filename}`);
+      }
+    }
+    
+    const summary = {
+      total: missingAssets.length,
+      found: recovered.length,
+      recovered: recovered.filter(r => r.success).length,
+      failed: recovered.filter(r => !r.success).length
+    };
+    
+    if (summary.recovered > 0) {
+      console.error(`[Figma API] 🎉 Recovery completed: ${summary.recovered}/${summary.total} assets recovered to project folder`);
+    } else if (summary.total > 0) {
+      console.error(`[Figma API] ⚠️  No assets recovered - files may have been downloaded to an unknown location`);
+    }
+    
+    return { recovered, summary };
+  }
+
+  /**
+   * Search for a file recursively in given directories (limited depth)
+   */
+  private static async searchFileRecursively(filename: string, searchDirs: string[], maxDepth: number = 3): Promise<string | null> {
+    for (const searchDir of searchDirs) {
+      try {
+        const found = await this.searchInDirectory(searchDir, filename, maxDepth);
+        if (found) {
+          return found;
+        }
+      } catch (error) {
+        console.error(`[Figma API] Error searching in ${searchDir}:`, error);
+      }
+    }
+    return null;
+  }
+
+  /**
+   * Search for a file in a specific directory with depth limit
+   */
+  private static async searchInDirectory(dir: string, filename: string, maxDepth: number, currentDepth: number = 0): Promise<string | null> {
+    if (currentDepth >= maxDepth) {
+      return null;
+    }
+    
+    try {
+      const entries = await fs.readdir(dir, { withFileTypes: true });
+      
+      // First, check if the file is directly in this directory
+      for (const entry of entries) {
+        if (entry.isFile() && entry.name === filename) {
+          const filePath = path.join(dir, entry.name);
+          const stat = await fs.stat(filePath);
+          if (stat.size > 0) {
+            return filePath;
+          }
+        }
+      }
+      
+      // Then, search subdirectories
+      for (const entry of entries) {
+        if (entry.isDirectory() && !entry.name.startsWith('.') && entry.name !== 'node_modules') {
+          const subDir = path.join(dir, entry.name);
+          const found = await this.searchInDirectory(subDir, filename, maxDepth, currentDepth + 1);
+          if (found) {
+            return found;
+          }
+        }
+      }
+    } catch (error) {
+      // Directory not accessible, skip
+    }
+    
+    return null;
   }
 
   /**
@@ -666,6 +1110,12 @@ export class FigmaApiService {
       successful: number;
       failed: number;
     };
+    workspaceEnforcement?: {
+      finalLocation: string;
+      moved: number;
+      workspaceSource: string;
+      confidence: 'high' | 'medium' | 'low';
+    } | null;
   }> {
     // Resolve and ensure local directory exists
     const resolvedPath = FigmaApiService.resolvePath(localPath);
@@ -789,34 +1239,60 @@ export class FigmaApiService {
       }
     }
 
+    // Calculate summary
     const summary = {
       total: results.length,
       successful: results.filter(r => r.success).length,
       failed: results.filter(r => !r.success).length
     };
 
-    console.error(`[Figma API] Download summary: ${summary.successful}/${summary.total} successful`);
+    console.error(`[Figma API] Download completed: ${summary.successful}/${summary.total} successful`);
 
-    // Verify assets are in the expected location for universal IDE compatibility
-    const expectedPaths = results.filter(r => r.success).map(r => r.filePath);
-    if (expectedPaths.length > 0) {
-      const verification = await FigmaApiService.verifyAssetsLocation(expectedPaths);
-      console.error(`[Figma API] Verification: ${verification.summary.found}/${verification.summary.total} assets confirmed`);
-      
-      // Add relative path information to results for better IDE compatibility
-      results.forEach(result => {
-        if (result.success) {
-          const verifiedAsset = verification.verified.find(v => v.path === result.filePath);
-          if (verifiedAsset) {
-            (result as any).relativePath = verifiedAsset.relativePath;
-            (result as any).verified = verifiedAsset.exists;
-            (result as any).fileSize = verifiedAsset.size;
+    // WORKSPACE ENFORCEMENT: Ensure all assets end up in the actual IDE workspace
+    let workspaceEnforcement = null;
+    if (summary.successful > 0) {
+      try {
+        workspaceEnforcement = await FigmaApiService.enforceWorkspaceLocation(results, localPath);
+        console.error(`[Figma API] 🎯 Workspace enforcement: ${workspaceEnforcement.summary.moved} moved, ${workspaceEnforcement.summary.alreadyCorrect} already correct`);
+      } catch (enforcementError) {
+        console.error(`[Figma API] ⚠️ Workspace enforcement failed, falling back to recovery:`, enforcementError);
+        
+        // Fallback to original recovery system
+        const expectedPaths = results.filter(r => r.success).map(r => r.filePath);
+        if (expectedPaths.length > 0) {
+          const verification = await FigmaApiService.verifyAssetsLocation(expectedPaths);
+          
+          if (verification.summary.missing > 0) {
+            console.error(`[Figma API] ⚠️ ${verification.summary.missing} assets missing from expected location, attempting recovery...`);
+            
+            const recovery = await FigmaApiService.findAndRecoverMissingAssets(results, resolvedPath);
+            
+            if (recovery.summary.recovered > 0) {
+              console.error(`[Figma API] 🎉 Successfully recovered ${recovery.summary.recovered} assets to project directory!`);
+              
+              for (const recoveredAsset of recovery.recovered) {
+                const resultIndex = results.findIndex(r => r.nodeId === recoveredAsset.nodeId);
+                if (resultIndex !== -1 && recoveredAsset.success && results[resultIndex]) {
+                  results[resultIndex].filePath = recoveredAsset.newPath;
+                  results[resultIndex].success = true;
+                }
+              }
+            }
           }
         }
-      });
+      }
     }
 
-    return { downloaded: results, summary };
+    return { 
+      downloaded: results, 
+      summary,
+      workspaceEnforcement: workspaceEnforcement ? {
+        finalLocation: workspaceEnforcement.finalLocation,
+        moved: workspaceEnforcement.summary.moved,
+        workspaceSource: workspaceEnforcement.workspaceInfo.source,
+        confidence: workspaceEnforcement.workspaceInfo.confidence
+      } : null
+    };
   }
 
   /**
@@ -841,6 +1317,12 @@ export class FigmaApiService {
       failed: number;
       skipped: number;
     };
+    workspaceEnforcement?: {
+      finalLocation: string;
+      moved: number;
+      workspaceSource: string;
+      confidence: 'high' | 'medium' | 'low';
+    } | null;
   }> {
     // Resolve and ensure local directory exists
     const resolvedPath = FigmaApiService.resolvePath(localPath);
@@ -948,7 +1430,7 @@ export class FigmaApiService {
             if (!imageUrl) {
               results.push({
                 nodeId: node.id,
-                nodeName: node.name,
+                nodeName: node.name.replace(/[/\\:*?"<>|]/g, '-').replace(/\s+/g, ' ').trim(),
                 filePath: '',
                 exportSetting,
                 success: false,
@@ -957,21 +1439,27 @@ export class FigmaApiService {
               continue;
             }
 
-            // Generate filename based on export settings - preserve original node name
-            const nodeName = node.name; // Use original name, don't sanitize
+            // Generate filename based on export settings with proper sanitization
+            const rawNodeName = node.name;
+            // Sanitize filename to remove/replace problematic characters
+            const sanitizedNodeName = rawNodeName
+              .replace(/[/\\:*?"<>|]/g, '-') // Replace problematic characters with dash
+              .replace(/\s+/g, ' ') // Normalize spaces
+              .trim();
+            
             const suffix = exportSetting.suffix || '';
             const extension = exportSetting.format.toLowerCase();
             
             // Build filename with proper suffix handling
             let filename: string;
             if (suffix) {
-              filename = `${nodeName}${suffix}.${extension}`;
+              filename = `${sanitizedNodeName}${suffix}.${extension}`;
             } else {
               // If no suffix but scale > 1, add scale suffix
               if (scale > 1) {
-                filename = `${nodeName}@${scale}x.${extension}`;
+                filename = `${sanitizedNodeName}@${scale}x.${extension}`;
               } else {
-                filename = `${nodeName}.${extension}`;
+                filename = `${sanitizedNodeName}.${extension}`;
               }
             }
             
@@ -992,7 +1480,7 @@ export class FigmaApiService {
 
               results.push({
                 nodeId: node.id,
-                nodeName: node.name,
+                nodeName: sanitizedNodeName,
                 filePath,
                 exportSetting,
                 success: true
@@ -1003,7 +1491,7 @@ export class FigmaApiService {
             } catch (downloadError) {
               results.push({
                 nodeId: node.id,
-                nodeName: node.name,
+                nodeName: sanitizedNodeName,
                 filePath: filePath,
                 exportSetting,
                 success: false,
@@ -1019,7 +1507,7 @@ export class FigmaApiService {
           for (const { node, exportSetting } of batch) {
             results.push({
               nodeId: node.id,
-              nodeName: node.name,
+              nodeName: node.name.replace(/[/\\:*?"<>|]/g, '-').replace(/\s+/g, ' ').trim(),
               filePath: '',
               exportSetting,
               success: false,
@@ -1042,28 +1530,53 @@ export class FigmaApiService {
       skipped: 0 // We process all nodes with export settings
     };
 
-    console.error(`[Figma API] Download summary: ${summary.successful}/${summary.total} successful`);
+    console.error(`[Figma API] Download completed: ${summary.successful}/${summary.total} successful`);
 
-    // Verify assets are in the expected location for universal IDE compatibility
-    const expectedPaths = results.filter(r => r.success).map(r => r.filePath);
-    if (expectedPaths.length > 0) {
-      const verification = await FigmaApiService.verifyAssetsLocation(expectedPaths);
-      console.error(`[Figma API] Verification: ${verification.summary.found}/${verification.summary.total} export assets confirmed`);
-      
-      // Add relative path information to results for better IDE compatibility
-      results.forEach(result => {
-        if (result.success) {
-          const verifiedAsset = verification.verified.find(v => v.path === result.filePath);
-          if (verifiedAsset) {
-            (result as any).relativePath = verifiedAsset.relativePath;
-            (result as any).verified = verifiedAsset.exists;
-            (result as any).fileSize = verifiedAsset.size;
+    // WORKSPACE ENFORCEMENT: Ensure all export assets end up in the actual IDE workspace
+    let workspaceEnforcement = null;
+    if (summary.successful > 0) {
+      try {
+        workspaceEnforcement = await FigmaApiService.enforceWorkspaceLocation(results, localPath);
+        console.error(`[Figma API] 🎯 Export workspace enforcement: ${workspaceEnforcement.summary.moved} moved, ${workspaceEnforcement.summary.alreadyCorrect} already correct`);
+      } catch (enforcementError) {
+        console.error(`[Figma API] ⚠️ Export workspace enforcement failed, falling back to recovery:`, enforcementError);
+        
+        // Fallback to original recovery system
+        const expectedPaths = results.filter(r => r.success).map(r => r.filePath);
+        if (expectedPaths.length > 0) {
+          const verification = await FigmaApiService.verifyAssetsLocation(expectedPaths);
+          
+          if (verification.summary.missing > 0) {
+            console.error(`[Figma API] ⚠️ ${verification.summary.missing} export assets missing from expected location, attempting recovery...`);
+            
+            const recovery = await FigmaApiService.findAndRecoverMissingAssets(results, resolvedPath);
+            
+            if (recovery.summary.recovered > 0) {
+              console.error(`[Figma API] 🎉 Successfully recovered ${recovery.summary.recovered} export assets to project directory!`);
+              
+              for (const recoveredAsset of recovery.recovered) {
+                const resultIndex = results.findIndex(r => r.nodeId === recoveredAsset.nodeId);
+                if (resultIndex !== -1 && recoveredAsset.success && results[resultIndex]) {
+                  results[resultIndex].filePath = recoveredAsset.newPath;
+                  results[resultIndex].success = true;
+                }
+              }
+            }
           }
         }
-      });
+      }
     }
 
-    return { downloaded: results, summary };
+    return { 
+      downloaded: results, 
+      summary,
+      workspaceEnforcement: workspaceEnforcement ? {
+        finalLocation: workspaceEnforcement.finalLocation,
+        moved: workspaceEnforcement.summary.moved,
+        workspaceSource: workspaceEnforcement.workspaceInfo.source,
+        confidence: workspaceEnforcement.workspaceInfo.confidence
+      } : null
+    };
   }
 
   /**
@@ -1147,6 +1660,504 @@ export class FigmaApiService {
       author: comment.user.handle,
       timestamp: comment.created_at,
       confidence
+    };
+  }
+
+  /**
+   * Get OS-specific dangerous paths that should never be used for asset downloads
+   */
+  private static getDangerousPaths(): string[] {
+    const platform = os.platform();
+    
+    switch (platform) {
+      case 'win32':
+        // Windows dangerous paths
+        return [
+          'C:\\',
+          'C:\\Windows',
+          'C:\\Program Files',
+          'C:\\Program Files (x86)',
+          'C:\\System32',
+          'C:\\Users\\Public',
+          'D:\\',
+          'E:\\',
+          // Also check for drive letters generically
+          ...Array.from({ length: 26 }, (_, i) => String.fromCharCode(65 + i) + ':\\')
+        ];
+      
+      case 'darwin':
+        // macOS dangerous paths
+        return [
+          '/',
+          '/System',
+          '/Library',
+          '/usr',
+          '/bin',
+          '/sbin',
+          '/etc',
+          '/var',
+          '/tmp',
+          '/Applications',
+          '/private'
+        ];
+      
+      default:
+        // Linux and other Unix-like systems
+        return [
+          '/',
+          '/bin',
+          '/usr',
+          '/etc',
+          '/root',
+          '/var',
+          '/sys',
+          '/proc',
+          '/boot',
+          '/dev',
+          '/lib',
+          '/sbin',
+          '/tmp'
+        ];
+    }
+  }
+
+  /**
+   * Check if a path is considered dangerous/system path for the current OS
+   */
+  private static isDangerousPath(checkPath: string): boolean {
+    const dangerousPaths = this.getDangerousPaths();
+    const normalizedCheckPath = path.normalize(checkPath);
+    
+    return dangerousPaths.some(dangerous => {
+      const normalizedDangerous = path.normalize(dangerous);
+      return normalizedCheckPath === normalizedDangerous || 
+             normalizedCheckPath.startsWith(normalizedDangerous + path.sep);
+    });
+  }
+
+  /**
+   * Check if current working directory indicates a system root (cross-platform)
+   */
+  private static isSystemRoot(dir: string): boolean {
+    const normalizedDir = path.normalize(dir);
+    const platform = os.platform();
+    
+    switch (platform) {
+      case 'win32':
+        // Windows: Check for drive root (C:\, D:\, etc.)
+        return /^[A-Z]:\\?$/i.test(normalizedDir);
+      
+      default:
+        // Unix-like systems: Check for root directory
+        return normalizedDir === path.sep || normalizedDir.length <= 1;
+    }
+  }
+
+  /**
+   * Get OS-appropriate search locations for missing assets
+   */
+  private static getAssetSearchLocations(): string[] {
+    const platform = os.platform();
+    const homeDir = os.homedir();
+    const cwd = process.cwd();
+    
+    const commonLocations = [
+      homeDir,
+      path.join(homeDir, 'figma-workspace'),
+      path.join(homeDir, 'figma-workspace', 'assets'),
+      cwd,
+      path.join(cwd, '..'),
+      path.join(cwd, 'assets'),
+      path.join(cwd, 'figma-assets')
+    ];
+    
+    switch (platform) {
+      case 'win32':
+        return [
+          ...commonLocations,
+          path.join(homeDir, 'Downloads'),
+          path.join(homeDir, 'Desktop'),
+          path.join(homeDir, 'Documents'),
+          'C:\\temp',
+          'C:\\tmp',
+          // Don't search system roots on Windows
+        ];
+      
+      case 'darwin':
+        return [
+          ...commonLocations,
+          path.join(homeDir, 'Downloads'),
+          path.join(homeDir, 'Desktop'),
+          path.join(homeDir, 'Documents'),
+          '/tmp',
+          // macOS specific locations
+          path.join(homeDir, 'Library', 'Application Support'),
+        ];
+      
+      default:
+        // Linux and other Unix-like systems
+        return [
+          ...commonLocations,
+          path.join(homeDir, 'Downloads'),
+          path.join(homeDir, 'Desktop'),
+          path.join(homeDir, 'Documents'),
+          '/tmp',
+          // Only add root if we're not running as root user
+          ...(process.getuid && process.getuid() !== 0 ? ['/'] : []),
+          '/assets',
+          '/figma-assets'
+        ];
+    }
+  }
+
+  /**
+   * Enhanced workspace detection specifically designed for Cursor IDE compatibility
+   * This addresses the known Cursor bug where process.cwd() returns wrong directories
+   */
+  private static getActualWorkspaceDirectory(): { workspaceDir: string; confidence: 'high' | 'medium' | 'low'; source: string } {
+    console.error(`[Figma API] 🎯 Enhanced workspace detection starting...`);
+    console.error(`[Figma API] 📊 Initial context: process.cwd()="${process.cwd()}", PWD="${process.env.PWD}"`);
+    
+    const candidates: Array<{ dir: string; confidence: 'high' | 'medium' | 'low'; source: string }> = [];
+    
+    // Detect if we're in Cursor IDE environment
+    const isCursorIDE = 
+      process.env.CURSOR_USER_DATA_DIR ||
+      process.env.CURSOR_CONFIG_DIR ||
+      process.env.VSCODE_IPC_HOOK_CLI ||
+      process.argv.some(arg => arg.includes('cursor')) ||
+      !!process.env.CURSOR_DEBUG;
+    
+    if (isCursorIDE) {
+      console.error(`[Figma API] 🎯 Cursor IDE detected - applying enhanced detection`);
+    }
+    
+    // HIGHEST PRIORITY: Cursor-specific workspace variables
+    const cursorSpecificSources = [
+      { env: 'WORKSPACE_FOLDER_PATHS', label: 'Cursor Workspace Folders', priority: 'ultra-high' },
+      { env: 'CURSOR_WORKSPACE_ROOT', label: 'Cursor Workspace Root', priority: 'high' },
+      { env: 'VSCODE_WORKSPACE_ROOT', label: 'VS Code Workspace Root', priority: 'high' }
+    ];
+    
+    for (const source of cursorSpecificSources) {
+      const envValue = process.env[source.env];
+      if (envValue) {
+        // Handle multiple workspace paths (WORKSPACE_FOLDER_PATHS can contain multiple paths)
+        const workspacePaths = envValue.includes(';') ? envValue.split(';') : [envValue];
+        
+        for (const dir of workspacePaths) {
+          const cleanDir = dir.trim();
+          if (cleanDir && !this.isSystemRoot(cleanDir)) {
+            try {
+              fsSync.accessSync(cleanDir);
+              if (this.isValidProjectDirectory(cleanDir)) {
+                const confidence = source.priority === 'ultra-high' ? 'high' : 'high';
+                candidates.push({ dir: cleanDir, confidence, source: source.label });
+                console.error(`[Figma API] ✅ Found ${source.label}: ${cleanDir}`);
+              }
+            } catch {
+              console.error(`[Figma API] ⚠️ ${source.label} not accessible: ${cleanDir}`);
+            }
+          }
+        }
+      }
+    }
+    
+    // High confidence candidates - standard workspace detection
+    const highConfidenceSources = [
+      { env: 'PROJECT_ROOT', label: 'Project Root' },
+      { env: 'WORKSPACE_ROOT', label: 'Workspace Root' },
+      { env: 'npm_config_prefix', label: 'NPM Project Root' },
+      { env: 'INIT_CWD', label: 'Initial Working Directory' }
+    ];
+    
+    for (const source of highConfidenceSources) {
+      const dir = process.env[source.env];
+      if (dir && !this.isSystemRoot(dir)) {
+        try {
+          fsSync.accessSync(dir);
+          if (this.isValidProjectDirectory(dir)) {
+            candidates.push({ dir, confidence: 'high', source: source.label });
+            console.error(`[Figma API] ✅ Found ${source.label}: ${dir}`);
+          }
+        } catch {
+          console.error(`[Figma API] ⚠️ ${source.label} not accessible: ${dir}`);
+        }
+      }
+    }
+    
+    // Medium confidence - process working directory sources
+    const mediumConfidenceSources = [
+      { env: 'PWD', label: 'Shell Working Directory' },
+      { env: 'OLDPWD', label: 'Previous Working Directory' }
+    ];
+    
+    for (const source of mediumConfidenceSources) {
+      const dir = process.env[source.env];
+      if (dir && !this.isSystemRoot(dir)) {
+        try {
+          fsSync.accessSync(dir);
+          if (this.isValidProjectDirectory(dir)) {
+            candidates.push({ dir, confidence: 'medium', source: source.label });
+            console.error(`[Figma API] ✅ Found ${source.label}: ${dir}`);
+          }
+        } catch {
+          console.error(`[Figma API] ⚠️ ${source.label} not accessible: ${dir}`);
+        }
+      }
+    }
+    
+    // Project marker-based detection (medium confidence) - enhanced for Cursor
+    console.error(`[Figma API] 🔍 Searching for project markers...`);
+    const markerBasedDirs = this.findProjectDirectoryByMarkers();
+    for (const dir of markerBasedDirs) {
+      if (!candidates.some(c => c.dir === dir)) {
+        candidates.push({ dir, confidence: 'medium', source: 'Project Markers' });
+        console.error(`[Figma API] ✅ Found via project markers: ${dir}`);
+      }
+    }
+    
+    // Special handling for Cursor: if process.cwd() is system root, skip it entirely
+    const processCwd = process.cwd();
+    if (isCursorIDE && this.isSystemRoot(processCwd)) {
+      console.error(`[Figma API] 🚨 Cursor bug detected: process.cwd() is system root (${processCwd}), ignoring`);
+    } else if (!this.isSystemRoot(processCwd) && this.isValidProjectDirectory(processCwd)) {
+      if (!candidates.some(c => c.dir === processCwd)) {
+        candidates.push({ dir: processCwd, confidence: 'low', source: 'Process Working Directory' });
+        console.error(`[Figma API] ✅ Valid process.cwd(): ${processCwd}`);
+      }
+    } else {
+      console.error(`[Figma API] ❌ Invalid process.cwd(): ${processCwd}`);
+    }
+    
+    // Sort by confidence and prefer high confidence results
+    candidates.sort((a, b) => {
+      const confidenceOrder = { 'high': 3, 'medium': 2, 'low': 1 };
+      return confidenceOrder[b.confidence] - confidenceOrder[a.confidence];
+    });
+    
+    console.error(`[Figma API] 🔍 Workspace detection found ${candidates.length} candidates:`);
+    candidates.forEach((candidate, index) => {
+      console.error(`[Figma API]   ${index + 1}. ${candidate.dir} (${candidate.confidence} confidence, ${candidate.source})`);
+    });
+    
+    // Return the best candidate or intelligent fallback
+    if (candidates.length > 0) {
+      const best = candidates[0]!; // Safe because we checked length > 0
+      console.error(`[Figma API] ✅ Selected workspace: ${best.dir} (${best.confidence} confidence)`);
+      return { workspaceDir: best.dir, confidence: best.confidence, source: best.source };
+    }
+    
+    // For Cursor IDE: try to find the actual project directory in common locations
+    if (isCursorIDE) {
+      console.error(`[Figma API] 🎯 Cursor IDE fallback: searching common project locations`);
+      
+      const commonProjectLocations = [
+        path.join(os.homedir(), 'Desktop'),
+        path.join(os.homedir(), 'Documents'),
+        path.join(os.homedir(), 'Projects'),
+        path.join(os.homedir(), 'Development'),
+        path.join(os.homedir(), 'Code'),
+        os.homedir()
+      ];
+      
+      for (const baseDir of commonProjectLocations) {
+        try {
+          const entries = fsSync.readdirSync(baseDir, { withFileTypes: true });
+          for (const entry of entries.slice(0, 10)) { // Limit search to first 10 entries
+            if (entry.isDirectory()) {
+              const projectCandidate = path.join(baseDir, entry.name);
+              if (this.isValidProjectDirectory(projectCandidate)) {
+                console.error(`[Figma API] 🎯 Found potential Cursor project: ${projectCandidate}`);
+                return { workspaceDir: projectCandidate, confidence: 'medium', source: 'Cursor Project Search' };
+              }
+            }
+          }
+        } catch {
+          // Directory not accessible
+        }
+      }
+    }
+    
+    // Last resort fallback - but create a proper project structure
+    const fallback = path.join(os.homedir(), 'figma-mcp-workspace');
+    console.error(`[Figma API] 🔧 No valid workspace found, using enhanced fallback: ${fallback}`);
+    
+    // Try to create the fallback directory structure
+    try {
+      fsSync.mkdirSync(fallback, { recursive: true });
+      // Create a package.json to make it look like a proper project
+      const packageJsonPath = path.join(fallback, 'package.json');
+      if (!fsSync.existsSync(packageJsonPath)) {
+        fsSync.writeFileSync(packageJsonPath, JSON.stringify({
+          name: 'figma-mcp-workspace',
+          version: '1.0.0',
+          description: 'Workspace for Figma MCP assets',
+          private: true
+        }, null, 2));
+      }
+      console.error(`[Figma API] ✅ Created fallback workspace with package.json`);
+    } catch (error) {
+      console.error(`[Figma API] ⚠️ Could not enhance fallback workspace:`, error);
+    }
+    
+    return { workspaceDir: fallback, confidence: 'low', source: 'Enhanced Fallback' };
+  }
+
+  /**
+   * Enforce assets are in the actual IDE workspace - move them if needed
+   */
+  private static async enforceWorkspaceLocation(
+    downloadResults: Array<{ nodeId: string; nodeName: string; filePath: string; success: boolean; error?: string }>,
+    requestedPath: string
+  ): Promise<{
+    finalLocation: string;
+    moved: Array<{ nodeId: string; nodeName: string; oldPath: string; newPath: string; success: boolean }>;
+    summary: { total: number; alreadyCorrect: number; moved: number; failed: number };
+    workspaceInfo: { dir: string; confidence: 'high' | 'medium' | 'low'; source: string };
+  }> {
+    console.error(`[Figma API] 🎯 Enforcing workspace location for assets...`);
+    
+    // Get the actual workspace directory
+    const workspaceInfo = this.getActualWorkspaceDirectory();
+    
+    // Determine the final target directory in the workspace
+    const requestedBasename = path.basename(requestedPath);
+    const workspaceTargetDir = path.resolve(workspaceInfo.workspaceDir, requestedBasename);
+    
+    console.error(`[Figma API] 📁 Target workspace location: ${workspaceTargetDir}`);
+    
+    const moved: Array<{ nodeId: string; nodeName: string; oldPath: string; newPath: string; success: boolean }> = [];
+    const successfulDownloads = downloadResults.filter(r => r.success);
+    
+    let alreadyCorrect = 0;
+    let movedCount = 0;
+    let failed = 0;
+    
+    for (const result of successfulDownloads) {
+      const currentPath = result.filePath;
+      const filename = path.basename(currentPath);
+      const targetPath = path.join(workspaceTargetDir, filename);
+      
+      // Check if file is already in the correct workspace location
+      if (path.normalize(currentPath) === path.normalize(targetPath)) {
+        console.error(`[Figma API] ✅ Already in workspace: ${filename}`);
+        alreadyCorrect++;
+        continue;
+      }
+      
+      // Check if file actually exists at current location
+      try {
+        await fs.access(currentPath);
+      } catch {
+        console.error(`[Figma API] ⚠️ File not found at reported location: ${currentPath}`);
+        
+        // Try to find it using our search system
+        const searchLocations = this.getAssetSearchLocations();
+        let foundPath: string | null = null;
+        
+        for (const searchLoc of searchLocations) {
+          try {
+            const candidatePath = path.join(searchLoc, filename);
+            await fs.access(candidatePath);
+            const stat = await fs.stat(candidatePath);
+            if (stat.size > 0) {
+              foundPath = candidatePath;
+              console.error(`[Figma API] 🔍 Found ${filename} at: ${candidatePath}`);
+              break;
+            }
+          } catch {
+            // Continue searching
+          }
+        }
+        
+        if (!foundPath) {
+          console.error(`[Figma API] ❌ Could not locate ${filename} for workspace enforcement`);
+          moved.push({
+            nodeId: result.nodeId,
+            nodeName: result.nodeName,
+            oldPath: currentPath,
+            newPath: targetPath,
+            success: false
+          });
+          failed++;
+          continue;
+        }
+        
+        // Update current path to found location
+        result.filePath = foundPath;
+      }
+      
+      // Ensure target directory exists
+      try {
+        await this.createDirectorySafely(workspaceTargetDir, requestedPath);
+      } catch (dirError) {
+        console.error(`[Figma API] ❌ Failed to create workspace directory: ${dirError}`);
+        moved.push({
+          nodeId: result.nodeId,
+          nodeName: result.nodeName,
+          oldPath: result.filePath,
+          newPath: targetPath,
+          success: false
+        });
+        failed++;
+        continue;
+      }
+      
+      // Move/copy the file to workspace
+      try {
+        // First try to move (rename)
+        try {
+          await fs.rename(result.filePath, targetPath);
+          console.error(`[Figma API] 📦 Moved to workspace: ${filename}`);
+        } catch (moveError) {
+          // If move fails, try copy + delete
+          await fs.copyFile(result.filePath, targetPath);
+          await fs.unlink(result.filePath);
+          console.error(`[Figma API] 📦 Copied to workspace: ${filename}`);
+        }
+        
+        // Update the result with new path
+        result.filePath = targetPath;
+        
+        moved.push({
+          nodeId: result.nodeId,
+          nodeName: result.nodeName,
+          oldPath: result.filePath,
+          newPath: targetPath,
+          success: true
+        });
+        movedCount++;
+        
+      } catch (error) {
+        console.error(`[Figma API] ❌ Failed to move ${filename} to workspace:`, error);
+        moved.push({
+          nodeId: result.nodeId,
+          nodeName: result.nodeName,
+          oldPath: result.filePath,
+          newPath: targetPath,
+          success: false
+        });
+        failed++;
+      }
+    }
+    
+    const summary = {
+      total: successfulDownloads.length,
+      alreadyCorrect,
+      moved: movedCount,
+      failed
+    };
+    
+    console.error(`[Figma API] 🎯 Workspace enforcement completed:`);
+    console.error(`[Figma API]   📊 ${summary.alreadyCorrect} already correct, ${summary.moved} moved, ${summary.failed} failed`);
+    console.error(`[Figma API]   📁 Final location: ${workspaceTargetDir}`);
+    
+    return {
+      finalLocation: workspaceTargetDir,
+      moved,
+      summary,
+      workspaceInfo: { dir: workspaceInfo.workspaceDir, confidence: workspaceInfo.confidence, source: workspaceInfo.source }
     };
   }
 } 
