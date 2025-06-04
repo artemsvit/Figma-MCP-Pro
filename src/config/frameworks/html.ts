@@ -106,11 +106,6 @@ export const htmlRules: Partial<ContextRules> = {
           description: "Hover effects and transitions with CSS variables",
           checks: ["CSS variable transitions", "Hover effects", "Consistent timing"]
         },
-        darkModeSupport: {
-          ...MEDIUM_ENHANCEMENT,
-          description: "CSS variables + prefers-color-scheme",
-          checks: ["CSS variable theming", "prefers-color-scheme", "Theme switching"]
-        },
 
         // CRITICAL: Validation
         validationChecklist: {
