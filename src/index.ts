@@ -319,18 +319,28 @@ class CustomFigmaMcpServer {
         {
           type: 'text',
           text: JSON.stringify({
-            message: 'Choose your framework:',
+            message: 'Choose your framework by typing the number:',
             frameworks: {
-              'React': 'Modern web framework with TypeScript and hooks',
-              'Vue': 'Progressive framework with Composition API', 
-              'Angular': 'Full-featured framework with TypeScript',
-              'Svelte': 'Compile-time framework with reactive updates',
-              'HTML/CSS/JS': 'Vanilla web technologies, no framework',
-              'SwiftUI': 'Apple\'s declarative UI for iOS/macOS apps',
-              'UIKit': 'Traditional Apple framework for iOS development',
-              'Electron': 'Cross-platform desktop apps with web tech',
-              'Tauri': 'Lightweight desktop apps with Rust backend',
-              'NW.js': 'Desktop apps with Node.js and Chromium'
+              '1': { name: 'React', description: 'Modern web framework with TypeScript and hooks' },
+              '2': { name: 'Vue', description: 'Progressive framework with Composition API' }, 
+              '3': { name: 'Angular', description: 'Full-featured framework with TypeScript' },
+              '4': { name: 'Svelte', description: 'Compile-time framework with reactive updates' },
+              '5': { name: 'HTML/CSS/JS', description: 'Vanilla web technologies, no framework' },
+              '6': { name: 'SwiftUI', description: 'Apple\'s declarative UI for iOS/macOS apps' },
+              '7': { name: 'UIKit', description: 'Traditional Apple framework for iOS development' },
+              '8': { name: 'Electron', description: 'Cross-platform desktop apps with web tech' },
+              '9': { name: 'Tauri', description: 'Lightweight desktop apps with Rust backend' },
+              '10': { name: 'NW.js', description: 'Desktop apps with Node.js and Chromium' }
+            },
+            AI_INSTRUCTIONS: {
+              CRITICAL: 'STOP HERE - DO NOT MAKE ANY MORE TOOL CALLS',
+              REQUIRED_ACTION: 'Wait for user to choose framework number (1-10)',
+              WORKFLOW_STEP: 'STEP 1 COMPLETE - User must choose framework before proceeding to STEP 2',
+              DO_NOT: [
+                'Do not call get_figma_data until user provides framework choice',
+                'Do not proceed to next step automatically',
+                'Do not assume or guess framework choice'
+              ]
             }
           }, null, 2)
         }
