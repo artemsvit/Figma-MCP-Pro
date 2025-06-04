@@ -1,4 +1,4 @@
-# Figma MCP Pro - Installation Guide
+# Figma MCP PRO - Installation Guide
 
 ## 🚀 Quick Installation
 
@@ -15,14 +15,17 @@ npm install -g figma-mcp-pro@latest
    - Give it a descriptive name like "MCP Server"
 3. **Copy the Token**: Starts with `figd_` - save it securely
 
-## ⚙️ Universal IDE Configuration
+## ⚙️ Universal MCP Configuration
 
-### Cursor IDE
-Open Cursor Settings → MCP Servers, add:
+### All Supported IDEs & Clients
+**Universal Configuration** for Cursor, Windsurf, TRAE, Claude Desktop, and VS Code:
+
+Add this configuration to your MCP settings:
+
 ```json
 {
   "mcpServers": {
-    "figma-mcp-pro": {
+    "Figma MCP PRO": {
       "command": "npx",
       "args": ["figma-mcp-pro@latest", "--figma-api-key", "your-figma-api-key-here"],
       "env": {
@@ -33,69 +36,15 @@ Open Cursor Settings → MCP Servers, add:
 }
 ```
 
-### Windsurf IDE  
-Open Settings → Extensions → MCP Configuration:
-```json
-{
-  "mcpServers": {
-    "figma-mcp-pro": {
-      "command": "npx", 
-      "args": ["figma-mcp-pro@latest", "--figma-api-key", "your-figma-api-key-here"],
-      "env": {
-        "DEBUG": "true"
-      }
-    }
-  }
-}
-```
+### Configuration Locations:
 
-### TRAE IDE
-Add to MCP servers configuration:
-```json
-{
-  "mcpServers": {
-    "figma-mcp-pro": {
-      "command": "npx",
-      "args": ["figma-mcp-pro@latest", "--figma-api-key", "your-figma-api-key-here"],
-      "env": {
-        "DEBUG": "true"
-      }
-    }
-  }
-}
-```
-
-### Claude Desktop
-Edit `~/.config/claude_desktop_config.json` (macOS/Linux) or `%APPDATA%\Claude\claude_desktop_config.json` (Windows):
-```json
-{
-  "mcpServers": {
-    "figma-mcp-pro": {
-      "command": "npx",
-      "args": ["figma-mcp-pro@latest", "--figma-api-key", "your-figma-api-key-here"],
-      "env": {
-        "DEBUG": "true"
-      }
-    }
-  }
-}
-```
-
-### VS Code (Claude Extension)
-Add to VS Code MCP settings:
-```json
-{
-  "mcpServers": {
-    "figma-mcp-pro": {
-      "command": "npx",
-      "args": ["figma-mcp-pro@latest", "--figma-api-key", "your-figma-api-key-here"],
-      "env": {
-        "DEBUG": "true"
-      }
-    }
-  }
-}
-```
+- **Cursor IDE**: Settings → MCP Servers
+- **Windsurf IDE**: Settings → Extensions → MCP Configuration  
+- **TRAE IDE**: MCP servers configuration
+- **Claude Desktop**: 
+  - macOS/Linux: `~/.config/claude_desktop_config.json`
+  - Windows: `%APPDATA%\Claude\claude_desktop_config.json`
+- **VS Code (Claude Extension)**: VS Code MCP settings
 
 ## 🛠️ Available Tools - Perfect 5-Step Workflow
 

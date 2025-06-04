@@ -1,4 +1,4 @@
-# Figma MCP Pro
+# Figma MCP PRO
 
 Professional Model Context Protocol (MCP) server for AI-optimized Figma design analysis. Clean 5-step workflow for comprehensive design-to-code conversion with smart comment processing and asset downloads.
 
@@ -17,21 +17,18 @@ Professional Model Context Protocol (MCP) server for AI-optimized Figma design a
 npm install -g figma-mcp-pro
 ```
 
-## ⚙️ Configuration
+## ⚙️ Quick Setup
 
-### Get Figma API Key
-1. Go to [Figma Account Settings](https://www.figma.com/settings)  
-2. Generate a new personal access token
-3. Copy the token for configuration
+### 1. Get Your Figma API Key
+Get your API token from [Figma Account Settings](https://www.figma.com/settings) → Personal access tokens
 
-### MCP Client Setup
+### 2. Copy & Paste MCP Configuration
+**📋 Use the copy button on the code block below**, then replace `your-api-key-here` with your actual API key:
 
-#### Claude Desktop
-Add to `claude_desktop_config.json`:
 ```json
 {
   "mcpServers": {
-    "figma-mcp-pro": {
+    "Figma MCP PRO": {
       "command": "npx",
       "args": ["figma-mcp-pro@latest", "--figma-api-key", "your-api-key-here"],
       "env": {
@@ -42,37 +39,10 @@ Add to `claude_desktop_config.json`:
 }
 ```
 
-#### Claude Code (VS Code Extension)  
-Add to VS Code MCP settings:
-```json
-{
-  "mcpServers": {
-    "figma-mcp-pro": {
-      "command": "npx",
-      "args": ["figma-mcp-pro@latest", "--figma-api-key", "your-api-key-here"],
-      "env": {
-        "DEBUG": "true"
-      }
-    }
-  }
-}
-```
-
-#### Cursor, Windsurf, TRAE
-Add to MCP configuration in application settings:
-```json
-{
-  "mcpServers": {
-    "figma-mcp-pro": {
-      "command": "npx",
-      "args": ["figma-mcp-pro@latest", "--figma-api-key", "your-api-key-here"],
-      "env": {
-        "DEBUG": "true"
-      }
-    }
-  }
-}
-```
+**Configuration File Locations:**
+- **Claude Desktop**: `claude_desktop_config.json`
+- **Claude Code (VS Code)**: VS Code MCP settings  
+- **Cursor, Windsurf, TRAE**: Application MCP configuration settings
 
 ## 📝 Tool Reference
 
