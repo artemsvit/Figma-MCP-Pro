@@ -315,27 +315,25 @@ class CustomFigmaMcpServer {
     }
 
     // Create human-readable text that works across all AI models
-    const frameworkText = `
-🎯 **Choose Your Framework** (Type the number 1-10):
+    const frameworkText = `🎯 Choose Your Framework (Type the number 1-10):
 
-**Web Frameworks:**
-1. **React** - Modern web framework with TypeScript and hooks
-2. **Vue** - Progressive framework with Composition API  
-3. **Angular** - Full-featured framework with TypeScript
-4. **Svelte** - Compile-time framework with reactive updates
-5. **HTML/CSS/JS** - Vanilla web technologies, no framework
+Web Frameworks:
+1. React - Modern web framework with TypeScript and hooks
+2. Vue - Progressive framework with Composition API  
+3. Angular - Full-featured framework with TypeScript
+4. Svelte - Compile-time framework with reactive updates
+5. HTML/CSS/JS - Vanilla web technologies, no framework
 
-**Mobile & Desktop:**
-6. **SwiftUI** - Apple's declarative UI for iOS/macOS apps
-7. **UIKit** - Traditional Apple framework for iOS development
-8. **Electron** - Cross-platform desktop apps with web tech
-9. **Tauri** - Lightweight desktop apps with Rust backend
-10. **NW.js** - Desktop apps with Node.js and Chromium
+Mobile & Desktop:
+6. SwiftUI - Apple's declarative UI for iOS/macOS apps
+7. UIKit - Traditional Apple framework for iOS development
+8. Electron - Cross-platform desktop apps with web tech
+9. Tauri - Lightweight desktop apps with Rust backend
+10. NW.js - Desktop apps with Node.js and Chromium
 
-⚠️ **IMPORTANT**: Please type the number (1-10) of your chosen framework.
+⚠️ Please type the number (1-10) of your chosen framework so I can proceed with analyzing your Figma design and generating the appropriate code.
 
-🔄 **Workflow**: After framework selection → Design data → Comments → Assets → Reference analysis → Code generation
-`;
+Next Steps: After framework selection → Design data extraction → Comments analysis → Assets download → Reference analysis → Code generation`;
 
     const jsonData = {
       message: 'Choose your framework by typing the number:',
