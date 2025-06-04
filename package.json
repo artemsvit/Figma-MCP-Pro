@@ -1,6 +1,6 @@
 {
   "name": "figma-mcp-pro",
-  "version": "3.2.1",
+  "version": "3.2.2",
   "description": "Professional Figma MCP Server with intelligent 5-step workflow: show_frameworks, get_figma_data, process_design_comments, download_design_assets, and check_reference. Takes Figma URLs, downloads assets with reference.png, and analyzes design for development.",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",

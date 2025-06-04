@@ -1,125 +1,14 @@
 import type { ContextRules } from '../rules.js';
+import { COMMON_OPTIMIZATIONS, BASE_RULES, NAMING_CONVENTIONS } from '../base.js';
 
 export const nwjsRules: Partial<ContextRules> = {
   aiOptimization: {
-    enableCSSGeneration: true, // NW.js uses web technologies
-    enableSemanticAnalysis: true,
-    enableAccessibilityInfo: true,
-    enableResponsiveBreakpoints: false, // Desktop apps usually have fixed windows
-    enableDesignTokens: true,
-    enableComponentVariants: true,
-    enableInteractionStates: true,
-    simplifyComplexPaths: true,
-    optimizeForCodeGeneration: true
+    ...COMMON_OPTIMIZATIONS.DESKTOP_BASE,
+    enableCSSGeneration: true,
+    enableResponsiveBreakpoints: false
   },
   
   frameworkOptimizations: {
-    react: {
-      generateJSX: false,
-      useStyledComponents: false,
-      useTailwindCSS: false,
-      generateHooks: false,
-      generatePropTypes: false,
-      useTypeScript: false,
-      componentNamingConvention: 'PascalCase',
-      generateStorybook: false
-    },
-    vue: {
-      generateSFC: false,
-      useCompositionAPI: false,
-      useScoped: false,
-      generateProps: false,
-      useTypeScript: false,
-      componentNamingConvention: 'PascalCase'
-    },
-    angular: {
-      generateComponent: false,
-      useStandalone: false,
-      generateModule: false,
-      useSignals: false,
-      useTypeScript: false,
-      componentNamingConvention: 'PascalCase'
-    },
-    svelte: {
-      generateSvelteComponent: false,
-      useTypeScript: false,
-      useStores: false,
-      componentNamingConvention: 'PascalCase'
-    },
-    html: {
-      generateSemanticHTML: false,
-      useCSS: false,
-      useTailwindCSS: false,
-      generateAccessibleMarkup: false,
-      useModernCSS: false
-    },
-    swiftui: {
-      generateViews: false,
-      useViewBuilder: false,
-      generateModifiers: false,
-      useObservableObject: false,
-      useStateManagement: false,
-      generatePreviewProvider: false,
-      useEnvironmentObjects: false,
-      componentNamingConvention: 'PascalCase',
-      generateSFSymbols: false,
-      useNativeColors: false,
-      generateAdaptiveLayouts: false,
-      useAsyncImage: false,
-      generateNavigationViews: false,
-      useToolbarModifiers: false,
-      generateAnimations: false,
-      useGeometryReader: false,
-      generateDarkModeSupport: false,
-      useTabViews: false,
-      generateListViews: false,
-      useScrollViews: false,
-      generateFormViews: false
-    },
-    uikit: {
-      generateViewControllers: false,
-      useStoryboards: false,
-      useProgrammaticLayout: false,
-      useAutoLayout: false,
-      generateXIBFiles: false,
-      useStackViews: false,
-      generateConstraints: false,
-      useSwiftUIInterop: false,
-      componentNamingConvention: 'PascalCase',
-      generateDelegatePatterns: false,
-      useModernConcurrency: false,
-      generateAccessibilitySupport: false
-    },
-    electron: {
-      generateMainProcess: false,
-      generateRendererProcess: false,
-      useIPC: false,
-      useWebSecurity: false,
-      generateMenus: false,
-      useNativeDialogs: false,
-      generateUpdater: false,
-      useContextIsolation: false,
-      componentNamingConvention: 'PascalCase',
-      generateNotifications: false,
-      useCrashReporter: false,
-      generateTrayIcon: false,
-      useProtocolHandlers: false
-    },
-    tauri: {
-      generateRustBackend: false,
-      generateWebFrontend: false,
-      useSystemWebView: false,
-      generateCommands: false,
-      useEventSystem: false,
-      generatePlugins: false,
-      useSidecar: false,
-      componentNamingConvention: 'PascalCase',
-      generateUpdater: false,
-      useFilesystem: false,
-      generateNotifications: false,
-      useSystemTray: false,
-      generateMenus: false
-    },
     nwjs: {
       generateNodeBackend: true,
       generateWebFrontend: true,
@@ -128,61 +17,62 @@ export const nwjsRules: Partial<ContextRules> = {
       useNativeModules: true,
       generateManifest: true,
       useClipboard: true,
-      componentNamingConvention: 'PascalCase',
+      componentNamingConvention: NAMING_CONVENTIONS.CAMEL_CASE,
       generateFileAccess: true,
       useShell: true,
-      generateScreenCapture: false, // Advanced feature
-      useTrayIcon: false, // Optional feature
+      generateScreenCapture: false,
+      useTrayIcon: false,
       implementationRules: {
-        unifiedContext: {
+        modernPatterns: {
+          ...BASE_RULES.MODERN_PATTERNS,
           rule: "Unified Node.js and DOM context",
-          description: "Leverage NW.js unique ability to access Node.js APIs directly from DOM",
-          priority: "critical",
-          example: "const fs = require('fs'); // directly in browser context"
+          checks: ["Node.js modules in browser", "Direct file system access", "Chromium APIs"]
         },
         manifestConfiguration: {
-          rule: "Package.json manifest",
-          description: "Configure app properties, permissions, and window settings in package.json",
-          priority: "critical",
-          example: "{ 'main': 'index.html', 'window': { 'width': 800, 'height': 600 } }"
+          rule: "Package.json manifest configuration",
+          description: "App properties and window settings",
+          priority: "critical" as const,
+          checks: ["package.json setup", "Window configuration", "App permissions"]
         },
         nodeIntegration: {
-          rule: "Node.js integration",
-          description: "Use Node.js modules and APIs directly in web pages",
-          priority: "high",
-          example: "const path = require('path'); const os = require('os');"
+          rule: "Node.js API integration",
+          description: "Direct Node.js module access in web pages",
+          priority: "high" as const,
+          checks: ["require() in browser", "File system APIs", "OS modules"]
         },
         chromiumFeatures: {
-          rule: "Chromium features",
-          description: "Access Chromium-specific APIs and features",
-          priority: "high",
-          example: "nw.Window.get().showDevTools(); // Chromium DevTools"
+          rule: "Chromium-specific features",
+          description: "Native browser capabilities and DevTools",
+          priority: "high" as const,
+          checks: ["DevTools access", "Window management", "Native dialogs"]
         },
-        nativeMenus: {
-          rule: "Native menus",
-          description: "Create native application menus using NW.js Menu API",
-          priority: "medium",
-          example: "var menu = new nw.Menu({ type: 'menubar' });"
+        nativeIntegration: {
+          rule: "Native system integration",
+          description: "Menus, clipboard, and shell access",
+          priority: "medium" as const,
+          checks: ["Native menus", "Clipboard API", "Shell commands"]
         },
-        fileSystemAccess: {
-          rule: "File system access",
-          description: "Direct file system access without additional permissions",
-          priority: "medium",
-          example: "const data = fs.readFileSync('file.txt', 'utf8');"
+        performance: {
+          ...BASE_RULES.PERFORMANCE,
+          rule: "NW.js performance optimization",
+          checks: ["Package optimization", "Memory management", "Startup performance"]
         },
-        windowManagement: {
-          rule: "Window management",
-          description: "Control window properties and lifecycle using NW.js Window API",
-          priority: "medium",
-          example: "nw.Window.get().maximize(); nw.Window.get().close();"
-        },
-        packageOptimization: {
-          rule: "Package optimization",
-          description: "Optimize app packaging and distribution",
-          priority: "low",
-          example: "Use nwjs-builder for creating distributable packages"
+        testing: {
+          ...BASE_RULES.TESTING,
+          rule: "NW.js testing strategy",
+          checks: ["Node.js testing", "Browser testing", "Integration tests"]
         }
       }
-    }
+    },
+    // Disable other frameworks
+    react: { generateJSX: false, useStyledComponents: false, useTailwindCSS: false, generateHooks: false, generatePropTypes: false, useTypeScript: false, componentNamingConvention: NAMING_CONVENTIONS.PASCAL_CASE, generateStorybook: false },
+    vue: { generateSFC: false, useCompositionAPI: false, useScoped: false, generateProps: false, useTypeScript: false, componentNamingConvention: NAMING_CONVENTIONS.PASCAL_CASE },
+    angular: { generateComponent: false, useStandalone: false, generateModule: false, useSignals: false, useTypeScript: false, componentNamingConvention: NAMING_CONVENTIONS.PASCAL_CASE },
+    svelte: { generateSvelteComponent: false, useTypeScript: false, useStores: false, componentNamingConvention: NAMING_CONVENTIONS.PASCAL_CASE },
+    html: { generateSemanticHTML: false, useCSS: false, useTailwindCSS: false, generateAccessibleMarkup: false, useModernCSS: false },
+    swiftui: { generateViews: false, useViewBuilder: false, generateModifiers: false, useObservableObject: false, useStateManagement: false, generatePreviewProvider: false, useEnvironmentObjects: false, componentNamingConvention: NAMING_CONVENTIONS.PASCAL_CASE, generateSFSymbols: false, useNativeColors: false, generateAdaptiveLayouts: false, useAsyncImage: false, generateNavigationViews: false, useToolbarModifiers: false, generateAnimations: false, useGeometryReader: false, generateDarkModeSupport: false, useTabViews: false, generateListViews: false, useScrollViews: false, generateFormViews: false },
+    uikit: { generateViewControllers: false, useStoryboards: false, useProgrammaticLayout: false, useAutoLayout: false, generateXIBFiles: false, useStackViews: false, generateConstraints: false, useSwiftUIInterop: false, componentNamingConvention: NAMING_CONVENTIONS.PASCAL_CASE, generateDelegatePatterns: false, useModernConcurrency: false, generateAccessibilitySupport: false },
+    electron: { generateMainProcess: false, generateRendererProcess: false, useIPC: false, useWebSecurity: false, generateMenus: false, useNativeDialogs: false, generateUpdater: false, useContextIsolation: false, componentNamingConvention: NAMING_CONVENTIONS.CAMEL_CASE, generateNotifications: false, useCrashReporter: false, generateTrayIcon: false, useProtocolHandlers: false },
+    tauri: { generateRustBackend: false, generateWebFrontend: false, useSystemWebView: false, generateCommands: false, useEventSystem: false, generatePlugins: false, useSidecar: false, componentNamingConvention: NAMING_CONVENTIONS.SNAKE_CASE, generateUpdater: false, useFilesystem: false, generateNotifications: false, useSystemTray: false, generateMenus: false }
   }
 }; 
