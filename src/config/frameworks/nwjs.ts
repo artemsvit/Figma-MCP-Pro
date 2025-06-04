@@ -63,16 +63,6 @@ export const nwjsRules: Partial<ContextRules> = {
           checks: ["Node.js testing", "Browser testing", "Integration tests"]
         }
       }
-    },
-    // Disable other frameworks
-    react: { generateJSX: false, useStyledComponents: false, useTailwindCSS: false, generateHooks: false, generatePropTypes: false, useTypeScript: false, componentNamingConvention: NAMING_CONVENTIONS.PASCAL_CASE, generateStorybook: false },
-    vue: { generateSFC: false, useCompositionAPI: false, useScoped: false, generateProps: false, useTypeScript: false, componentNamingConvention: NAMING_CONVENTIONS.PASCAL_CASE },
-    angular: { generateComponent: false, useStandalone: false, generateModule: false, useSignals: false, useTypeScript: false, componentNamingConvention: NAMING_CONVENTIONS.PASCAL_CASE },
-    svelte: { generateSvelteComponent: false, useTypeScript: false, useStores: false, componentNamingConvention: NAMING_CONVENTIONS.PASCAL_CASE },
-    html: { generateSemanticHTML: false, useCSS: false, useTailwindCSS: false, generateAccessibleMarkup: false, useModernCSS: false },
-    swiftui: { generateViews: false, useViewBuilder: false, generateModifiers: false, useObservableObject: false, useStateManagement: false, generatePreviewProvider: false, useEnvironmentObjects: false, componentNamingConvention: NAMING_CONVENTIONS.PASCAL_CASE, generateSFSymbols: false, useNativeColors: false, generateAdaptiveLayouts: false, useAsyncImage: false, generateNavigationViews: false, useToolbarModifiers: false, generateAnimations: false, useGeometryReader: false, generateDarkModeSupport: false, useTabViews: false, generateListViews: false, useScrollViews: false, generateFormViews: false },
-    uikit: { generateViewControllers: false, useStoryboards: false, useProgrammaticLayout: false, useAutoLayout: false, generateXIBFiles: false, useStackViews: false, generateConstraints: false, useSwiftUIInterop: false, componentNamingConvention: NAMING_CONVENTIONS.PASCAL_CASE, generateDelegatePatterns: false, useModernConcurrency: false, generateAccessibilitySupport: false },
-    electron: { generateMainProcess: false, generateRendererProcess: false, useIPC: false, useWebSecurity: false, generateMenus: false, useNativeDialogs: false, generateUpdater: false, useContextIsolation: false, componentNamingConvention: NAMING_CONVENTIONS.CAMEL_CASE, generateNotifications: false, useCrashReporter: false, generateTrayIcon: false, useProtocolHandlers: false },
-    tauri: { generateRustBackend: false, generateWebFrontend: false, useSystemWebView: false, generateCommands: false, useEventSystem: false, generatePlugins: false, useSidecar: false, componentNamingConvention: NAMING_CONVENTIONS.SNAKE_CASE, generateUpdater: false, useFilesystem: false, generateNotifications: false, useSystemTray: false, generateMenus: false }
+    }
   }
 }; 

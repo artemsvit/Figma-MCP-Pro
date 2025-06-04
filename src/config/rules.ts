@@ -1,15 +1,20 @@
 import { FigmaNodeType } from '../types/figma.js';
 import { COMMON_OPTIMIZATIONS, NAMING_CONVENTIONS, BaseRule } from './base.js';
 
-// Simplified framework interfaces
-export interface FrameworkOptimization {
+// Base framework optimization interface
+interface BaseFrameworkOptimization {
+  useTypeScript?: boolean;
+  componentNamingConvention?: string;
+  implementationRules?: Record<string, BaseRule>;
+}
+
+// Framework-specific interfaces extending base
+interface WebFrameworkOptimization extends BaseFrameworkOptimization {
   generateJSX?: boolean;
   useStyledComponents?: boolean;
   useTailwindCSS?: boolean;
   generateHooks?: boolean;
   generatePropTypes?: boolean;
-  useTypeScript?: boolean;
-  componentNamingConvention?: string;
   generateStorybook?: boolean;
   generateSFC?: boolean;
   useCompositionAPI?: boolean;
@@ -25,6 +30,9 @@ export interface FrameworkOptimization {
   useCSS?: boolean;
   generateAccessibleMarkup?: boolean;
   useModernCSS?: boolean;
+}
+
+interface MobileFrameworkOptimization extends BaseFrameworkOptimization {
   generateViews?: boolean;
   useViewBuilder?: boolean;
   generateModifiers?: boolean;
@@ -56,6 +64,9 @@ export interface FrameworkOptimization {
   generateDelegatePatterns?: boolean;
   useModernConcurrency?: boolean;
   generateAccessibilitySupport?: boolean;
+}
+
+interface DesktopFrameworkOptimization extends BaseFrameworkOptimization {
   generateMainProcess?: boolean;
   generateRendererProcess?: boolean;
   useIPC?: boolean;
@@ -86,8 +97,10 @@ export interface FrameworkOptimization {
   useShell?: boolean;
   generateScreenCapture?: boolean;
   useTrayIcon?: boolean;
-  implementationRules?: Record<string, BaseRule>;
 }
+
+// Unified framework optimization type
+export type FrameworkOptimization = WebFrameworkOptimization & MobileFrameworkOptimization & DesktopFrameworkOptimization;
 
 // Main context rules interface
 export interface ContextRules {
@@ -133,7 +146,7 @@ export interface ContextRules {
     compressLargeArrays: boolean;
   };
   
-  frameworkOptimizations: {
+  frameworkOptimizations: Partial<{
     react: FrameworkOptimization;
     vue: FrameworkOptimization;
     angular: FrameworkOptimization;
@@ -144,7 +157,7 @@ export interface ContextRules {
     electron: FrameworkOptimization;
     tauri: FrameworkOptimization;
     nwjs: FrameworkOptimization;
-  };
+  }>;
   
   customRules: CustomRule[];
 }
@@ -175,6 +188,24 @@ export interface RuleAction {
   parameters: Record<string, any>;
   customAction?: (node: any, context: any) => any;
 }
+
+// Base framework configurations
+const WEB_FRAMEWORK_BASE: Partial<WebFrameworkOptimization> = {
+  useTypeScript: true,
+  componentNamingConvention: NAMING_CONVENTIONS.PASCAL_CASE,
+  useTailwindCSS: true
+};
+
+const MOBILE_FRAMEWORK_BASE: Partial<MobileFrameworkOptimization> = {
+  useTypeScript: true,
+  componentNamingConvention: NAMING_CONVENTIONS.PASCAL_CASE,
+  generateAccessibilitySupport: true
+};
+
+const DESKTOP_FRAMEWORK_BASE: Partial<DesktopFrameworkOptimization> = {
+  generateMenus: true,
+  generateNotifications: true
+};
 
 // Default rules configuration using base optimizations
 export const DEFAULT_RULES: ContextRules = {
@@ -214,73 +245,16 @@ export const DEFAULT_RULES: ContextRules = {
   },
   
   frameworkOptimizations: {
-    react: {
-      generateJSX: true,
-      useTypeScript: true,
-      componentNamingConvention: NAMING_CONVENTIONS.PASCAL_CASE,
-      useTailwindCSS: true,
-      generateHooks: true
-    },
-    vue: {
-      generateSFC: true,
-      useCompositionAPI: true,
-      useTypeScript: true,
-      componentNamingConvention: NAMING_CONVENTIONS.PASCAL_CASE
-    },
-    angular: {
-      generateComponent: true,
-      useStandalone: true,
-      useSignals: true,
-      useTypeScript: true,
-      componentNamingConvention: NAMING_CONVENTIONS.PASCAL_CASE
-    },
-    svelte: {
-      generateSvelteComponent: true,
-      useTypeScript: true,
-      componentNamingConvention: NAMING_CONVENTIONS.PASCAL_CASE
-    },
-    html: {
-      generateSemanticHTML: true,
-      useCSS: true,
-      useTailwindCSS: true,
-      generateAccessibleMarkup: true,
-      useModernCSS: true
-    },
-    swiftui: {
-      generateViews: true,
-      useViewBuilder: true,
-      generateModifiers: true,
-      useStateManagement: true,
-      componentNamingConvention: NAMING_CONVENTIONS.PASCAL_CASE,
-      generateAdaptiveLayouts: true,
-      generateDarkModeSupport: true
-    },
-    uikit: {
-      generateViewControllers: true,
-      useProgrammaticLayout: true,
-      useAutoLayout: true,
-      componentNamingConvention: NAMING_CONVENTIONS.PASCAL_CASE,
-      generateAccessibilitySupport: true
-    },
-    electron: {
-      generateMainProcess: true,
-      generateRendererProcess: true,
-      useIPC: true,
-      useContextIsolation: true,
-      componentNamingConvention: NAMING_CONVENTIONS.CAMEL_CASE
-    },
-    tauri: {
-      generateRustBackend: true,
-      generateWebFrontend: true,
-      useSystemWebView: true,
-      componentNamingConvention: NAMING_CONVENTIONS.SNAKE_CASE
-    },
-    nwjs: {
-      generateNodeBackend: true,
-      generateWebFrontend: true,
-      useChromiumAPI: true,
-      componentNamingConvention: NAMING_CONVENTIONS.CAMEL_CASE
-    }
+    react: { ...WEB_FRAMEWORK_BASE, generateJSX: true, generateHooks: true },
+    vue: { ...WEB_FRAMEWORK_BASE, generateSFC: true, useCompositionAPI: true },
+    angular: { ...WEB_FRAMEWORK_BASE, generateComponent: true, useStandalone: true, useSignals: true },
+    svelte: { ...WEB_FRAMEWORK_BASE, generateSvelteComponent: true },
+    html: { ...WEB_FRAMEWORK_BASE, generateSemanticHTML: true, useCSS: true, generateAccessibleMarkup: true, useModernCSS: true },
+    swiftui: { ...MOBILE_FRAMEWORK_BASE, generateViews: true, useViewBuilder: true, generateModifiers: true, useStateManagement: true, generateAdaptiveLayouts: true, generateDarkModeSupport: true },
+    uikit: { ...MOBILE_FRAMEWORK_BASE, generateViewControllers: true, useProgrammaticLayout: true, useAutoLayout: true },
+    electron: { ...DESKTOP_FRAMEWORK_BASE, componentNamingConvention: NAMING_CONVENTIONS.CAMEL_CASE, generateMainProcess: true, generateRendererProcess: true, useIPC: true, useContextIsolation: true },
+    tauri: { ...DESKTOP_FRAMEWORK_BASE, componentNamingConvention: NAMING_CONVENTIONS.SNAKE_CASE, generateRustBackend: true, generateWebFrontend: true, useSystemWebView: true },
+    nwjs: { ...DESKTOP_FRAMEWORK_BASE, componentNamingConvention: NAMING_CONVENTIONS.CAMEL_CASE, generateNodeBackend: true, generateWebFrontend: true, useChromiumAPI: true }
   },
   
   customRules: []

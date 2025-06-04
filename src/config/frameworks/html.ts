@@ -1,5 +1,21 @@
 import type { ContextRules } from '../rules.js';
-import { COMMON_OPTIMIZATIONS, BASE_RULES, NAMING_CONVENTIONS } from '../base.js';
+import { COMMON_OPTIMIZATIONS } from '../base.js';
+
+// HTML-specific rule templates
+const CRITICAL_ACCURACY = {
+  priority: "critical" as const,
+  rule: "Exact Figma fidelity"
+};
+
+const HIGH_MODERN = {
+  priority: "high" as const,
+  rule: "Modern CSS patterns"
+};
+
+const MEDIUM_ENHANCEMENT = {
+  priority: "medium" as const,
+  rule: "UI enhancements"
+};
 
 export const htmlRules: Partial<ContextRules> = {
   aiOptimization: {
@@ -17,129 +33,102 @@ export const htmlRules: Partial<ContextRules> = {
       generateAccessibleMarkup: true,
       useModernCSS: true,
       implementationRules: {
+        // CRITICAL: Figma Fidelity
         metadataFidelity: {
-          rule: "Use exact metadata values",
-          description: "Apply padding, margins, font-sizes, colors, and dimensions directly from Figma data without modification",
-          priority: "critical" as const,
-          checks: ["Exact padding values", "Exact margins", "Exact font-sizes", "Exact colors", "Exact dimensions"]
-        },
-        cssVariables: {
-          rule: "CSS custom properties system",
-          description: "Convert Figma design tokens to CSS variables with semantic naming and systematic organization",
-          priority: "critical" as const,
-          checks: [
-            "CSS custom properties for colors: --color-primary, --color-secondary",
-            "Typography variables: --font-size-base, --line-height-normal",
-            "Spacing tokens: --space-xs, --space-sm, --space-md, --space-lg",
-            "Border radius: --radius-sm, --radius-md, --radius-lg",
-            "Shadow tokens: --shadow-sm, --shadow-md, --shadow-lg",
-            "Semantic color naming: --text-primary, --bg-surface, --border-default"
-          ]
-        },
-        flexibleContainers: {
-          rule: "Flexible containers",
-          description: "Set child elements to width: 100% or flex: 1 instead of fixed widths; use max-width on containers",
-          priority: "high" as const,
-          checks: ["Children use 100% width", "Containers use max-width", "Flexible layouts"]
-        },
-        borderTechnique: {
-          rule: "Box-shadow over border",
-          description: "Use box-shadow: 0 0 0 1px color instead of border for pixel-perfect rendering",
-          priority: "medium" as const,
-          checks: ["Box-shadow for 1px borders", "Consistent border rendering", "Pixel-perfect edges"]
-        },
-        marginConflicts: {
-          rule: "Margin conflicts",
-          description: "Remove conflicting margins when using flexbox/grid; let container handle spacing",
-          priority: "high" as const,
-          checks: ["Zero margins on flex children", "Container gap properties", "Clean spacing system"]
+          ...CRITICAL_ACCURACY,
+          description: "Apply exact Figma values: padding, margins, fonts, colors, dimensions",
+          checks: ["Exact padding", "Exact margins", "Exact font-sizes", "Exact colors", "Exact dimensions"]
         },
         typographyPrecision: {
-          rule: "Typography precision",
-          description: "Use exact font-size, line-height, and letter-spacing from metadata with CSS variables",
-          priority: "critical" as const,
-          checks: ["Exact font-size values", "Exact line-height", "Exact letter-spacing", "CSS variable usage"]
+          ...CRITICAL_ACCURACY,
+          description: "Exact typography with CSS variables",
+          checks: ["Exact font-size", "Exact line-height", "Exact letter-spacing", "CSS variables"]
         },
         colorAccuracy: {
-          rule: "Color accuracy with variables",
-          description: "Apply exact hex/rgba values from design tokens using CSS custom properties",
-          priority: "critical" as const,
-          checks: ["Exact color values", "CSS variable references", "Consistent color system"]
+          ...CRITICAL_ACCURACY,
+          description: "Exact colors with CSS custom properties",
+          checks: ["Exact hex/rgba", "CSS variables", "Consistent system"]
         },
-        responsiveDefault: {
-          rule: "Responsive by default",
-          description: "Implement mobile-first with proper breakpoints using CSS variables for consistent sizing",
-          priority: "high" as const,
-          checks: ["Mobile-first approach", "Proper breakpoints", "Responsive variables"]
+
+        // CRITICAL: CSS Variables System
+        cssVariables: {
+          ...CRITICAL_ACCURACY,
+          rule: "CSS custom properties system",
+          description: "Systematic design tokens with semantic naming",
+          checks: [
+            "Color tokens: --color-primary, --text-primary, --bg-surface",
+            "Typography: --font-size-*, --line-height-*", 
+            "Spacing: --space-xs/sm/md/lg, --radius-sm/md/lg",
+            "Effects: --shadow-sm/md/lg, semantic naming"
+          ]
+        },
+
+        // HIGH: Layout & Structure  
+        flexibleContainers: {
+          ...HIGH_MODERN,
+          description: "Flexible layouts: children 100% width, containers max-width",
+          checks: ["Children 100% width", "Container max-width", "Flex: 1 patterns"]
         },
         semanticHTML: {
-          rule: "Semantic HTML",
-          description: "Use proper semantic tags (<section>, <article>, <header>) combined with BEM class names",
-          priority: "high" as const,
-          checks: ["Semantic HTML5 tags", "BEM methodology", "Meaningful structure", "Accessibility"]
+          ...HIGH_MODERN,
+          description: "Semantic HTML5 + BEM methodology",
+          checks: ["<section>/<article>/<header>", "BEM: block__element--modifier", "Accessibility"]
         },
-        animationIntegration: {
-          rule: "Animation integration",
-          description: "Add hover effects and transitions using CSS variables for consistent timing and easing",
-          priority: "medium" as const,
-          checks: ["CSS variable transitions", "Hover effects", "Consistent timing", "Smooth animations"]
-        },
-        noInlineStyles: {
-          rule: "No inline CSS styles",
-          description: "Use only external CSS files and class names; avoid inline style attributes",
-          priority: "high" as const,
-          checks: ["External CSS only", "Class-based styling", "No inline styles", "Maintainable code"]
-        },
-        bemMethodology: {
-          rule: "BEM methodology",
-          description: "Use BEM (Block Element Modifier) naming: block-name, block__element, block--modifier",
-          priority: "high" as const,
-          checks: ["Block naming", "Element naming", "Modifier naming", "Consistent methodology"]
+        responsiveDefault: {
+          ...HIGH_MODERN,
+          description: "Mobile-first responsive with CSS variables",
+          checks: ["Mobile-first", "Breakpoint variables", "Responsive tokens"]
         },
         modernCSS: {
-          rule: "Modern CSS features",
-          description: "Use CSS Grid, Flexbox, custom properties, logical properties, and container queries",
-          priority: "high" as const,
-          checks: ["CSS Grid layouts", "Flexbox patterns", "Logical properties", "Container queries", "Modern selectors"]
+          ...HIGH_MODERN,
+          description: "CSS Grid, Flexbox, logical properties, container queries",
+          checks: ["CSS Grid 2D", "Flexbox 1D", "Logical properties", "Container queries"]
+        },
+        marginConflicts: {
+          ...HIGH_MODERN,
+          description: "Clean spacing: zero margins on flex children, container gaps",
+          checks: ["Zero flex margins", "Container gaps", "Clean spacing"]
+        },
+        noInlineStyles: {
+          ...HIGH_MODERN,
+          description: "External CSS only, class-based styling",
+          checks: ["External CSS", "Class names", "No inline styles", "Maintainable"]
+        },
+
+        // MEDIUM: Enhancements
+        borderTechnique: {
+          ...MEDIUM_ENHANCEMENT,
+          description: "box-shadow: 0 0 0 1px for pixel-perfect borders",
+          checks: ["Box-shadow borders", "Consistent rendering", "Pixel-perfect"]
+        },
+        animationIntegration: {
+          ...MEDIUM_ENHANCEMENT,
+          description: "Hover effects and transitions with CSS variables",
+          checks: ["CSS variable transitions", "Hover effects", "Consistent timing"]
         },
         darkModeSupport: {
-          rule: "Dark mode with CSS variables",
-          description: "Implement dark mode using CSS custom properties and prefers-color-scheme",
-          priority: "medium" as const,
-          checks: ["CSS variable theming", "prefers-color-scheme", "Consistent dark mode", "Theme switching"]
+          ...MEDIUM_ENHANCEMENT,
+          description: "CSS variables + prefers-color-scheme",
+          checks: ["CSS variable theming", "prefers-color-scheme", "Theme switching"]
         },
+
+        // CRITICAL: Validation
         validationChecklist: {
-          rule: "Validation checklist",
-          description: "Verify container containment, responsive behavior, and visual accuracy before completion",
-          priority: "critical" as const,
+          ...CRITICAL_ACCURACY,
+          rule: "Quality assurance checklist",
+          description: "Verify fidelity, responsiveness, and modern practices",
           checks: [
-            "✓ All dimensions match Figma metadata exactly",
-            "✓ Colors use CSS variables with exact hex/rgba values",
-            "✓ Typography matches font-size, line-height, letter-spacing",
-            "✓ CSS variables defined in :root for design tokens",
-            "✓ Responsive behavior works on mobile, tablet, desktop",
-            "✓ Container containment prevents overflow",
-            "✓ Semantic HTML structure is meaningful",
-            "✓ Accessibility attributes are present",
-            "✓ Hover states and animations work as designed",
-            "✓ No inline CSS styles used - all styles in external CSS files",
-            "✓ BEM methodology applied for class naming",
-            "✓ CSS variables used for colors, spacing, typography",
-            "✓ Dark mode support implemented with CSS variables",
-            "✓ Modern CSS features used appropriately"
+            "✓ Dimensions match Figma exactly",
+            "✓ Colors use CSS variables with exact values", 
+            "✓ Typography exact + CSS variables in :root",
+            "✓ Responsive: mobile/tablet/desktop",
+            "✓ Container containment, no overflow",
+            "✓ Semantic HTML + accessibility",
+            "✓ Hover/animations work + external CSS",
+            "✓ BEM methodology + modern CSS features"
           ]
         }
       }
-    },
-    // Disable other frameworks
-    react: { generateJSX: false, useStyledComponents: false, useTailwindCSS: false, generateHooks: false, generatePropTypes: false, useTypeScript: false, componentNamingConvention: NAMING_CONVENTIONS.PASCAL_CASE, generateStorybook: false },
-    vue: { generateSFC: false, useCompositionAPI: false, useScoped: false, generateProps: false, useTypeScript: false, componentNamingConvention: NAMING_CONVENTIONS.PASCAL_CASE },
-    angular: { generateComponent: false, useStandalone: false, generateModule: false, useSignals: false, useTypeScript: false, componentNamingConvention: NAMING_CONVENTIONS.PASCAL_CASE },
-    svelte: { generateSvelteComponent: false, useTypeScript: false, useStores: false, componentNamingConvention: NAMING_CONVENTIONS.PASCAL_CASE },
-    swiftui: { generateViews: false, useViewBuilder: false, generateModifiers: false, useObservableObject: false, useStateManagement: false, generatePreviewProvider: false, useEnvironmentObjects: false, componentNamingConvention: NAMING_CONVENTIONS.PASCAL_CASE, generateSFSymbols: false, useNativeColors: false, generateAdaptiveLayouts: false, useAsyncImage: false, generateNavigationViews: false, useToolbarModifiers: false, generateAnimations: false, useGeometryReader: false, generateDarkModeSupport: false, useTabViews: false, generateListViews: false, useScrollViews: false, generateFormViews: false },
-    uikit: { generateViewControllers: false, useStoryboards: false, useProgrammaticLayout: false, useAutoLayout: false, generateXIBFiles: false, useStackViews: false, generateConstraints: false, useSwiftUIInterop: false, componentNamingConvention: NAMING_CONVENTIONS.PASCAL_CASE, generateDelegatePatterns: false, useModernConcurrency: false, generateAccessibilitySupport: false },
-    electron: { generateMainProcess: false, generateRendererProcess: false, useIPC: false, useWebSecurity: false, generateMenus: false, useNativeDialogs: false, generateUpdater: false, useContextIsolation: false, componentNamingConvention: NAMING_CONVENTIONS.CAMEL_CASE, generateNotifications: false, useCrashReporter: false, generateTrayIcon: false, useProtocolHandlers: false },
-    tauri: { generateRustBackend: false, generateWebFrontend: false, useSystemWebView: false, generateCommands: false, useEventSystem: false, generatePlugins: false, useSidecar: false, componentNamingConvention: NAMING_CONVENTIONS.SNAKE_CASE, generateUpdater: false, useFilesystem: false, generateNotifications: false, useSystemTray: false, generateMenus: false },
-    nwjs: { generateNodeBackend: false, generateWebFrontend: false, useChromiumAPI: false, generateMenus: false, useNativeModules: false, generateManifest: false, useClipboard: false, componentNamingConvention: NAMING_CONVENTIONS.CAMEL_CASE, generateFileAccess: false, useShell: false, generateScreenCapture: false, useTrayIcon: false }
+    }
   }
 }; 
