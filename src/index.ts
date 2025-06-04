@@ -520,11 +520,13 @@ class CustomFigmaMcpServer {
         frameworkRules: frameworkRules,
         source: isSpecificNode ? 'selection' : 'document',
         processed: stats.nodesProcessed,
-        IMPORTANT_NEXT_STEPS: {
-          FOR_COMMENTS: 'STEP 3: Use process_design_comments tool if there are designer comments in Figma',
-          FOR_IMAGES: 'STEP 4: Use download_design_assets tool if you need images',
-          WORKFLOW: 'show_frameworks → User choice → Design data ✅ → Comments analysis → Image downloads → THEN generate code'
-        }
+                      IMPORTANT_NEXT_STEPS: {
+                STEP_3: 'Use process_design_comments tool if there are designer comments in Figma',
+                STEP_4: 'Use download_design_assets tool if you need images and visual reference',
+                STEP_5: 'Use check_reference tool to analyze reference.png before development',
+                COMPLETE_WORKFLOW: 'show_frameworks → User choice → Design data ✅ → Comments analysis → Image downloads → Reference analysis → THEN generate code',
+                CURRENT_STATUS: 'STEP 2 COMPLETE - Design data extracted successfully'
+              }
       };
 
       return {
@@ -675,7 +677,13 @@ class CustomFigmaMcpServer {
                 message: nodeId ? 'No comments found for the selected node/section' : 'No comments found in this design',
                 comments: [],
                 aiPrompts: [],
-                nodeSelection: nodeId ? `Checked for comments on node: ${nodeId}` : 'Checked entire file'
+                nodeSelection: nodeId ? `Checked for comments on node: ${nodeId}` : 'Checked entire file',
+                WORKFLOW_STATUS: {
+                  STEP_3_COMPLETE: '✅ Design comments check completed (no comments found)',
+                  NEXT_STEP: 'STEP 4: Use download_design_assets tool to get images and reference.png',
+                  THEN_STEP_5: 'Use check_reference tool to analyze reference.png before development',
+                  COMPLETE_WORKFLOW: 'show_frameworks → Design data → Comments ✅ → Assets download → Reference analysis → Code generation'
+                }
               }, null, 2)
             }
           ]
@@ -782,7 +790,13 @@ class CustomFigmaMcpServer {
             text: JSON.stringify({
               implementations: implementations,
               framework: framework,
-              nodeContext: nodeId ? `Comments for node: ${nodeId}` : 'Comments for entire file'
+              nodeContext: nodeId ? `Comments for node: ${nodeId}` : 'Comments for entire file',
+              WORKFLOW_STATUS: {
+                STEP_3_COMPLETE: '✅ Design comments processed successfully',
+                NEXT_STEP: 'STEP 4: Use download_design_assets tool to get images and reference.png',
+                THEN_STEP_5: 'Use check_reference tool to analyze reference.png before development',
+                COMPLETE_WORKFLOW: 'show_frameworks → Design data → Comments ✅ → Assets download → Reference analysis → Code generation'
+              }
             }, null, 2)
           }
         ]
@@ -1383,9 +1397,15 @@ class CustomFigmaMcpServer {
       instructions.push('');
     }
 
+    instructions.push(`🔄 NEXT STEP - CRITICAL FOR AI WORKFLOW:`);
+    instructions.push(`   ⚡ Use check_reference tool to analyze reference.png before development`);
+    instructions.push(`   📂 Pass the assets folder path to check_reference tool`);
+    instructions.push(`   🎯 This provides design understanding and framework-specific guidance`);
+    instructions.push(`   ✅ STEP 4 COMPLETE - Assets downloaded, proceed to STEP 5: check_reference`);
+    instructions.push(``);
     instructions.push(`🛠️ Universal IDE Development Workflow:`);
     instructions.push(`   1. Assets are saved using relative paths (./assets/...) for cross-IDE compatibility`);
-    instructions.push(`   2. Open reference.png to understand the design context and layout`);
+    instructions.push(`   2. reference.png shows the complete design context and layout`);
     instructions.push(`   3. Use individual asset files for implementation`);
     instructions.push(`   4. All paths are verified after download to ensure availability`);
     instructions.push(`   5. Files work consistently across Cursor, Windsurf, TRAE, and other IDEs`);
