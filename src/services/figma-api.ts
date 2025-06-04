@@ -1018,6 +1018,7 @@ export class FigmaApiService {
     options: {
       scale?: number;
       format?: 'jpg' | 'png' | 'svg' | 'pdf';
+      skipWorkspaceEnforcement?: boolean;
     } = {}
   ): Promise<{
     downloaded: Array<{
@@ -1170,9 +1171,9 @@ export class FigmaApiService {
 
     console.error(`[Figma API] Download completed: ${summary.successful}/${summary.total} successful`);
 
-    // WORKSPACE ENFORCEMENT: Ensure all assets end up in the actual IDE workspace
+    // WORKSPACE ENFORCEMENT: Ensure all assets end up in the actual IDE workspace (can be skipped)
     let workspaceEnforcement = null;
-    if (summary.successful > 0) {
+    if (summary.successful > 0 && !options.skipWorkspaceEnforcement) {
       try {
         workspaceEnforcement = await FigmaApiService.enforceWorkspaceLocation(results, localPath);
         console.error(`[Figma API] 🎯 Workspace enforcement: ${workspaceEnforcement.summary.moved} moved, ${workspaceEnforcement.summary.alreadyCorrect} already correct`);
@@ -1223,7 +1224,10 @@ export class FigmaApiService {
   async downloadImagesWithExportSettings(
     fileKey: string,
     nodes: FigmaNode[],
-    localPath: string
+    localPath: string,
+    options: {
+      skipWorkspaceEnforcement?: boolean;
+    } = {}
   ): Promise<{
     downloaded: Array<{
       nodeId: string;
@@ -1454,9 +1458,9 @@ export class FigmaApiService {
 
     console.error(`[Figma API] Download completed: ${summary.successful}/${summary.total} successful`);
 
-    // WORKSPACE ENFORCEMENT: Ensure all export assets end up in the actual IDE workspace
+    // WORKSPACE ENFORCEMENT: Ensure all export assets end up in the actual IDE workspace (can be skipped)
     let workspaceEnforcement = null;
-    if (summary.successful > 0) {
+    if (summary.successful > 0 && !options.skipWorkspaceEnforcement) {
       console.error(`[Figma API] 🔄 Starting workspace enforcement for ${summary.successful} successful downloads...`);
       try {
         workspaceEnforcement = await FigmaApiService.enforceWorkspaceLocation(results, localPath);

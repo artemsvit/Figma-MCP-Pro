@@ -1445,7 +1445,8 @@ Next Steps: After framework selection → Design data extraction → Comments an
       const downloadResult = await this.figmaApi.downloadImagesWithExportSettings(
         fileKey,
         exportableNodes,
-        localPath
+        localPath,
+        { skipWorkspaceEnforcement: true }
       );
 
       this.log(`[Figma MCP] 🔥 DEBUG: Export download completed!`);
@@ -1649,7 +1650,8 @@ Next Steps: After framework selection → Design data extraction → Comments an
         localPath,
         {
           scale: 2, // Good resolution for PNG reference
-          format: 'png'
+          format: 'png',
+          skipWorkspaceEnforcement: true
         }
       );
 

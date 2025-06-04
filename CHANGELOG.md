@@ -5,6 +5,49 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [3.17.0] - 2025-01-22
+
+### 🎯 **MAJOR: Direct Download Mode - No More File "Dancing"**
+- **NEW FEATURE**: `skipWorkspaceEnforcement` parameter added to all download methods
+- **ELIMINATED**: Workspace enforcement system completely bypassed for direct downloads
+- **FIXED**: Files now go **directly** to your specified project directory with zero intermediate steps
+- **REMOVED**: All temporary directory usage and file moving operations
+- **SIMPLIFIED**: Clean, straightforward download process with no complications
+
+### 🚀 **Direct Download Implementation**
+- **Enhanced API**: Both `downloadImages()` and `downloadImagesWithExportSettings()` now support direct mode
+- **Parameter**: `{ skipWorkspaceEnforcement: true }` bypasses all workspace detection and file moving
+- **Direct Path**: Files download exactly where you specify - `./assets/file.png` stays in `./assets/file.png`
+- **No Temp Directories**: Eliminates `/Users/username/figma-mcp-workspace/assets/` completely
+- **Zero Movement**: No file copying, moving, or workspace "enforcement" operations
+
+### ✅ **User Experience**
+- **Predictable**: Files land exactly where you tell them to
+- **Simple**: No more checking multiple directories for your files
+- **Reliable**: No partial failures where some files move and others don't
+- **Clean**: No leftover files in temporary workspaces
+- **Direct**: Zero intermediate steps between download and your project
+
+### 🔧 **Technical Changes**
+- **API Enhancement**: `skipWorkspaceEnforcement?: boolean` parameter added to download options
+- **Conditional Logic**: Workspace enforcement only runs when `skipWorkspaceEnforcement !== true`
+- **Default Behavior**: All MCP tool calls now use direct download mode by default
+- **Backward Compatible**: Existing code without the parameter still works (with enforcement)
+- **Clean Implementation**: No breaking changes to existing functionality
+
+### 📁 **Download Behavior**
+- **Before v3.17.0**: Download → Temp Directory → Move to Project → Possible Partial Failures
+- **After v3.17.0**: Download → Direct to Project Directory → Complete Success
+
+### 🎯 **Perfect For**
+✅ **Project Assets**: Files go directly to `./assets/` as specified  
+✅ **Reference Images**: `reference.png` appears exactly where expected  
+✅ **Export Assets**: All Figma exports land in your project immediately  
+✅ **Development Workflow**: No manual file recovery or moving required  
+✅ **All IDEs**: Works consistently in Cursor, Windsurf, VS Code, any environment  
+
+**Result: Clean, predictable, direct downloads with zero complications!** 🎯
+
 ## [3.15.0] - 2025-01-22
 
 ### 🎯 **ENHANCED: Cursor IDE Asset Management**
