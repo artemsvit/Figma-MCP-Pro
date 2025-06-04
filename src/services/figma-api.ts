@@ -557,85 +557,7 @@ export class FigmaApiService {
     return resolvedPath;
   }
 
-  /**
-   * Get reliable working directory with enhanced project detection
-   */
-  private static getReliableWorkingDirectory(): string {
-    // Detect Cursor IDE environment
-    const isCursorEnvironment = 
-      process.env.CURSOR_USER_DATA_DIR ||
-      process.env.CURSOR_CONFIG_DIR ||
-      process.env.VSCODE_IPC_HOOK_CLI ||
-      process.argv.some(arg => arg.includes('cursor')) ||
-      process.argv.some(arg => arg.includes('code-server')) ||
-      !!process.env.CURSOR_DEBUG;
 
-    if (isCursorEnvironment) {
-      console.error(`[Figma API] 🎯 Cursor IDE environment detected`);
-      
-      // Get standard working directory first
-      const standardCwd = process.cwd();
-      
-      // If process.cwd() returns system root, this is the Cursor bug (cross-platform detection)
-      if (this.isSystemRoot(standardCwd)) {
-        console.error(`[Figma API] 🚨 CURSOR BUG DETECTED: process.cwd() returned system root "${standardCwd}"`);
-        
-        // Enhanced project directory detection for Cursor
-        const projectDetectionCandidates = [
-          process.env.PWD,                    // Most reliable on Unix systems
-          process.env.INIT_CWD,               // npm's initial working directory
-          process.env.PROJECT_ROOT,           // Some IDEs set this
-          process.env.WORKSPACE_ROOT,         // Workspace root environment variable
-          process.env.VSCODE_WORKSPACE_ROOT,  // VS Code workspace root
-          process.env.CURSOR_WORKSPACE_ROOT,  // Cursor workspace root (if exists)
-          process.env.OLDPWD,                 // Previous working directory
-          // Try to find project by looking for common project files
-          ...this.findProjectDirectoryByMarkers()
-        ].filter(Boolean);
-        
-        for (const dir of projectDetectionCandidates) {
-          if (dir && !this.isSystemRoot(dir) && dir.length > 1) {
-            try {
-              fsSync.accessSync(dir);
-              const stats = fsSync.statSync(dir);
-              if (stats.isDirectory()) {
-                // Additional validation: check if this looks like a real project directory
-                if (this.isValidProjectDirectory(dir)) {
-                  console.error(`[Figma API] ✅ Found valid project directory for Cursor: ${dir}`);
-                  return dir;
-                }
-              }
-            } catch (error) {
-              console.error(`[Figma API] ⚠️ Directory not accessible: ${dir}`);
-              continue;
-            }
-          }
-        }
-        
-        // If we can't find the project directory, use a known fallback but warn the user
-        const fallbackDir = path.join(os.homedir(), 'figma-workspace');
-        console.error(`[Figma API] 🔧 Using fallback directory (assets will be moved to project later): ${fallbackDir}`);
-        return fallbackDir;
-      } else {
-        console.error(`[Figma API] ✅ Cursor working directory is valid: ${standardCwd}`);
-        return standardCwd;
-      }
-    } else {
-      // For non-Cursor environments, use standard process.cwd()
-      const workingDir = process.cwd();
-      console.error(`[Figma API] ✅ Standard IDE working directory: ${workingDir}`);
-      
-      // Final safety check: ensure even standard working directory is safe using cross-platform logic
-      if (this.isDangerousPath(workingDir)) {
-        console.error(`[Figma API] ⚠️ Standard working directory is dangerous: ${workingDir}`);
-        const safeFallback = path.join(os.homedir(), 'figma-workspace');
-        console.error(`[Figma API] 🔧 Using safe fallback: ${safeFallback}`);
-        return safeFallback;
-      }
-      
-      return workingDir;
-    }
-  }
 
   /**
    * Enhanced project directory detection by looking for common project markers
@@ -1535,21 +1457,32 @@ export class FigmaApiService {
     // WORKSPACE ENFORCEMENT: Ensure all export assets end up in the actual IDE workspace
     let workspaceEnforcement = null;
     if (summary.successful > 0) {
+      console.error(`[Figma API] 🔄 Starting workspace enforcement for ${summary.successful} successful downloads...`);
       try {
         workspaceEnforcement = await FigmaApiService.enforceWorkspaceLocation(results, localPath);
-        console.error(`[Figma API] 🎯 Export workspace enforcement: ${workspaceEnforcement.summary.moved} moved, ${workspaceEnforcement.summary.alreadyCorrect} already correct`);
+        console.error(`[Figma API] 🎯 Export workspace enforcement completed successfully!`);
+        console.error(`[Figma API]   ✅ ${workspaceEnforcement.summary.alreadyCorrect} already in correct location`);
+        console.error(`[Figma API]   📦 ${workspaceEnforcement.summary.moved} moved to workspace`);
+        console.error(`[Figma API]   ❌ ${workspaceEnforcement.summary.failed} failed to move`);
+        console.error(`[Figma API]   📁 Final location: ${workspaceEnforcement.finalLocation}`);
       } catch (enforcementError) {
-        console.error(`[Figma API] ⚠️ Export workspace enforcement failed, falling back to recovery:`, enforcementError);
+        console.error(`[Figma API] ❌ Export workspace enforcement failed completely:`, enforcementError);
+        console.error(`[Figma API] 🔄 Falling back to legacy recovery system...`);
         
         // Fallback to original recovery system
         const expectedPaths = results.filter(r => r.success).map(r => r.filePath);
         if (expectedPaths.length > 0) {
+          console.error(`[Figma API] 🔍 Verifying ${expectedPaths.length} expected paths...`);
           const verification = await FigmaApiService.verifyAssetsLocation(expectedPaths);
+          
+          console.error(`[Figma API] 📊 Verification results: ${verification.summary.found} found, ${verification.summary.missing} missing`);
           
           if (verification.summary.missing > 0) {
             console.error(`[Figma API] ⚠️ ${verification.summary.missing} export assets missing from expected location, attempting recovery...`);
             
             const recovery = await FigmaApiService.findAndRecoverMissingAssets(results, resolvedPath);
+            
+            console.error(`[Figma API] 📊 Recovery results: ${recovery.summary.recovered}/${recovery.summary.total} recovered`);
             
             if (recovery.summary.recovered > 0) {
               console.error(`[Figma API] 🎉 Successfully recovered ${recovery.summary.recovered} export assets to project directory!`);
@@ -1559,12 +1492,19 @@ export class FigmaApiService {
                 if (resultIndex !== -1 && recoveredAsset.success && results[resultIndex]) {
                   results[resultIndex].filePath = recoveredAsset.newPath;
                   results[resultIndex].success = true;
+                  console.error(`[Figma API] 📦 Updated result path: ${recoveredAsset.oldPath} → ${recoveredAsset.newPath}`);
                 }
               }
+            } else {
+              console.error(`[Figma API] ⚠️ Recovery system could not locate missing assets`);
             }
+          } else {
+            console.error(`[Figma API] ✅ All assets verified at expected locations`);
           }
         }
       }
+    } else {
+      console.error(`[Figma API] ⏭️ Skipping workspace enforcement - no successful downloads`);
     }
 
     return { 
@@ -2017,15 +1957,18 @@ export class FigmaApiService {
     workspaceInfo: { dir: string; confidence: 'high' | 'medium' | 'low'; source: string };
   }> {
     console.error(`[Figma API] 🎯 Enforcing workspace location for assets...`);
+    console.error(`[Figma API] 📥 Input: ${downloadResults.length} download results, requested path: "${requestedPath}"`);
     
     // Get the actual workspace directory
     const workspaceInfo = this.getActualWorkspaceDirectory();
+    console.error(`[Figma API] 🏠 Detected workspace: "${workspaceInfo.workspaceDir}" (${workspaceInfo.confidence} confidence from ${workspaceInfo.source})`);
     
     // Determine the final target directory in the workspace
     const requestedBasename = path.basename(requestedPath);
     const workspaceTargetDir = path.resolve(workspaceInfo.workspaceDir, requestedBasename);
     
     console.error(`[Figma API] 📁 Target workspace location: ${workspaceTargetDir}`);
+    console.error(`[Figma API] 🔄 Assets to process: ${downloadResults.filter(r => r.success).length} successful downloads`);
     
     const moved: Array<{ nodeId: string; nodeName: string; oldPath: string; newPath: string; success: boolean }> = [];
     const successfulDownloads = downloadResults.filter(r => r.success);
@@ -2038,6 +1981,11 @@ export class FigmaApiService {
       const currentPath = result.filePath;
       const filename = path.basename(currentPath);
       const targetPath = path.join(workspaceTargetDir, filename);
+      
+      console.error(`[Figma API] 🔍 Processing asset: ${result.nodeName}`);
+      console.error(`[Figma API]   📁 Current path: ${currentPath}`);
+      console.error(`[Figma API]   🎯 Target path: ${targetPath}`);
+      console.error(`[Figma API]   📋 Filename: ${filename}`);
       
       // Check if file is already in the correct workspace location
       if (path.normalize(currentPath) === path.normalize(targetPath)) {
@@ -2104,33 +2052,133 @@ export class FigmaApiService {
         continue;
       }
       
-      // Move/copy the file to workspace
+            // Move/copy the file to workspace with robust cross-filesystem support
       try {
-        // First try to move (rename)
+        const originalPath = result.filePath; // Save original path before moving
+        
+        console.error(`[Figma API] 🔄 Attempting to move: ${filename}`);
+        console.error(`[Figma API]   📤 From: ${originalPath}`);
+        console.error(`[Figma API]   📥 To: ${targetPath}`);
+        
+        // Check source file exists and get stats
+        let sourceStats;
         try {
-          await fs.rename(result.filePath, targetPath);
-          console.error(`[Figma API] 📦 Moved to workspace: ${filename}`);
-        } catch (moveError) {
-          // If move fails, try copy + delete
-          await fs.copyFile(result.filePath, targetPath);
-          await fs.unlink(result.filePath);
-          console.error(`[Figma API] 📦 Copied to workspace: ${filename}`);
+          sourceStats = await fs.stat(originalPath);
+          console.error(`[Figma API]   📊 Source file: ${Math.round(sourceStats.size / 1024)}KB`);
+        } catch (statError) {
+          throw new Error(`Source file does not exist: ${originalPath}`);
         }
         
-        // Update the result with new path
-        result.filePath = targetPath;
+        // Ensure target directory exists
+        const targetDir = path.dirname(targetPath);
+        try {
+          await fs.mkdir(targetDir, { recursive: true });
+        } catch (mkdirError) {
+          console.error(`[Figma API] ⚠️ Target directory creation failed:`, mkdirError);
+        }
         
-        moved.push({
-          nodeId: result.nodeId,
-          nodeName: result.nodeName,
-          oldPath: result.filePath,
-          newPath: targetPath,
-          success: true
-        });
-        movedCount++;
+        let moveSuccess = false;
+        let moveMethod = '';
         
+        // Method 1: Try atomic rename (fastest, works on same filesystem)
+        try {
+          await fs.rename(originalPath, targetPath);
+          moveSuccess = true;
+          moveMethod = 'atomic rename';
+          console.error(`[Figma API] ✅ Success via atomic rename: ${filename}`);
+                 } catch (renameError) {
+           console.error(`[Figma API] ⚠️ Atomic rename failed (likely cross-filesystem):`, renameError instanceof Error ? renameError.message : String(renameError));
+          
+          // Method 2: Copy + verify + delete (cross-filesystem safe)
+          try {
+            console.error(`[Figma API] 🔄 Trying copy + delete method...`);
+            
+            // Copy the file
+            await fs.copyFile(originalPath, targetPath);
+            
+            // Verify the copy was successful
+            const targetStats = await fs.stat(targetPath);
+            if (targetStats.size !== sourceStats.size) {
+              throw new Error(`Copy verification failed: size mismatch (${sourceStats.size} vs ${targetStats.size})`);
+            }
+            
+            console.error(`[Figma API] ✅ Copy verified: ${Math.round(targetStats.size / 1024)}KB`);
+            
+            // Only delete original after successful copy verification
+            await fs.unlink(originalPath);
+            
+            moveSuccess = true;
+            moveMethod = 'copy + delete';
+            console.error(`[Figma API] ✅ Success via copy + delete: ${filename}`);
+            
+                     } catch (copyError) {
+             console.error(`[Figma API] ❌ Copy + delete failed:`, copyError instanceof Error ? copyError.message : String(copyError));
+             
+             // Method 3: Last resort - streaming copy (handles large files and permission issues)
+             try {
+               console.error(`[Figma API] 🔄 Trying streaming copy method...`);
+               
+               const readStream = (await import('fs')).createReadStream(originalPath);
+               const writeStream = (await import('fs')).createWriteStream(targetPath);
+               
+               await new Promise<void>((resolve, reject) => {
+                 readStream.pipe(writeStream);
+                 writeStream.on('finish', () => resolve());
+                 writeStream.on('error', reject);
+                 readStream.on('error', reject);
+               });
+               
+               // Verify streaming copy
+               const streamTargetStats = await fs.stat(targetPath);
+               if (streamTargetStats.size !== sourceStats.size) {
+                 throw new Error(`Streaming copy verification failed: size mismatch`);
+               }
+               
+               // Delete original
+               await fs.unlink(originalPath);
+               
+               moveSuccess = true;
+               moveMethod = 'streaming copy';
+               console.error(`[Figma API] ✅ Success via streaming copy: ${filename}`);
+               
+             } catch (streamError) {
+               const streamErrorMsg = streamError instanceof Error ? streamError.message : String(streamError);
+               console.error(`[Figma API] ❌ All move methods failed for ${filename}:`, streamErrorMsg);
+               throw new Error(`All move methods failed: ${streamErrorMsg}`);
+             }
+          }
+        }
+        
+        if (moveSuccess) {
+          // Final verification
+          try {
+            const finalStats = await fs.stat(targetPath);
+            console.error(`[Figma API] 🎉 Move completed via ${moveMethod}: ${filename} (${Math.round(finalStats.size / 1024)}KB)`);
+            
+            // Update the result with new path
+            result.filePath = targetPath;
+            
+            moved.push({
+              nodeId: result.nodeId,
+              nodeName: result.nodeName,
+              oldPath: originalPath,
+              newPath: targetPath,
+              success: true
+            });
+            movedCount++;
+            
+                     } catch (verifyError) {
+             throw new Error(`Move appeared successful but target file verification failed: ${verifyError instanceof Error ? verifyError.message : String(verifyError)}`);
+          }
+        } else {
+          throw new Error('Unknown move failure - none of the methods succeeded');
+        }
+
       } catch (error) {
-        console.error(`[Figma API] ❌ Failed to move ${filename} to workspace:`, error);
+        const errorMsg = error instanceof Error ? error.message : String(error);
+        console.error(`[Figma API] ❌ Failed to move ${filename} to workspace: ${errorMsg}`);
+        console.error(`[Figma API] 🔍 This usually indicates a filesystem or permission issue`);
+        
         moved.push({
           nodeId: result.nodeId,
           nodeName: result.nodeName,

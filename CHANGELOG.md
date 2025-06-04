@@ -5,6 +5,47 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [3.15.0] - 2025-01-22
+
+### 🎯 **ENHANCED: Cursor IDE Asset Management**
+- **IMPROVED**: Assets are now **moved** instead of copied from Cursor fallback locations to project directory
+- **FIXED**: Reference.png naming issue with robust 3-tier fallback system for file renaming
+- **ENHANCED**: Better error handling and logging for asset management operations
+- **OPTIMIZED**: Cleaner asset recovery process that removes files from fallback locations
+
+### 🔧 **Robust Reference.png Creation**
+- **Method 1**: Direct `fs.rename` (fastest, works if same filesystem)
+- **Method 2**: Copy + delete fallback (handles cross-filesystem operations and Cursor restrictions)
+- **Method 3**: Graceful fallback (uses original filename with warning if rename fails)
+- **LOGGING**: Detailed progress tracking: `"Frame_1234.png" → "reference.png"`
+- **VERIFICATION**: File size validation and success confirmation
+
+### 📦 **Enhanced Asset Recovery**
+- **MOVE OPERATION**: Files are moved (not copied) from `/Users/username/figma-mcp-workspace/assets/` to project
+- **CLEAN FALLBACK**: Fallback locations are cleaned up after successful moves
+- **SMART DETECTION**: Only moves files that don't already exist in project or are newer
+- **ERROR RESILIENCE**: Continues with remaining files if individual moves fail
+
+### 🛠️ **Cursor IDE Compatibility**
+- **AUTOMATIC DETECTION**: Finds assets in Cursor's fallback workspace locations
+- **SEAMLESS RECOVERY**: Automatically moves assets to actual project directory before reference check
+- **PATH RESOLUTION**: Uses same logic as figma-api.ts for consistent fallback location detection
+- **CLEAN WORKFLOW**: Users no longer need manual terminal commands to copy assets
+
+### 📝 **Improved Logging**
+- **PROGRESS TRACKING**: Clear indication of file moving operations
+- **SUCCESS CONFIRMATION**: Detailed logging of successful reference.png creation methods
+- **ERROR CONTEXT**: Better error messages with specific failure reasons
+- **OPERATION SUMMARY**: Summary of how many assets were moved vs skipped
+
+### Technical Implementation
+- **Unified Logic**: Asset detection uses same fallback locations as download operations
+- **Robust Renaming**: Three-tier fallback ensures reference.png is created even with filesystem restrictions
+- **Resource Management**: Files are moved (not duplicated) to save disk space
+- **Error Recovery**: Graceful handling when filesystem operations fail in restricted environments
+
+**Result**: Seamless asset management for Cursor IDE users - no more manual file moving required! 🚀
+
 ## [3.2.0] - 2025-01-22
 
 ### 🧪 **MAJOR: Comprehensive Testing Infrastructure**
