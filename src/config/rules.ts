@@ -56,6 +56,11 @@ export interface ContextRules {
     angular: AngularOptimizations;
     svelte: SvelteOptimizations;
     html: HTMLOptimizations;
+    swiftui: SwiftUIOptimizations;
+    uikit: UIKitOptimizations;
+    electron: ElectronOptimizations;
+    tauri: TauriOptimizations;
+    nwjs: NWJSOptimizations;
   };
   
   // Custom rules
@@ -71,6 +76,15 @@ export interface ReactOptimizations {
   useTypeScript: boolean;
   componentNamingConvention: 'PascalCase' | 'camelCase';
   generateStorybook: boolean;
+  implementationRules?: {
+    [key: string]: {
+      rule: string;
+      description: string;
+      priority: 'critical' | 'high' | 'medium' | 'low';
+      example?: string;
+      checks?: string[];
+    };
+  };
 }
 
 export interface VueOptimizations {
@@ -80,6 +94,15 @@ export interface VueOptimizations {
   generateProps: boolean;
   useTypeScript: boolean;
   componentNamingConvention: 'PascalCase' | 'kebab-case';
+  implementationRules?: {
+    [key: string]: {
+      rule: string;
+      description: string;
+      priority: 'critical' | 'high' | 'medium' | 'low';
+      example?: string;
+      checks?: string[];
+    };
+  };
 }
 
 export interface AngularOptimizations {
@@ -89,6 +112,15 @@ export interface AngularOptimizations {
   useSignals: boolean;
   useTypeScript: boolean;
   componentNamingConvention: 'PascalCase' | 'kebab-case';
+  implementationRules?: {
+    [key: string]: {
+      rule: string;
+      description: string;
+      priority: 'critical' | 'high' | 'medium' | 'low';
+      example?: string;
+      checks?: string[];
+    };
+  };
 }
 
 export interface SvelteOptimizations {
@@ -96,6 +128,15 @@ export interface SvelteOptimizations {
   useTypeScript: boolean;
   useStores: boolean;
   componentNamingConvention: 'PascalCase' | 'kebab-case';
+  implementationRules?: {
+    [key: string]: {
+      rule: string;
+      description: string;
+      priority: 'critical' | 'high' | 'medium' | 'low';
+      example?: string;
+      checks?: string[];
+    };
+  };
 }
 
 export interface HTMLOptimizations {
@@ -104,6 +145,137 @@ export interface HTMLOptimizations {
   useTailwindCSS: boolean;
   generateAccessibleMarkup: boolean;
   useModernCSS: boolean;
+  implementationRules?: {
+    [key: string]: {
+      rule: string;
+      description: string;
+      priority: 'critical' | 'high' | 'medium' | 'low';
+      example?: string;
+      checks?: string[];
+    };
+  };
+}
+
+export interface SwiftUIOptimizations {
+  generateViews: boolean;
+  useViewBuilder: boolean;
+  generateModifiers: boolean;
+  useObservableObject: boolean;
+  useStateManagement: boolean;
+  generatePreviewProvider: boolean;
+  useEnvironmentObjects: boolean;
+  componentNamingConvention: 'PascalCase' | 'camelCase';
+  generateSFSymbols: boolean;
+  useNativeColors: boolean;
+  generateAdaptiveLayouts: boolean;
+  useAsyncImage: boolean;
+  generateNavigationViews: boolean;
+  useToolbarModifiers: boolean;
+  generateAnimations: boolean;
+  useGeometryReader: boolean;
+  generateDarkModeSupport: boolean;
+  useTabViews: boolean;
+  generateListViews: boolean;
+  useScrollViews: boolean;
+  generateFormViews: boolean;
+  implementationRules?: {
+    [key: string]: {
+      rule: string;
+      description: string;
+      priority: 'critical' | 'high' | 'medium' | 'low';
+      example?: string;
+      checks?: string[];
+    };
+  };
+}
+
+export interface UIKitOptimizations {
+  generateViewControllers: boolean;
+  useStoryboards: boolean;
+  useProgrammaticLayout: boolean;
+  useAutoLayout: boolean;
+  generateXIBFiles: boolean;
+  useStackViews: boolean;
+  generateConstraints: boolean;
+  useSwiftUIInterop: boolean;
+  componentNamingConvention: 'PascalCase' | 'camelCase';
+  generateDelegatePatterns: boolean;
+  useModernConcurrency: boolean;
+  generateAccessibilitySupport: boolean;
+  implementationRules?: {
+    [key: string]: {
+      rule: string;
+      description: string;
+      priority: 'critical' | 'high' | 'medium' | 'low';
+      example?: string;
+      checks?: string[];
+    };
+  };
+}
+
+export interface ElectronOptimizations {
+  generateMainProcess: boolean;
+  generateRendererProcess: boolean;
+  useIPC: boolean;
+  useWebSecurity: boolean;
+  generateMenus: boolean;
+  useNativeDialogs: boolean;
+  generateUpdater: boolean;
+  useContextIsolation: boolean;
+  componentNamingConvention: 'PascalCase' | 'camelCase';
+  generateNotifications: boolean;
+  useCrashReporter: boolean;
+  generateTrayIcon: boolean;
+  useProtocolHandlers: boolean;
+  implementationRules?: {
+    [key: string]: {
+      rule: string;
+      description: string;
+      priority: 'critical' | 'high' | 'medium' | 'low';
+      example?: string;
+      checks?: string[];
+    };
+  };
+}
+
+export interface TauriOptimizations {
+  generateRustBackend: boolean;
+  generateWebFrontend: boolean;
+  useSystemWebView: boolean;
+  generateCommands: boolean;
+  useEventSystem: boolean;
+  generatePlugins: boolean;
+  useSidecar: boolean;
+  componentNamingConvention: 'PascalCase' | 'camelCase' | 'snake_case';
+  generateUpdater: boolean;
+  useFilesystem: boolean;
+  generateNotifications: boolean;
+  useSystemTray: boolean;
+  generateMenus: boolean;
+  implementationRules?: {
+    [key: string]: {
+      rule: string;
+      description: string;
+      priority: 'critical' | 'high' | 'medium' | 'low';
+      example?: string;
+      checks?: string[];
+    };
+  };
+}
+
+export interface NWJSOptimizations {
+  generateNodeBackend: boolean;
+  generateWebFrontend: boolean;
+  useChromiumAPI: boolean;
+  generateMenus: boolean;
+  useNativeModules: boolean;
+  generateManifest: boolean;
+  useClipboard: boolean;
+  componentNamingConvention: 'PascalCase' | 'camelCase';
+  generateFileAccess: boolean;
+  useShell: boolean;
+  generateScreenCapture: boolean;
+  useTrayIcon: boolean;
   implementationRules?: {
     [key: string]: {
       rule: string;
@@ -250,6 +422,87 @@ export const DEFAULT_RULES: ContextRules = {
       useTailwindCSS: true,
       generateAccessibleMarkup: true,
       useModernCSS: true
+    },
+    swiftui: {
+      generateViews: true,
+      useViewBuilder: true,
+      generateModifiers: true,
+      useObservableObject: true,
+      useStateManagement: true,
+      generatePreviewProvider: true,
+      useEnvironmentObjects: false,
+      componentNamingConvention: 'PascalCase',
+      generateSFSymbols: true,
+      useNativeColors: true,
+      generateAdaptiveLayouts: true,
+      useAsyncImage: true,
+      generateNavigationViews: true,
+      useToolbarModifiers: true,
+      generateAnimations: true,
+      useGeometryReader: false,
+      generateDarkModeSupport: true,
+      useTabViews: true,
+      generateListViews: true,
+      useScrollViews: true,
+      generateFormViews: true
+    },
+    uikit: {
+      generateViewControllers: true,
+      useStoryboards: false,
+      useProgrammaticLayout: true,
+      useAutoLayout: true,
+      generateXIBFiles: false,
+      useStackViews: true,
+      generateConstraints: true,
+      useSwiftUIInterop: true,
+      componentNamingConvention: 'PascalCase',
+      generateDelegatePatterns: true,
+      useModernConcurrency: true,
+      generateAccessibilitySupport: true
+    },
+    electron: {
+      generateMainProcess: true,
+      generateRendererProcess: true,
+      useIPC: true,
+      useWebSecurity: true,
+      generateMenus: true,
+      useNativeDialogs: true,
+      generateUpdater: false,
+      useContextIsolation: true,
+      componentNamingConvention: 'PascalCase',
+      generateNotifications: true,
+      useCrashReporter: false,
+      generateTrayIcon: false,
+      useProtocolHandlers: false
+    },
+    tauri: {
+      generateRustBackend: true,
+      generateWebFrontend: true,
+      useSystemWebView: true,
+      generateCommands: true,
+      useEventSystem: true,
+      generatePlugins: false,
+      useSidecar: false,
+      componentNamingConvention: 'PascalCase',
+      generateUpdater: true,
+      useFilesystem: true,
+      generateNotifications: true,
+      useSystemTray: false,
+      generateMenus: true
+    },
+    nwjs: {
+      generateNodeBackend: true,
+      generateWebFrontend: true,
+      useChromiumAPI: true,
+      generateMenus: true,
+      useNativeModules: true,
+      generateManifest: true,
+      useClipboard: true,
+      componentNamingConvention: 'PascalCase',
+      generateFileAccess: true,
+      useShell: true,
+      generateScreenCapture: false,
+      useTrayIcon: false
     }
   },
   

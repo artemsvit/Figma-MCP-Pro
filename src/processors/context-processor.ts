@@ -30,7 +30,7 @@ export interface ProcessingContext {
   depth: number;
   siblingIndex: number;
   totalSiblings: number;
-  framework?: 'react' | 'vue' | 'angular' | 'svelte' | 'html' | undefined;
+  framework?: 'react' | 'vue' | 'angular' | 'svelte' | 'html' | 'swiftui' | 'uikit' | 'electron' | 'tauri' | 'nwjs' | undefined;
   designSystem?: DesignSystemContext;
 }
 
@@ -335,11 +335,11 @@ export class ContextProcessor {
         
         switch (effect.type) {
           case 'DROP_SHADOW':
-            const x = effect.offset?.x || 0;
-            const y = effect.offset?.y || 0;
-            const blur = effect.radius || 0;
-            const spread = effect.spread || 0;
-            const color = effect.color ? this.colorToCSS(effect.color) : 'rgba(0,0,0,0.25)';
+          const x = effect.offset?.x || 0;
+          const y = effect.offset?.y || 0;
+          const blur = effect.radius || 0;
+          const spread = effect.spread || 0;
+          const color = effect.color ? this.colorToCSS(effect.color) : 'rgba(0,0,0,0.25)';
             dropShadows.push(`${x}px ${y}px ${blur}px ${spread}px ${color}`);
             break;
             
@@ -509,7 +509,7 @@ export class ContextProcessor {
     return hasRoundedCorners && hasSolidBackground && hasClickableSize && hasTextChild;
   }
 
-  private detectButtonVariant(node: FigmaNode, name: string): string {
+  private detectButtonVariant(_node: FigmaNode, name: string): string {
     if (name.includes('primary')) return 'primary';
     if (name.includes('secondary')) return 'secondary';
     if (name.includes('outline')) return 'outline';
@@ -518,7 +518,7 @@ export class ContextProcessor {
     return 'default';
   }
 
-  private detectComponentState(node: FigmaNode, name: string): string {
+  private detectComponentState(_node: FigmaNode, name: string): string {
     if (name.includes('disabled')) return 'disabled';
     if (name.includes('hover')) return 'hover';
     if (name.includes('active')) return 'active';
@@ -526,7 +526,7 @@ export class ContextProcessor {
     return 'default';
   }
 
-  private isInput(node: FigmaNode, name: string): boolean {
+  private isInput(_node: FigmaNode, name: string): boolean {
     return name.includes('input') || 
            name.includes('field') || 
            name.includes('textbox') ||
@@ -535,7 +535,7 @@ export class ContextProcessor {
            name.includes('dropdown');
   }
 
-  private detectInputType(node: FigmaNode, name: string): string {
+  private detectInputType(_node: FigmaNode, name: string): string {
     if (name.includes('email')) return 'email';
     if (name.includes('password')) return 'password';
     if (name.includes('search')) return 'search';
@@ -566,13 +566,13 @@ export class ContextProcessor {
     return false;
   }
 
-  private detectNavigationLevel(node: FigmaNode, context: ProcessingContext): number {
+  private detectNavigationLevel(_node: FigmaNode, context: ProcessingContext): number {
     if (context.depth === 0) return 1; // Primary navigation
     if (context.depth === 1) return 2; // Secondary navigation
     return 3; // Tertiary navigation
   }
 
-  private isList(node: FigmaNode, name: string, context: ProcessingContext): boolean {
+  private isList(node: FigmaNode, name: string, _context: ProcessingContext): boolean {
     if (name.includes('list') || name.includes('items')) return true;
     
     // Auto-detect list pattern
@@ -607,7 +607,7 @@ export class ContextProcessor {
     ).length;
   }
 
-  private isGrid(node: FigmaNode, name: string, context: ProcessingContext): boolean {
+  private isGrid(node: FigmaNode, name: string, _context: ProcessingContext): boolean {
     if (name.includes('grid') || name.includes('gallery')) return true;
     
     // Auto-detect grid pattern
@@ -665,7 +665,7 @@ export class ContextProcessor {
     return { columns, rows, gap: Math.max(0, gap) };
   }
 
-  private isCard(node: FigmaNode, name: string, context: ProcessingContext): boolean {
+  private isCard(node: FigmaNode, name: string, _context: ProcessingContext): boolean {
     if (name.includes('card') || name.includes('tile')) return true;
     
     // Auto-detect card pattern
@@ -687,7 +687,7 @@ export class ContextProcessor {
            hasRoundedCorners;
   }
 
-  private detectCardType(node: FigmaNode, name: string): string {
+  private detectCardType(_node: FigmaNode, name: string): string {
     if (name.includes('product')) return 'product';
     if (name.includes('profile') || name.includes('user')) return 'profile';
     if (name.includes('article') || name.includes('blog')) return 'article';
@@ -729,7 +729,7 @@ export class ContextProcessor {
     return 'free-form';
   }
 
-  private detectContainerSemantic(node: FigmaNode, name: string): string {
+  private detectContainerSemantic(_node: FigmaNode, name: string): string {
     if (name.includes('header')) return 'header';
     if (name.includes('footer')) return 'footer';
     if (name.includes('sidebar')) return 'aside';
@@ -749,7 +749,7 @@ export class ContextProcessor {
     return hasImageFill || (isImageType && hasImageName);
   }
 
-  private detectImageType(node: FigmaNode, name: string): string {
+  private detectImageType(_node: FigmaNode, name: string): string {
     if (name.includes('avatar') || name.includes('profile')) return 'avatar';
     if (name.includes('logo')) return 'logo';
     if (name.includes('icon')) return 'icon';
@@ -758,7 +758,7 @@ export class ContextProcessor {
     return 'content';
   }
 
-  private hasImageCaption(node: FigmaNode, context: ProcessingContext): boolean {
+  private hasImageCaption(_node: FigmaNode, context: ProcessingContext): boolean {
     // Check if there's a text element near this image
     if (!context.parentNode?.children) return false;
     
@@ -819,7 +819,7 @@ export class ContextProcessor {
     return 0; // Body text
   }
 
-  private detectContentType(node: FigmaNode, name: string): string {
+  private detectContentType(_node: FigmaNode, name: string): string {
     if (name.includes('title') || name.includes('heading') || name.includes('headline')) return 'title';
     if (name.includes('subtitle') || name.includes('subheading')) return 'subtitle';
     if (name.includes('label')) return 'label';

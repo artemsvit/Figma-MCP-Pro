@@ -6,7 +6,7 @@ Professional Model Context Protocol (MCP) server for AI-optimized Figma design a
 
 - **5-Step Workflow**: Framework selection → Design data → Comments → Assets → Reference analysis
 - **AI-Optimized**: Structured data specifically formatted for AI code generation  
-- **Framework Support**: React, Vue, Angular, Svelte, HTML/CSS/JS
+- **10 Framework Support**: React, Vue, Angular, Svelte, HTML/CSS/JS, SwiftUI, UIKit, Electron, Tauri, NW.js
 - **Smart Comments**: Coordinate-based matching of designer comments to UI elements
 - **Asset Downloads**: Batch download with original Figma export settings
 - **CSS Generation**: Automatic CSS from Figma properties (padding, margins, borders, effects)
@@ -64,7 +64,7 @@ Add to MCP configuration in application settings:
 {
   "mcpServers": {
     "figma-mcp-pro": {
-      "command": "npx", 
+      "command": "npx",
       "args": ["figma-mcp-pro@latest", "--figma-api-key", "your-api-key-here"],
       "env": {
         "DEBUG": "true"
@@ -73,52 +73,6 @@ Add to MCP configuration in application settings:
   }
 }
 ```
-
-## 🛠️ Usage
-
-### Perfect 5-Step Workflow
-
-#### **Step 1: Show Frameworks**
-```
-Call: show_frameworks()
-```
-Choose your target framework (React, Vue, Angular, Svelte, HTML).
-
-#### **Step 2: Get Design Data** 
-```json
-{
-  "url": "https://figma.com/design/ABC123/Design?node-id=123-456",
-  "framework": "react"
-}
-```
-AI-optimized design structure with CSS properties and layout data.
-
-#### **Step 3: Process Comments**
-```json  
-{
-  "url": "https://figma.com/design/ABC123/Design?node-id=123-456",
-  "framework": "react"
-}
-```
-Smart matching of designer comments to specific design elements.
-
-#### **Step 4: Download Assets**
-```json
-{
-  "url": "https://figma.com/design/ABC123/Design?node-id=123-456", 
-  "localPath": "./assets"
-}
-```
-Downloads all export-ready assets plus reference.png for visual context.
-
-#### **Step 5: Check Reference**
-```json
-{
-  "assetsPath": "./assets",
-  "framework": "react"
-}
-```
-Analyze reference.png for design understanding before code development.
 
 ## 📝 Tool Reference
 
@@ -168,11 +122,16 @@ Analyzes reference.png for design understanding and development guidance.
 
 ## 🌟 Framework Optimizations
 
-- **React**: TypeScript, Hooks, CSS Modules
-- **Vue**: Composition API, TypeScript, Scoped Styles  
-- **Angular**: TypeScript, Components, Services
-- **Svelte**: TypeScript, Reactive, Scoped Styles
-- **HTML/CSS/JS**: Semantic HTML, Pure CSS, Vanilla JS
+- **React**: TypeScript, Hooks, Custom Hooks, Performance optimization
+- **Vue**: Composition API, TypeScript, Pinia stores, Composables  
+- **Angular**: Standalone components, Signals, Modern templates, TypeScript
+- **Svelte**: Svelte 5 runes, TypeScript, SvelteKit, Stores
+- **HTML/CSS/JS**: Design tokens, Modern CSS, Accessibility-first
+- **SwiftUI**: State management, MVVM, Accessibility, Modern patterns
+- **UIKit**: Modern concurrency, SwiftUI interop, Auto Layout
+- **Electron**: Security hardening, IPC patterns, Native integration
+- **Tauri**: Rust commands, Event system, Security, WebView
+- **NW.js**: Unified context, Node.js integration, Chromium APIs
 
 ## 📄 License
 

@@ -23,7 +23,7 @@ import { ContextProcessor, ProcessingContext } from './processors/context-proces
 import { ContextRules } from './config/rules.js';
 import { getFrameworkRules } from './config/frameworks/index.js';
 
-// Tool schemas  
+// Tool schemas
 const ShowFrameworksSchema = z.object({});
 
 const GetFigmaDataSchema = z.object({
@@ -31,7 +31,7 @@ const GetFigmaDataSchema = z.object({
   url: z.string().optional().describe('Full Figma URL with file and node selection (alternative to fileKey + nodeId)'),
   nodeId: z.string().optional().describe('Specific node ID to fetch (optional, extracted from url if provided)'),
   depth: z.number().min(1).max(10).default(5).describe('Maximum depth to traverse'),
-  framework: z.enum(['react', 'vue', 'angular', 'svelte', 'html']).describe('Target framework - REQUIRED (use select_framework first)'),
+  framework: z.enum(['react', 'vue', 'angular', 'svelte', 'html', 'swiftui', 'uikit', 'electron', 'tauri', 'nwjs']).describe('Target framework - REQUIRED (use select_framework first)'),
   includeImages: z.boolean().default(false).describe('Whether to include image URLs'),
   customRules: z.record(z.any()).optional().describe('Custom processing rules')
 }).refine(data => data.fileKey || data.url, {
@@ -124,7 +124,7 @@ class CustomFigmaMcpServer {
   private setupToolHandlers(): void {
     // List available tools
     this.server.setRequestHandler(ListToolsRequestSchema, async () => {
-            return {
+      return {
         tools: [
           {
             name: 'show_frameworks',
@@ -136,7 +136,7 @@ class CustomFigmaMcpServer {
               additionalProperties: false
             },
           },
-                    {
+          {
             name: 'get_figma_data',
             description: 'STEP 2: Get well-structured, AI-optimized Figma design data with framework-specific optimizations. Analyzes layout, components, coordinates, visual effects (shadows, borders), design tokens. PURE DESIGN DATA ONLY - no comments. Use AFTER user chooses framework. Can accept full Figma URL to automatically extract file and node selection.',
             inputSchema: {
@@ -163,7 +163,7 @@ class CustomFigmaMcpServer {
                 },
                 framework: {
                   type: 'string',
-                  enum: ['react', 'vue', 'angular', 'svelte', 'html'],
+                  enum: ['react', 'vue', 'angular', 'svelte', 'html', 'swiftui', 'uikit', 'electron', 'tauri', 'nwjs'],
                   default: 'html',
                   description: 'Target framework for optimized CSS and component generation (default: html)'
                 },
@@ -193,7 +193,7 @@ class CustomFigmaMcpServer {
                 },
                 framework: {
                   type: 'string',
-                  enum: ['react', 'vue', 'angular', 'svelte', 'html'],
+                  enum: ['react', 'vue', 'angular', 'svelte', 'html', 'swiftui', 'uikit', 'electron', 'tauri', 'nwjs'],
                   description: 'Target framework for code suggestions'
                 }
               },
@@ -251,7 +251,7 @@ class CustomFigmaMcpServer {
                 },
                 framework: {
                   type: 'string',
-                  enum: ['react', 'vue', 'angular', 'svelte', 'html'],
+                  enum: ['react', 'vue', 'angular', 'svelte', 'html', 'swiftui', 'uikit', 'electron', 'tauri', 'nwjs'],
                   description: 'Target framework for development context (optional)'
                 }
               },
@@ -319,24 +319,19 @@ class CustomFigmaMcpServer {
         {
           type: 'text',
           text: JSON.stringify({
-            STOP_AND_WAIT: '🛑 CRITICAL: User must choose framework before proceeding',
             message: 'Choose your framework:',
             frameworks: {
-              'React': 'TypeScript, Hooks, CSS Modules',
-              'Vue': 'Composition API, TypeScript, Scoped Styles', 
-              'Angular': 'TypeScript, Components, Services',
-              'Svelte': 'TypeScript, Reactive, Scoped Styles',
-              'HTML/CSS/JS': 'Semantic HTML, Pure CSS, Vanilla JS'
-            },
-            USER_ACTION_REQUIRED: 'Tell me which framework you want to use',
-            EXAMPLES: [
-              'I want to use React',
-              'Let\'s go with Vue', 
-              'I choose HTML/CSS/JS',
-              'Use Angular please',
-              'Svelte would be perfect'
-            ],
-            workflow: 'Framework Choice → Design Data → Comments → Assets → Code'
+              'React': 'Modern web framework with TypeScript and hooks',
+              'Vue': 'Progressive framework with Composition API', 
+              'Angular': 'Full-featured framework with TypeScript',
+              'Svelte': 'Compile-time framework with reactive updates',
+              'HTML/CSS/JS': 'Vanilla web technologies, no framework',
+              'SwiftUI': 'Apple\'s declarative UI for iOS/macOS apps',
+              'UIKit': 'Traditional Apple framework for iOS development',
+              'Electron': 'Cross-platform desktop apps with web tech',
+              'Tauri': 'Lightweight desktop apps with Rust backend',
+              'NW.js': 'Desktop apps with Node.js and Chromium'
+            }
           }, null, 2)
         }
       ]
@@ -912,11 +907,11 @@ class CustomFigmaMcpServer {
 
       if (!referenceExists) {
         const expectedPath = path.join(assetsPath, 'reference.png');
-        return {
-          content: [
-            {
-              type: 'text',
-              text: JSON.stringify({
+      return {
+        content: [
+          {
+            type: 'text',
+            text: JSON.stringify({
                 status: 'error',
                 message: 'reference.png not found in assets folder',
                 expectedPath: expectedPath,
@@ -1099,11 +1094,11 @@ class CustomFigmaMcpServer {
           this.logError(`[Figma MCP] Failed to create reference:`, referenceError);
         }
 
-        return {
-          content: [
-            {
-              type: 'text',
-              text: JSON.stringify({
+      return {
+        content: [
+          {
+            type: 'text',
+            text: JSON.stringify({
                 downloads: [],
                 summary: { total: 0, successful: 0, failed: 0 },
                 reference: referenceResult,
@@ -1337,36 +1332,53 @@ class CustomFigmaMcpServer {
   }
 
   /**
-   * Generate instructions for using downloaded assets and reference
+   * Generate instructions for using downloaded assets and reference (Universal IDE compatibility)
    */
   private generateDownloadInstructions(downloads: any[], referenceResult: any): string[] {
     const instructions: string[] = [];
+    const workingDir = process.cwd();
     
     if (downloads.length > 0) {
       instructions.push(`📁 Asset Files Downloaded:`);
       downloads.forEach(download => {
         if (download.success) {
-          instructions.push(`   ✅ ${download.nodeName} → ${download.filePath.split('/').pop()}`);
+          // Show both filename and relative path for universal IDE compatibility
+          const filename = download.filePath.split('/').pop() || 'unknown';
+          const relativePath = download.relativePath || `./${filename}`;
+          const fileSize = download.fileSize ? ` (${Math.round(download.fileSize / 1024)}KB)` : '';
+          const verified = download.verified !== false ? '✅' : '⚠️';
+          
+          instructions.push(`   ${verified} ${download.nodeName}`);
+          instructions.push(`      📁 File: ${filename}${fileSize}`);
+          instructions.push(`      📂 Path: ${relativePath}`);
+          if (download.verified === false) {
+            instructions.push(`      ⚠️  File verification failed - check directory structure`);
+          }
         } else {
-          instructions.push(`   ❌ ${download.nodeId} → Failed: ${download.error}`);
+          instructions.push(`   ❌ ${download.nodeId || download.nodeName} → Failed: ${download.error}`);
         }
       });
       instructions.push('');
     }
 
     if (referenceResult?.success) {
+      const referenceRelativePath = referenceResult.filePath ? 
+        path.relative(workingDir, referenceResult.filePath) : './reference.png';
+      
       instructions.push(`🎯 Visual Context Reference:`);
       instructions.push(`   📄 reference.png → Shows ${referenceResult.contextType} context: "${referenceResult.contextName}"`);
+      instructions.push(`   📂 Path: ${referenceRelativePath.startsWith('.') ? referenceRelativePath : `./${referenceRelativePath}`}`);
       instructions.push(`   💡 Use this reference to understand how downloaded assets fit in the overall design`);
       instructions.push(`   🔍 Open reference.png to see layout, positioning, and relationship between elements`);
       instructions.push('');
     }
 
-    instructions.push(`🛠️ Development Workflow:`);
-    instructions.push(`   1. Open reference.png to understand the design context and layout`);
-    instructions.push(`   2. Use individual asset files for implementation`);
-    instructions.push(`   3. Reference the PNG for accurate positioning and relationships`);
-    instructions.push(`   4. Maintain design consistency using the visual context`);
+    instructions.push(`🛠️ Universal IDE Development Workflow:`);
+    instructions.push(`   1. Assets are saved using relative paths (./assets/...) for cross-IDE compatibility`);
+    instructions.push(`   2. Open reference.png to understand the design context and layout`);
+    instructions.push(`   3. Use individual asset files for implementation`);
+    instructions.push(`   4. All paths are verified after download to ensure availability`);
+    instructions.push(`   5. Files work consistently across Cursor, Windsurf, TRAE, and other IDEs`);
 
     return instructions;
   }

@@ -26,7 +26,7 @@ export default {
     'html'
   ],
   setupFilesAfterEnv: ['<rootDir>/jest.setup.js'],
-  moduleNameMapping: {
+  moduleNameMapper: {
     '^(\\.{1,2}/.*)\\.js$': '$1'
   },
   testTimeout: 10000,

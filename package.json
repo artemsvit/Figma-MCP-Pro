@@ -1,6 +1,6 @@
 {
   "name": "figma-mcp-pro",
-  "version": "3.0.16",
+  "version": "3.2.0",
   "description": "Professional Figma MCP Server with intelligent 5-step workflow: show_frameworks, get_figma_data, process_design_comments, download_design_assets, and check_reference. Takes Figma URLs, downloads assets with reference.png, and analyzes design for development.",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
@@ -21,6 +21,8 @@
     "start": "node dist/index.js",
     "test": "jest",
     "test:watch": "jest --watch",
+    "test:coverage": "jest --coverage",
+    "test:quick": "./scripts/test-quick.sh",
     "lint": "eslint src/**/*.ts",
     "lint:fix": "eslint src/**/*.ts --fix",
     "format": "prettier --write src/**/*.ts",
@@ -67,8 +69,8 @@
   "devDependencies": {
     "@types/jest": "^29.5.0",
     "@types/node": "^20.10.0",
-    "@typescript-eslint/eslint-plugin": "^6.21.0",
-    "@typescript-eslint/parser": "^6.21.0",
+    "@typescript-eslint/eslint-plugin": "^8.33.1",
+    "@typescript-eslint/parser": "^8.33.1",
     "eslint": "^8.54.0",
     "eslint-config-prettier": "^9.0.0",
     "eslint-plugin-prettier": "^5.0.0",

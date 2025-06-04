@@ -470,133 +470,351 @@ export class FigmaApiService {
   }
 
   /**
-   * Resolve and validate file paths safely for different MCP environments
-   * Enhanced specifically for Cursor MCP compatibility
+   * Robust IDE-aware path resolution for universal compatibility
    */
   private static resolvePath(inputPath: string): string {
-    // Normalize and validate the input path to prevent encoding issues
-    const normalizedPath = inputPath.trim().replace(/[^\x20-\x7E]/g, ''); // Remove non-ASCII characters
+    // Normalize input path - remove encoding issues
+    const normalizedPath = inputPath.trim().replace(/[^\x20-\x7E]/g, '');
     
     console.error(`[Figma API] Input path: "${inputPath}" -> normalized: "${normalizedPath}"`);
     
-    const cwd = process.cwd();
-    const environment = {
-      cwd,
-      PWD: process.env.PWD,
-      INIT_CWD: process.env.INIT_CWD,
-      HOME: process.env.HOME,
-      platform: process.platform
-    };
+    // Handle absolute paths - if it's already absolute and valid, use as-is (but validate safety)
+    if (path.isAbsolute(normalizedPath) && normalizedPath !== '/' && normalizedPath.length > 1) {
+      // Still validate it's not a dangerous system path
+      const dangerousPaths = ['/', '/bin', '/usr', '/etc', '/root', '/var', '/sys', '/proc'];
+      const isDangerous = dangerousPaths.some(dangerous => 
+        normalizedPath === dangerous || normalizedPath.startsWith(dangerous + '/')
+      );
+      
+      if (!isDangerous) {
+        console.error(`[Figma API] Using safe absolute path: ${normalizedPath}`);
+        return normalizedPath;
+      } else {
+        console.error(`[Figma API] ⚠️ Absolute path is dangerous, switching to relative: ${normalizedPath}`);
+        // Fall through to relative path handling
+      }
+    }
     
-    console.error(`[Figma API] Environment:`, environment);
+    // IDE-specific working directory detection
+    const workingDir = FigmaApiService.detectWorkingDirectory();
     
-    // CRITICAL: Force relative path handling for MCP environments
-    // Never use absolute paths that could point to filesystem root
+    console.error(`[Figma API] Detected working directory: ${workingDir}`);
+    
+    // Clean the path for consistent relative path handling
     let cleanPath = normalizedPath;
     
-    // Strip any absolute path indicators to force relative
-    cleanPath = cleanPath
-      .replace(/^\/+/, '') // Remove leading slashes
-      .replace(/^\.\//, '') // Remove leading ./
-      .replace(/^\.+\//, ''); // Remove any leading ../
-    
-    // Ensure we have a valid path component
-    if (!cleanPath || cleanPath === '.' || cleanPath === '..' || cleanPath === '/') {
-      cleanPath = 'assets'; // Safe default directory name
+    // Handle various relative path formats consistently
+    if (cleanPath.startsWith('./')) {
+      cleanPath = cleanPath.substring(2); // Remove './'
+    } else if (cleanPath.startsWith('../')) {
+      // Handle parent directory references
+      cleanPath = cleanPath; // Keep as-is, path.resolve will handle it
+    } else if (cleanPath.startsWith('/')) {
+      // Remove leading slash to make it relative
+      cleanPath = cleanPath.substring(1);
     }
     
-    console.error(`[Figma API] Cleaned path: "${normalizedPath}" -> "${cleanPath}"`);
-    
-    // Determine working directory for resolution
-    let workingDir = cwd;
-    
-         // Handle problematic MCP environments where cwd is root or empty
-     if (cwd === '/' || cwd === '' || !cwd) {
-       console.error(`[Figma API] WARNING: Problematic cwd detected: "${cwd}"`);
-       
-       // Try environment variables for better working directory
-       const envWorkingDir = process.env.INIT_CWD || process.env.PWD || process.env.HOME;
-       
-       // Final fallback for MCP environments
-       if (!envWorkingDir || envWorkingDir === '/' || envWorkingDir === '') {
-         // Use a safe temporary directory structure
-         workingDir = '/tmp/figma-mcp-workspace';
-         console.error(`[Figma API] Using safe fallback working directory: ${workingDir}`);
-       } else {
-         workingDir = envWorkingDir;
-         console.error(`[Figma API] Using environment working directory: ${workingDir}`);
-       }
-     }
-    
-    // Build the final path using safe join (never produces root paths)
-    let resolvedPath: string;
-    
-    if (path.isAbsolute(cleanPath)) {
-      // If somehow still absolute, force it to be relative
-      console.error(`[Figma API] WARNING: Forcing absolute path to relative: ${cleanPath}`);
-      cleanPath = path.basename(cleanPath);
+    // Ensure we have a valid path
+    if (!cleanPath || cleanPath === '.' || cleanPath === '') {
+      cleanPath = 'assets'; // Default directory name
     }
     
-    // Use path.join which handles cross-platform path separators safely
-    resolvedPath = path.join(workingDir, cleanPath);
+    // Use path.resolve for consistent cross-platform path resolution
+    const resolvedPath = path.resolve(workingDir, cleanPath);
     
-    // Final safety check: ensure we never create paths at dangerous locations
-    if (resolvedPath === '/' || 
-        resolvedPath.startsWith('/bin') || 
-        resolvedPath.startsWith('/usr') || 
-        resolvedPath.startsWith('/etc') ||
-        resolvedPath.startsWith('/var') ||
-        resolvedPath.startsWith('/sys') ||
-        resolvedPath.startsWith('/proc')) {
-      
-      console.error(`[Figma API] CRITICAL: Dangerous path detected, using ultra-safe fallback: ${resolvedPath}`);
-      // Ultra-safe fallback
-      resolvedPath = path.join('/tmp', 'figma-mcp-safe', cleanPath);
+    // Final safety check - never allow dangerous paths
+    const dangerousPaths = ['/', '/bin', '/usr', '/etc', '/root', '/var', '/sys', '/proc'];
+    const isResolvedDangerous = dangerousPaths.some(dangerous => 
+      resolvedPath === dangerous || resolvedPath.startsWith(dangerous + '/')
+    );
+    
+    if (isResolvedDangerous) {
+      console.error(`[Figma API] 🚨 BLOCKED dangerous resolved path: ${resolvedPath}`);
+      // Force a safe fallback path in user space
+      const safePath = path.resolve(process.env.HOME || '/tmp', 'figma-assets', cleanPath);
+      console.error(`[Figma API] Using emergency safe path: ${safePath}`);
+      return safePath;
     }
     
-    console.error(`[Figma API] Final path resolution: "${inputPath}" -> "${resolvedPath}"`);
-    console.error(`[Figma API] Working dir: "${workingDir}", Clean path: "${cleanPath}"`);
+    console.error(`[Figma API] ✅ Path resolution: "${normalizedPath}" -> "${resolvedPath}"`);
+    console.error(`[Figma API] Environment: cwd="${process.cwd()}", PWD="${process.env.PWD}", resolved="${resolvedPath}"`);
     
     return resolvedPath;
   }
 
   /**
-   * Create directory with robust error handling
+   * Detect working directory with Cursor MCP-specific logic
+   */
+  private static detectWorkingDirectory(): string {
+    console.error(`[Figma API] 🔍 IDE Detection starting...`);
+    
+    // Get all available environment info
+    const cwd = process.cwd();
+    const envPwd = process.env.PWD;
+    const envInitCwd = process.env.INIT_CWD;
+    const envProjectRoot = process.env.PROJECT_ROOT;
+    const envWorkspaceRoot = process.env.WORKSPACE_ROOT;
+    const envHome = process.env.HOME;
+    
+    console.error(`[Figma API] Environment info:`, {
+      'process.cwd()': cwd,
+      'PWD': envPwd,
+      'INIT_CWD': envInitCwd,
+      'PROJECT_ROOT': envProjectRoot,
+      'WORKSPACE_ROOT': envWorkspaceRoot,
+      'HOME': envHome,
+      'process.argv0': process.argv0,
+      'process.execPath': process.execPath
+    });
+    
+    // CRITICAL: Detect Cursor MCP problematic environment
+    const isCursorMcpProblem = (cwd === '/' && (!envPwd || envPwd === '/'));
+    if (isCursorMcpProblem) {
+      console.error(`[Figma API] 🚨 DETECTED CURSOR MCP ISSUE: cwd='/' and PWD='/' - applying fixes`);
+      return FigmaApiService.fixCursorMcpWorkingDirectory();
+    }
+    
+    // Dangerous paths that should never be used as working directory
+    const dangerousPaths = ['/', '/bin', '/usr', '/etc', '/root', '/var', '/sys', '/proc'];
+    
+    // Strategy 1: Use INIT_CWD if available and safe (npm/yarn environments)
+    if (envInitCwd && !dangerousPaths.includes(envInitCwd) && envInitCwd !== '/') {
+      console.error(`[Figma API] 🎯 Using INIT_CWD: ${envInitCwd}`);
+      return envInitCwd;
+    }
+    
+    // Strategy 2: Use PWD if available and safe (most Unix environments)
+    if (envPwd && !dangerousPaths.includes(envPwd) && envPwd !== '/') {
+      console.error(`[Figma API] 🎯 Using PWD: ${envPwd}`);
+      return envPwd;
+    }
+    
+    // Strategy 3: Use process.cwd() if it's safe
+    if (cwd && !dangerousPaths.includes(cwd) && cwd !== '/') {
+      console.error(`[Figma API] 🎯 Using process.cwd(): ${cwd}`);
+      return cwd;
+    }
+    
+    // Strategy 4: Use explicit project/workspace roots
+    if (envProjectRoot) {
+      console.error(`[Figma API] 🎯 Using PROJECT_ROOT: ${envProjectRoot}`);
+      return envProjectRoot;
+    }
+    
+    if (envWorkspaceRoot) {
+      console.error(`[Figma API] 🎯 Using WORKSPACE_ROOT: ${envWorkspaceRoot}`);
+      return envWorkspaceRoot;
+    }
+    
+    // Strategy 5: IDE-specific detection
+    const ideWorkingDir = FigmaApiService.detectIdeSpecificWorkingDir();
+    if (ideWorkingDir) {
+      console.error(`[Figma API] 🎯 Using IDE-specific working dir: ${ideWorkingDir}`);
+      return ideWorkingDir;
+    }
+    
+    // Strategy 6: User home directory as fallback
+    if (envHome) {
+      const homeWorkspace = path.join(envHome, 'figma-workspace');
+      console.error(`[Figma API] 🎯 Using HOME-based workspace: ${homeWorkspace}`);
+      return homeWorkspace;
+    }
+    
+    // Final fallback - temp directory
+    const tempFallback = '/tmp/figma-assets';
+    console.error(`[Figma API] 🚨 Using emergency temp fallback: ${tempFallback}`);
+    return tempFallback;
+  }
+
+  /**
+   * Fix Cursor MCP working directory issue specifically
+   */
+  private static fixCursorMcpWorkingDirectory(): string {
+    console.error(`[Figma API] 🔧 Applying Cursor MCP-specific fixes...`);
+    
+    // Strategy 1: Try to extract working directory from process arguments
+    const processArgs = process.argv.join(' ');
+    console.error(`[Figma API] Process args: ${processArgs}`);
+    
+    // Strategy 2: Check if there are any environment variables that might hint at the real workspace
+    const envVars = process.env;
+    const workspaceHints = Object.keys(envVars)
+      .filter(key => key.toLowerCase().includes('workspace') || key.toLowerCase().includes('project'))
+      .map(key => ({ key, value: envVars[key] }));
+    
+    console.error(`[Figma API] Workspace hints from env:`, workspaceHints);
+    
+    // Strategy 3: Try alternative environment variables commonly available in MCP
+    const alternativeVars = [
+      process.env.MCP_WORKSPACE,
+      process.env.CURSOR_WORKSPACE, 
+      process.env.VSCODE_CWD,
+      process.env.ELECTRON_RUN_AS_NODE_CWD,
+      process.env.ORIGINAL_CWD,
+      process.env.npm_config_cache?.replace('/node_modules/.cache', ''),
+      process.env.APPDATA?.replace('\\AppData\\Roaming', ''),
+      process.env.USERPROFILE
+    ].filter(Boolean);
+    
+    console.error(`[Figma API] Alternative working dir candidates:`, alternativeVars);
+    
+    // Strategy 4: Use any valid alternative that exists and is safe
+    for (const candidate of alternativeVars) {
+      if (candidate && candidate !== '/' && candidate.length > 1) {
+        try {
+          // Don't use fs.access here as it's async, just return the candidate
+          // The directory creation will validate if it's usable
+          console.error(`[Figma API] 🎯 Using alternative working dir: ${candidate}`);
+          return candidate;
+        } catch (error) {
+          console.error(`[Figma API] Candidate ${candidate} not usable:`, error);
+        }
+      }
+    }
+    
+    // Strategy 5: Force a safe user-space directory for Cursor MCP
+    const safeDir = path.join(process.env.HOME || '/tmp', 'cursor-mcp-workspace');
+    console.error(`[Figma API] 🎯 Using forced safe directory for Cursor MCP: ${safeDir}`);
+    return safeDir;
+  }
+
+  /**
+   * Detect IDE-specific working directory patterns
+   */
+  private static detectIdeSpecificWorkingDir(): string | null {
+    // Cursor-specific detection
+    if (process.env.CURSOR_USER_DATA_PATH || process.env.CURSOR_EXTENSIONS_PATH) {
+      console.error(`[Figma API] 🎯 Detected Cursor IDE`);
+      // Try to find workspace from Cursor-specific environment
+      if (process.env.PWD && process.env.PWD !== '/') {
+        return process.env.PWD;
+      }
+    }
+    
+         // Windsurf-specific detection
+     if (process.env.WINDSURF_WORKSPACE || process.env.WINDSURF_ROOT) {
+       console.error(`[Figma API] 🎯 Detected Windsurf IDE`);
+       return process.env.WINDSURF_WORKSPACE || process.env.WINDSURF_ROOT || null;
+     }
+     
+     // TRAE-specific detection
+     if (process.env.TRAE_WORKSPACE || process.env.TRAE_PROJECT_ROOT) {
+       console.error(`[Figma API] 🎯 Detected TRAE IDE`);
+       return process.env.TRAE_WORKSPACE || process.env.TRAE_PROJECT_ROOT || null;
+     }
+     
+     // VS Code-specific detection
+     if (process.env.VSCODE_WORKSPACE || process.env.VSCODE_CWD) {
+       console.error(`[Figma API] 🎯 Detected VS Code`);
+       return process.env.VSCODE_WORKSPACE || process.env.VSCODE_CWD || null;
+     }
+     
+     // WebStorm/JetBrains-specific detection
+     if (process.env.IDEA_INITIAL_DIRECTORY || process.env.npm_config_prefix) {
+       console.error(`[Figma API] 🎯 Detected JetBrains IDE`);
+       return process.env.IDEA_INITIAL_DIRECTORY || process.env.npm_config_prefix || null;
+     }
+    
+    return null;
+  }
+
+  /**
+   * Create directory with enhanced verification and universal IDE compatibility
    */
   private static async createDirectorySafely(resolvedPath: string, originalPath: string): Promise<void> {
-    
     // Validate the resolved path
     if (!resolvedPath || resolvedPath.length === 0) {
       throw new Error('Invalid or empty path after resolution');
     }
     
-    // Additional safety check: prevent creating directories at dangerous locations
-    if (resolvedPath === '/' || resolvedPath.startsWith('/bin') || resolvedPath.startsWith('/usr') || resolvedPath.startsWith('/etc')) {
+    // Enhanced safety check: prevent creating directories at dangerous locations
+    const dangerousPaths = ['/', '/bin', '/usr', '/etc', '/root', '/var', '/sys', '/proc'];
+    if (dangerousPaths.some(dangerous => resolvedPath === dangerous || resolvedPath.startsWith(dangerous + '/'))) {
       console.error(`[Figma API] SAFETY BLOCK: Refusing to create directory at dangerous location: ${resolvedPath}`);
       throw new FigmaApiError(`Blocked dangerous directory creation at: ${resolvedPath}. Original path: ${originalPath}`);
     }
     
-    console.error(`[Figma API] Path resolution: "${originalPath}" -> "${resolvedPath}"`);
-    console.error(`[Figma API] Environment info: cwd="${process.cwd()}", PWD="${process.env.PWD}", INIT_CWD="${process.env.INIT_CWD}"`);
+    console.error(`[Figma API] Creating directory: "${originalPath}" -> "${resolvedPath}"`);
     
     try {
-      await fs.mkdir(resolvedPath, { recursive: true });
-      console.error(`[Figma API] Successfully created/verified directory: ${resolvedPath}`);
+      // Create directory with full permissions for universal compatibility
+      await fs.mkdir(resolvedPath, { recursive: true, mode: 0o755 });
+      
+      // Verify directory was created and is accessible
+      const stats = await fs.stat(resolvedPath);
+      if (!stats.isDirectory()) {
+        throw new Error('Path exists but is not a directory');
+      }
+      
+      // Test write permissions by creating a temporary file
+      const testFile = path.join(resolvedPath, '.figma-test-write');
+      try {
+        await fs.writeFile(testFile, 'test');
+        await fs.unlink(testFile); // Clean up test file
+      } catch (writeError) {
+        throw new Error(`Directory exists but is not writable: ${writeError instanceof Error ? writeError.message : String(writeError)}`);
+      }
+      
+      console.error(`[Figma API] ✅ Directory verified: ${resolvedPath}`);
+      
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : String(error);
-      console.error(`[Figma API] Directory creation failed:`, { 
+      console.error(`[Figma API] ❌ Directory creation failed:`, { 
         originalPath, 
         resolvedPath,
         cwd: process.cwd(),
         environment: {
           PWD: process.env.PWD,
           INIT_CWD: process.env.INIT_CWD,
-          HOME: process.env.HOME
+          PROJECT_ROOT: process.env.PROJECT_ROOT,
+          WORKSPACE_ROOT: process.env.WORKSPACE_ROOT
         },
         error: errorMessage 
       });
-      throw new FigmaApiError(`Failed to create directory: ${errorMessage}`);
+      throw new FigmaApiError(`Failed to create/verify directory: ${errorMessage}`);
     }
+  }
+
+  /**
+   * Verify that assets exist in the expected location (universal IDE compatibility)
+   */
+  private static async verifyAssetsLocation(expectedPaths: string[]): Promise<{
+    verified: Array<{ path: string; exists: boolean; size?: number; relativePath?: string }>;
+    summary: { total: number; found: number; missing: number };
+  }> {
+    const results = [];
+    const workingDir = process.cwd();
+    
+    for (const filePath of expectedPaths) {
+      try {
+        const stats = await fs.stat(filePath);
+        const relativePath = path.relative(workingDir, filePath);
+        
+        results.push({
+          path: filePath,
+          exists: true,
+          size: stats.size,
+          relativePath: relativePath.startsWith('.') ? relativePath : `./${relativePath}`
+        });
+      } catch {
+        const relativePath = path.relative(workingDir, filePath);
+        results.push({
+          path: filePath,
+          exists: false,
+          relativePath: relativePath.startsWith('.') ? relativePath : `./${relativePath}`
+        });
+      }
+    }
+    
+    const summary = {
+      total: results.length,
+      found: results.filter(r => r.exists).length,
+      missing: results.filter(r => !r.exists).length
+    };
+    
+    console.error(`[Figma API] Asset verification: ${summary.found}/${summary.total} files found`);
+    
+    return { verified: results, summary };
   }
 
   /**
@@ -753,6 +971,25 @@ export class FigmaApiService {
     };
 
     console.error(`[Figma API] Download summary: ${summary.successful}/${summary.total} successful`);
+
+    // Verify assets are in the expected location for universal IDE compatibility
+    const expectedPaths = results.filter(r => r.success).map(r => r.filePath);
+    if (expectedPaths.length > 0) {
+      const verification = await FigmaApiService.verifyAssetsLocation(expectedPaths);
+      console.error(`[Figma API] Verification: ${verification.summary.found}/${verification.summary.total} assets confirmed`);
+      
+      // Add relative path information to results for better IDE compatibility
+      results.forEach(result => {
+        if (result.success) {
+          const verifiedAsset = verification.verified.find(v => v.path === result.filePath);
+          if (verifiedAsset) {
+            (result as any).relativePath = verifiedAsset.relativePath;
+            (result as any).verified = verifiedAsset.exists;
+            (result as any).fileSize = verifiedAsset.size;
+          }
+        }
+      });
+    }
 
     return { downloaded: results, summary };
   }
@@ -981,6 +1218,25 @@ export class FigmaApiService {
     };
 
     console.error(`[Figma API] Download summary: ${summary.successful}/${summary.total} successful`);
+
+    // Verify assets are in the expected location for universal IDE compatibility
+    const expectedPaths = results.filter(r => r.success).map(r => r.filePath);
+    if (expectedPaths.length > 0) {
+      const verification = await FigmaApiService.verifyAssetsLocation(expectedPaths);
+      console.error(`[Figma API] Verification: ${verification.summary.found}/${verification.summary.total} export assets confirmed`);
+      
+      // Add relative path information to results for better IDE compatibility
+      results.forEach(result => {
+        if (result.success) {
+          const verifiedAsset = verification.verified.find(v => v.path === result.filePath);
+          if (verifiedAsset) {
+            (result as any).relativePath = verifiedAsset.relativePath;
+            (result as any).verified = verifiedAsset.exists;
+            (result as any).fileSize = verifiedAsset.size;
+          }
+        }
+      });
+    }
 
     return { downloaded: results, summary };
   }
