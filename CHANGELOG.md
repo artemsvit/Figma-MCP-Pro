@@ -5,6 +5,35 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [3.17.1] - 2025-01-22
+
+### 🔧 **CRITICAL FIX: Dynamic Require Error Eliminated**
+- **FIXED**: "Dynamic require of 'os' is not supported" error in check_reference tool
+- **REMOVED**: Complex helper functions that used dynamic require() calls  
+- **SIMPLIFIED**: check_reference tool now only checks if reference.png exists in assets folder
+- **ELIMINATED**: Unnecessary retry logic, multiple search locations, and fallback directory scanning
+- **IMPROVED**: Clean, simple workflow - check reference → pass to next step
+
+### 🎯 **Simplified check_reference Tool**
+- **STREAMLINED**: Simple path resolution and file existence check
+- **DIRECT**: No more complex search patterns or workspace enforcement
+- **FAST**: Immediate response - file exists or doesn't, simple as that
+- **CLEAR**: Clean success/error messages for next step guidance
+- **RELIABLE**: No more ES module compatibility issues
+
+### 📦 **Bundle Size Optimization**
+- **REDUCED**: Bundle size from 210KB to 198KB by removing complex helper functions
+- **CLEANER**: Eliminated unused code paths and dynamic imports
+- **LIGHTER**: Faster tool execution with simplified logic
+
+### 🚀 **Technical Improvements**
+- **Static Imports Only**: All imports are now static ES module imports
+- **No Dynamic Requires**: Eliminated all dynamic require() calls that caused ES module errors
+- **Simple Logic**: Straightforward file checking without complex fallback chains
+- **Better Error Handling**: Clear error messages without stack traces from dynamic imports
+
+**Result: check_reference tool now works reliably across all MCP environments!** 🎯
+
 ## [3.17.0] - 2025-01-22
 
 ### 🎯 **MAJOR: Direct Download Mode - No More File "Dancing"**

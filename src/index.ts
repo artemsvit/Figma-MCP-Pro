@@ -910,139 +910,6 @@ Next Steps: After framework selection → Design data extraction → Comments an
    * Setup project assets directory and copy from Cursor fallback location
    * This handles the Cursor IDE working directory bug by copying assets from the fallback location
    */
-  private async setupProjectAssetsFromCursorFallback(assetsPath: string): Promise<void> {
-    try {
-      this.log(`[Figma MCP] 🎯 Setting up project assets from Cursor fallback location...`);
-      
-      // Step 1: Ensure assets directory exists in current project
-      const normalizedAssetsPath = assetsPath.trim().replace(/[^\x20-\x7E]/g, '');
-      let projectAssetsPath: string;
-      
-      if (path.isAbsolute(normalizedAssetsPath)) {
-        projectAssetsPath = normalizedAssetsPath;
-      } else {
-        const cwd = process.cwd();
-        const cleanPath = normalizedAssetsPath
-          .replace(/^\.\//, '') // Remove leading ./
-          .replace(/^\//, ''); // Remove leading / if accidentally added
-        projectAssetsPath = path.resolve(cwd, cleanPath);
-      }
-      
-      // Create project assets directory
-      await fs.mkdir(projectAssetsPath, { recursive: true });
-      this.log(`[Figma MCP] ✅ Created project assets directory: ${projectAssetsPath}`);
-      
-      // Step 2: Determine Cursor fallback locations using the same logic as figma-api.ts
-      const fallbackLocations = this.getCursorFallbackLocations();
-      
-      // Step 3: Search for assets in fallback locations and move them
-      let assetsMoved = 0;
-      let assetsFound = 0;
-      
-      for (const fallbackLocation of fallbackLocations) {
-        try {
-          // Check if fallback location exists
-          await fs.access(fallbackLocation);
-          
-          // Read contents of fallback location
-          const files = await fs.readdir(fallbackLocation);
-          assetsFound += files.length;
-          
-          this.log(`[Figma MCP] 📁 Found ${files.length} files in fallback location: ${fallbackLocation}`);
-          
-          // Copy each file to project assets directory
-          for (const file of files) {
-            try {
-              const sourcePath = path.join(fallbackLocation, file);
-              const targetPath = path.join(projectAssetsPath, file);
-              
-              // Check if source is a file (not directory)
-              const sourceStats = await fs.stat(sourcePath);
-              if (sourceStats.isFile()) {
-                // Check if target already exists with same size (avoid overwriting newer files)
-                let shouldCopy = true;
-                try {
-                  const targetStats = await fs.stat(targetPath);
-                  if (targetStats.size === sourceStats.size && targetStats.mtime >= sourceStats.mtime) {
-                    shouldCopy = false; // Target is newer or same, don't overwrite
-                  }
-                } catch {
-                  // Target doesn't exist, should copy
-                }
-                
-                if (shouldCopy) {
-                  // Move file instead of copy (remove from fallback location)
-                  await fs.rename(sourcePath, targetPath);
-                  assetsMoved++;
-                  this.log(`[Figma MCP] 📦 Moved: ${file} → ${projectAssetsPath}`);
-                } else {
-                  this.log(`[Figma MCP] ⏭️  Skipped (newer exists): ${file}`);
-                }
-              }
-            } catch (fileError) {
-              this.log(`[Figma MCP] ⚠️ Failed to move ${file}:`, fileError);
-            }
-          }
-          
-          // If we found and moved assets from this location, we can break
-          if (assetsMoved > 0) {
-            break;
-          }
-          
-        } catch (error) {
-          this.log(`[Figma MCP] 📁 Fallback location not accessible: ${fallbackLocation}`);
-        }
-      }
-      
-      if (assetsMoved > 0) {
-        this.log(`[Figma MCP] 🎉 Successfully moved ${assetsMoved} assets from Cursor fallback to project directory`);
-      } else if (assetsFound > 0) {
-        this.log(`[Figma MCP] 📁 Found ${assetsFound} assets in fallback locations but none needed moving`);
-      } else {
-        this.log(`[Figma MCP] 📁 No assets found in Cursor fallback locations (this is normal if assets were downloaded directly to project)`);
-      }
-      
-    } catch (error) {
-      this.logError(`[Figma MCP] ⚠️ Error setting up project assets from fallback:`, error);
-      // Don't throw error - this is a helper step, continue with normal reference check
-    }
-  }
-
-  /**
-   * Get Cursor fallback locations using the same logic as figma-api.ts
-   * This mirrors the fallback directory logic used when Cursor can't determine the proper working directory
-   */
-  private getCursorFallbackLocations(): string[] {
-    const os = require('os');
-    const homeDir = os.homedir();
-    
-    // These match the fallback locations used in figma-api.ts
-    const fallbackLocations = [
-      // Primary Cursor MCP fallback location
-      path.join(homeDir, 'figma-mcp-workspace', 'assets'),
-      path.join(homeDir, 'figma-mcp-workspace'),
-      
-      // Secondary fallback locations  
-      path.join(homeDir, 'figma-workspace', 'assets'),
-      path.join(homeDir, 'figma-workspace'),
-      
-      // Additional search locations from figma-api.ts getAssetSearchLocations()
-      path.join(homeDir, 'Downloads'),
-      path.join(homeDir, 'Desktop'),
-      path.join(homeDir, 'Documents'),
-      
-      // Temp locations
-      '/tmp/figma-assets',
-      path.join(homeDir, 'tmp', 'figma-assets'),
-    ];
-    
-    // Remove duplicates and filter out non-existent paths
-    const uniqueLocations = [...new Set(fallbackLocations)];
-    
-    this.log(`[Figma MCP] 🔍 Cursor fallback search locations:`, uniqueLocations);
-    
-    return uniqueLocations;
-  }
 
   private async handleCheckReference(args: any) {
     this.log(`[Figma MCP] Checking reference image:`, JSON.stringify(args, null, 2));
@@ -1061,212 +928,70 @@ Next Steps: After framework selection → Design data extraction → Comments an
     const { assetsPath, framework } = parsed;
 
     try {
-      this.log(`[Figma MCP] 🔍 Starting reference.png search with retry logic...`);
+      // Simple path resolution
+      const resolvedPath = path.isAbsolute(assetsPath) 
+        ? assetsPath 
+        : path.resolve(process.cwd(), assetsPath);
       
-      // STEP 1: Create assets directory in current project and copy from Cursor fallback location
-      await this.setupProjectAssetsFromCursorFallback(assetsPath);
+      const referencePath = path.join(resolvedPath, 'reference.png');
       
-      // Use the same path resolution as download_design_assets for consistency
-      const path = await import('path');
-      const fs = await import('fs/promises');
+      this.log(`[Figma MCP] Looking for reference.png at: ${referencePath}`);
       
-      // Normalize and validate the input path to prevent encoding issues
-      const normalizedPath = assetsPath.trim().replace(/[^\x20-\x7E]/g, ''); // Remove non-ASCII characters
-      
-      let resolvedPath: string;
-      if (path.isAbsolute(normalizedPath)) {
-        resolvedPath = normalizedPath;
-      } else {
-        const cwd = process.cwd();
-        // Clean the relative path and resolve it properly
-        const cleanPath = normalizedPath
-          .replace(/^\.\//, '') // Remove leading ./
-          .replace(/^\//, ''); // Remove leading / if accidentally added
-        resolvedPath = path.resolve(cwd, cleanPath);
-      }
-      
-      // Validate the resolved path
-      if (!resolvedPath || resolvedPath.length === 0) {
-        throw new Error('Invalid or empty path after resolution');
-      }
-      
-      this.log(`[Figma MCP] 📁 Resolved assets path: ${resolvedPath}`);
-      this.log(`[Figma MCP] 🎯 Looking for reference.png...`);
-      
-      // Search locations in priority order
-      const searchLocations = [
-        // Primary target location
-        path.join(resolvedPath, 'reference.png'),
+      // Simple check - does reference.png exist?
+      try {
+        const fileStats = await fs.stat(referencePath);
         
-        // Alternative names in same directory
-        path.join(resolvedPath, 'Reference.png'),
-        path.join(resolvedPath, 'REFERENCE.PNG'),
+        if (!fileStats.isFile() || fileStats.size === 0) {
+          throw new Error('File exists but is invalid');
+        }
         
-        // Check if user provided full path to reference.png
-        resolvedPath.endsWith('reference.png') ? resolvedPath : null,
+        const fileSizeKB = Math.round(fileStats.size / 1024);
+        const relativePath = path.relative(process.cwd(), referencePath);
         
-        // Fallback locations where download might still be happening
-        path.join(process.cwd(), normalizedPath, 'reference.png'),
-        path.join(process.cwd(), 'assets', 'reference.png'),
-        path.join(process.cwd(), 'figma-assets', 'reference.png'),
-      ].filter(Boolean) as string[];
-      
-      // Add Cursor fallback locations
-      const fallbackLocations = this.getCursorFallbackLocations();
-      for (const fallbackLoc of fallbackLocations) {
-        searchLocations.push(path.join(fallbackLoc, 'reference.png'));
-      }
-      
-      this.log(`[Figma MCP] 🔍 Will search ${searchLocations.length} locations for reference.png`);
-      
-      // Retry logic to handle file move delays
-      let referenceFound = false;
-      let fileStats = null;
-      let foundPath = '';
-      let attemptCount = 0;
-      const maxAttempts = 6; // Total attempts: immediate + 5 retries
-      const retryDelays = [0, 500, 1000, 2000, 3000, 5000]; // Progressive delays in ms
-      
-      while (!referenceFound && attemptCount < maxAttempts) {
-        attemptCount++;
-        this.log(`[Figma MCP] 🔄 Search attempt ${attemptCount}/${maxAttempts}...`);
+        this.log(`[Figma MCP] ✅ Reference found: ${referencePath} (${fileSizeKB}KB)`);
         
-        for (const searchPath of searchLocations) {
-          try {
-            this.log(`[Figma MCP]   📍 Checking: ${searchPath}`);
-            fileStats = await fs.stat(searchPath);
-            if (fileStats.isFile() && fileStats.size > 0) {
-              referenceFound = true;
-              foundPath = searchPath;
-              this.log(`[Figma MCP] ✅ Found reference.png at: ${foundPath} (${Math.round(fileStats.size / 1024)}KB)`);
-              break;
-            } else {
-              this.log(`[Figma MCP]   ⚠️ Found but invalid (${fileStats.size} bytes): ${searchPath}`);
+        // Success - ready for next step
+        return {
+          content: [
+            {
+              type: 'text',
+              text: JSON.stringify({
+                status: 'success',
+                message: 'Reference.png found and verified - ready for development',
+                reference: {
+                  path: relativePath,
+                  size: `${fileSizeKB} KB`,
+                  verified: true
+                },
+                instruction: 'Open reference.png to understand the design before implementing code',
+                STEP_5_COMPLETE: true,
+                NEXT_ACTION: 'Begin code implementation using the reference image and downloaded assets',
+                READY_FOR_DEVELOPMENT: true
+              }, null, 2)
             }
-          } catch (error) {
-            // File doesn't exist at this location, continue searching
-            this.log(`[Figma MCP]   ❌ Not found: ${searchPath}`);
-          }
-        }
+          ]
+        };
         
-        if (!referenceFound && attemptCount < maxAttempts) {
-          const delay = retryDelays[attemptCount] || 5000;
-          this.log(`[Figma MCP] ⏳ Reference.png not found yet, waiting ${delay}ms for file moves to complete...`);
-          await new Promise(resolve => setTimeout(resolve, delay));
-        }
-      }
-
-      if (!referenceFound) {
-        this.log(`[Figma MCP] ❌ Reference.png not found after ${maxAttempts} attempts and ${retryDelays.reduce((a, b) => a + b, 0)}ms total wait time`);
-        this.log(`[Figma MCP] 📊 Search summary:`);
-        searchLocations.forEach((loc, index) => {
-          this.log(`[Figma MCP]   ${index + 1}. ${loc}`);
-        });
+      } catch (statError) {
+        // File doesn't exist - need to run download_design_assets first
+        this.log(`[Figma MCP] ❌ Reference.png not found at: ${referencePath}`);
         
-        const expectedPath = path.join(assetsPath, 'reference.png');
         return {
           content: [
             {
               type: 'text',
               text: JSON.stringify({
                 status: 'error',
-                message: 'reference.png not found in assets folder after extensive search and retry attempts',
-                expectedPath: expectedPath,
-                searchedLocations: searchLocations,
-                attemptsTotal: maxAttempts,
-                totalWaitTime: `${retryDelays.reduce((a, b) => a + b, 0)}ms`,
-                suggestion: 'Run download_design_assets first to generate reference.png, then wait a moment before running check_reference',
-                CRITICAL_ERROR: 'MISSING REFERENCE FILE',
-                REQUIRED_ACTION: 'You MUST call download_design_assets tool first to create reference.png',
-                WORKFLOW_STEP: 'STEP 4 is missing - download_design_assets must be completed before STEP 5 (check_reference)',
-                NEXT_STEP: 'Call download_design_assets with the same Figma URL to download assets and create reference.png',
-                DO_NOT_SKIP: 'Cannot analyze design without reference.png - asset download is mandatory',
-                DEBUG_INFO: {
-                  resolvedAssetsPath: resolvedPath,
-                  workingDirectory: process.cwd(),
-                  attemptsMade: attemptCount
-                }
+                message: 'reference.png not found in assets folder',
+                expectedPath: referencePath,
+                REQUIRED_ACTION: 'Run download_design_assets first to create reference.png',
+                STEP_4_MISSING: 'download_design_assets must be completed before check_reference',
+                NEXT_STEP: 'Call download_design_assets with your Figma URL to create reference.png'
               }, null, 2)
             }
           ]
         };
       }
-      
-      // If found in a different location, try to copy it to the expected location
-      const expectedReferencePath = path.join(resolvedPath, 'reference.png');
-      if (foundPath !== expectedReferencePath) {
-        try {
-          this.log(`[Figma MCP] 📦 Copying reference.png to expected location...`);
-          this.log(`[Figma MCP]   📤 From: ${foundPath}`);
-          this.log(`[Figma MCP]   📥 To: ${expectedReferencePath}`);
-          
-          // Ensure target directory exists
-          await fs.mkdir(path.dirname(expectedReferencePath), { recursive: true });
-          
-          // Copy the file
-          await fs.copyFile(foundPath, expectedReferencePath);
-          
-          // Verify the copy
-          const copyStats = await fs.stat(expectedReferencePath);
-          if (copyStats.size === fileStats!.size) {
-            this.log(`[Figma MCP] ✅ Successfully copied reference.png to expected location`);
-            foundPath = expectedReferencePath;
-            fileStats = copyStats;
-          } else {
-            this.log(`[Figma MCP] ⚠️ Copy size mismatch, using original location`);
-          }
-        } catch (copyError) {
-          this.log(`[Figma MCP] ⚠️ Could not copy to expected location, using found location:`, copyError);
-          // Continue with original found path
-        }
-      }
-
-      // Get file information from the found reference
-      const fileSizeKB = Math.round(fileStats!.size / 1024);
-      
-      // Generate design analysis guidance
-      const analysisGuidance = this.generateDesignAnalysisGuidance(framework);
-
-      // Use relative path for response (from current working directory)
-      const relativePath = path.relative(process.cwd(), foundPath);
-      const displayPath = relativePath.startsWith('..') ? foundPath : relativePath;
-
-      this.log(`[Figma MCP] ✅ Reference check completed successfully!`);
-      this.log(`[Figma MCP] 📄 File: ${foundPath}`);
-      this.log(`[Figma MCP] 📦 Size: ${fileSizeKB}KB`);
-      this.log(`[Figma MCP] 📂 Relative path: ${displayPath}`);
-
-      return {
-        content: [
-          {
-            type: 'text',
-            text: JSON.stringify({
-              status: 'success',
-              message: `Successfully found and verified reference.png file for complete design context`,
-              reference: {
-                path: displayPath,
-                absolutePath: foundPath,
-                size: `${fileSizeKB} KB`,
-                verified: true
-              },
-              searchInfo: {
-                attemptsUsed: attemptCount,
-                foundOnAttempt: attemptCount,
-                searchedLocations: searchLocations.length,
-                totalWaitTime: attemptCount > 1 ? `${retryDelays.slice(0, attemptCount).reduce((a, b) => a + b, 0)}ms` : '0ms'
-              },
-              analysisGuidance: analysisGuidance,
-              framework: framework || 'not specified',
-              instruction: 'Open reference.png to understand the complete design layout and visual hierarchy before implementing code',
-              WORKFLOW_STATUS: {
-                STEP_5_COMPLETE: '✅ Reference analysis ready - file found and verified',
-                NEXT_ACTION: 'Begin code implementation using design data + comments + assets + reference context',
-                COMPLETE_WORKFLOW: 'show_frameworks → Design data → Comments → Assets ✅ → Reference ✅ → CODE GENERATION READY'
-              }
-            }, null, 2)
-          }
-        ]
-      };
 
     } catch (error) {
       this.logError(`[Figma MCP] Error checking reference:`, error);
@@ -1277,41 +1002,7 @@ Next Steps: After framework selection → Design data extraction → Comments an
     }
   }
 
-  /**
-   * Generate design analysis guidance based on framework
-   */
-  private generateDesignAnalysisGuidance(framework?: string): string[] {
-    const guidance = [
-      'Main layout structure (header, main content, sidebar, footer)',
-      'Responsive breakpoints and grid systems', 
-      'Color palette and theme consistency',
-      'Typography hierarchy (headings, body text, captions)',
-      'Component boundaries and groupings',
-      'Interactive elements (buttons, forms, navigation)',
-      'Spacing patterns and alignment',
-      'Visual hierarchy and emphasis'
-    ];
-    
-    switch (framework) {
-      case 'react':
-        guidance.push('React component boundaries and prop flow');
-        break;
-      case 'vue':
-        guidance.push('Vue component composition and reactive patterns');
-        break;
-      case 'angular':
-        guidance.push('Angular component architecture and services');
-        break;
-      case 'svelte':
-        guidance.push('Svelte component boundaries and reactive statements');
-        break;
-      case 'html':
-        guidance.push('Semantic HTML structure and CSS Grid/Flexbox');
-        break;
-    }
 
-    return guidance;
-  }
 
   private async handleDownloadDesignAssets(args: any) {
     const parsed = DownloadFigmaImagesSchema.parse(args);
