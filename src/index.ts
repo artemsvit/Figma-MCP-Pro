@@ -543,8 +543,8 @@ Type your choice (1-10):`;
         source: isSpecificNode ? 'selection' : 'document',
         processed: stats.nodesProcessed,
                       IMPORTANT_NEXT_STEPS: {
-                STEP_3: 'Use process_design_comments tool if there are designer comments in Figma',
-                STEP_4: 'Use download_design_assets tool if you need images and visual reference',
+                STEP_3: 'REQUIRED: Use process_design_comments tool to check for designer comments',
+                STEP_4: 'Use download_design_assets tool to get images and visual reference',
                 STEP_5: 'Use check_reference tool to analyze reference.png before development',
                 COMPLETE_WORKFLOW: CustomFigmaMcpServer.WORKFLOW_SEQUENCE,
                 CURRENT_STATUS: 'STEP 2 COMPLETE - Design data extracted successfully'
@@ -762,7 +762,6 @@ Type your choice (1-10):`;
         const implementation = {
           instruction: comment.message,
           targetElement: targetElement || "Apply to relevant design element",
-          author: comment.user?.handle || 'Designer',
           coordinates: coordinates
         };
         
