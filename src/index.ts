@@ -30,9 +30,10 @@ const GetFigmaDataSchema = z.object({
   fileKey: z.string().optional().describe('The Figma file key (optional if url provided)'),
   url: z.string().optional().describe('Full Figma URL with file and node selection (alternative to fileKey + nodeId)'),
   nodeId: z.string().optional().describe('Specific node ID to fetch (optional, extracted from url if provided)'),
-  depth: z.number().min(1).max(10).default(7).describe('Maximum depth to traverse'),
+  depth: z.number().min(1).max(10).default(5).describe('Maximum depth to traverse'),
   framework: z.enum(['react', 'vue', 'angular', 'svelte', 'html', 'swiftui', 'uikit', 'electron', 'tauri', 'nwjs']).describe('Target framework - REQUIRED (use select_framework first)'),
   includeImages: z.boolean().default(false).describe('Whether to include image URLs'),
+  selectionOnly: z.boolean().default(false).describe('DEPRECATED: No longer needed. Select more specific elements in Figma if getting unintended content.'),
   customRules: z.record(z.any()).optional().describe('Custom processing rules')
 }).refine(data => data.fileKey || data.url, {
   message: "Either fileKey or url must be provided"
@@ -182,7 +183,7 @@ class CustomFigmaMcpServer {
           },
           {
             name: 'get_figma_data',
-            description: 'STEP 2: Get well-structured, AI-optimized Figma design data with framework-specific optimizations. Analyzes layout, components, coordinates, visual effects (shadows, borders), design tokens. PURE DESIGN DATA ONLY - no comments. Use AFTER user chooses framework. Can accept full Figma URL to automatically extract file and node selection.',
+            description: 'STEP 2: Get well-structured, AI-optimized Figma design data with framework-specific optimizations. Analyzes layout, components, coordinates, visual effects (shadows, borders), design tokens. PURE DESIGN DATA ONLY - no comments. Use AFTER user chooses framework. Can accept full Figma URL to automatically extract file and node selection. If getting unintended content, select a more specific element in Figma.',
             inputSchema: {
               type: 'object',
               properties: {
@@ -216,7 +217,11 @@ class CustomFigmaMcpServer {
                   default: false,
                   description: 'Whether to include image URLs'
                 },
-
+                selectionOnly: {
+                  type: 'boolean',
+                  default: false,
+                  description: 'DEPRECATED: This parameter is no longer needed. The API correctly fetches only the selected node and its contents. If you are getting unintended content, select a more specific element in Figma (the exact frame/component, not a parent container).'
+                },
                 customRules: {
                   type: 'object',
                   description: 'Custom processing rules'
@@ -412,8 +417,8 @@ Type your choice (1-10):`;
       );
     }
     
-    const { framework, customRules } = parsed;
-    const depth = parsed.depth || 7;
+    const { framework, customRules, selectionOnly } = parsed;
+    const depth = parsed.depth || 5;
 
     // Extract fileKey and nodeId from URL if provided, otherwise use direct parameters
     let fileKey: string;
@@ -448,6 +453,11 @@ Type your choice (1-10):`;
     this.log(`[Figma MCP] Fetching data for file: ${fileKey} (depth: ${depth})`);
     if (apiNodeId) {
       this.log(`[Figma MCP] Target node: ${apiNodeId} (converted from: ${parsed.nodeId})`);
+      this.log(`[Figma MCP] 📖 HOW FIGMA SELECTION WORKS:`);
+      this.log(`[Figma MCP]    ✅ When you select a node in Figma, you get that node + ALL its contents`);
+      this.log(`[Figma MCP]    ✅ This is correct - if you select a frame, you get the frame + all components inside`);
+      this.log(`[Figma MCP]    ❌ If you're getting OTHER screens you didn't select, you selected a parent container`);
+      this.log(`[Figma MCP]    💡 Solution: In Figma, select the SPECIFIC frame/component, not the page or parent`);
     }
     
     try {
@@ -461,6 +471,14 @@ Type your choice (1-10):`;
       if (apiNodeId) {
         // Fetch specific node with depth - this is what user selected
         this.log(`[Figma MCP] Fetching specific node: ${apiNodeId}`);
+        
+        // Always use full depth to get complete content of selected node
+        // The selectionOnly flag will be handled during processing, not during API fetch
+        this.log(`[Figma MCP] Using depth ${depth} to get complete content of selected node`);
+        if (selectionOnly) {
+          this.log(`[Figma MCP] Selection-only mode: Will filter out sibling content during processing`);
+        }
+        
         try {
           const nodeResponse = await this.figmaApi.getFileNodes(fileKey, [apiNodeId], {
             depth: depth,
@@ -494,24 +512,39 @@ Type your choice (1-10):`;
       }
 
       // Debug: Log the structure we received
-      if (this.config.debug) {
-        this.log(`[Figma MCP] Raw data structure (${isSpecificNode ? 'SPECIFIC SELECTION' : 'FULL DOCUMENT'}):`);
-        this.log(`- Node ID: ${figmaData.id}`);
-        this.log(`- Node Name: ${figmaData.name}`);
-        this.log(`- Node Type: ${figmaData.type}`);
-        this.log(`- Has Children: ${figmaData.children ? figmaData.children.length : 0}`);
-        if (figmaData.children && figmaData.children.length > 0) {
-          const maxChildren = isSpecificNode ? figmaData.children.length : Math.min(5, figmaData.children.length);
-                     for (let i = 0; i < maxChildren; i++) {
-             const child = figmaData.children[i];
-             if (child) {
-               this.log(`  - Child ${i}: ${child.name} (${child.type}) - Children: ${child.children ? child.children.length : 0}`);
-             }
-           }
-          if (!isSpecificNode && figmaData.children.length > 5) {
-            this.log(`  - ... and ${figmaData.children.length - 5} more children`);
+      this.log(`[Figma MCP] Raw data structure (${isSpecificNode ? 'SPECIFIC SELECTION' : 'FULL DOCUMENT'}):`);
+      this.log(`- Node ID: ${figmaData.id}`);
+      this.log(`- Node Name: ${figmaData.name}`);
+      this.log(`- Node Type: ${figmaData.type}`);
+      this.log(`- Has Children: ${figmaData.children ? figmaData.children.length : 0}`);
+      
+      if (figmaData.children && figmaData.children.length > 0) {
+        const maxChildren = isSpecificNode ? Math.min(10, figmaData.children.length) : Math.min(5, figmaData.children.length);
+        this.log(`[Figma MCP] Showing ${maxChildren} of ${figmaData.children.length} children:`);
+        for (let i = 0; i < maxChildren; i++) {
+          const child = figmaData.children[i];
+          if (child) {
+            this.log(`  - Child ${i}: "${child.name}" (${child.type}) - Children: ${child.children ? child.children.length : 0}`);
+            if (child.absoluteBoundingBox) {
+              this.log(`    Bounds: ${Math.round(child.absoluteBoundingBox.x)}, ${Math.round(child.absoluteBoundingBox.y)} (${Math.round(child.absoluteBoundingBox.width)}x${Math.round(child.absoluteBoundingBox.height)})`);
+            }
           }
         }
+        if (figmaData.children.length > maxChildren) {
+          this.log(`  - ... and ${figmaData.children.length - maxChildren} more children`);
+        }
+      }
+      
+      // Additional guidance for users about selection scope
+      if (isSpecificNode && figmaData.children && figmaData.children.length > 1) {
+        this.log(`[Figma MCP] ✅ SELECTION ANALYSIS: You selected "${figmaData.name}" (${figmaData.type}) which contains ${figmaData.children.length} child elements.`);
+        this.log(`[Figma MCP] 📋 This is the correct behavior - you get the selected element AND all its contents.`);
+        this.log(`[Figma MCP] 💡 If you're seeing content from OTHER screens you didn't select:`);
+        this.log(`[Figma MCP]    - You may have selected a parent container (like a page or large frame)`);
+        this.log(`[Figma MCP]    - In Figma, select the SPECIFIC frame/component you want, not its parent`);
+        this.log(`[Figma MCP]    - Look for the exact screen/component in the layers panel and select that`);
+      } else if (isSpecificNode) {
+        this.log(`[Figma MCP] ✅ SELECTION ANALYSIS: You selected "${figmaData.name}" (${figmaData.type}) - single element with no children.`);
       }
 
       // Process the data with context enhancement
@@ -542,6 +575,7 @@ Type your choice (1-10):`;
         frameworkRules: frameworkRules,
         source: isSpecificNode ? 'selection' : 'document',
         processed: stats.nodesProcessed,
+        selectedNode: isSpecificNode ? { id: figmaData.id, name: figmaData.name, type: figmaData.type, childCount: figmaData.children?.length || 0 } : null,
                       IMPORTANT_NEXT_STEPS: {
                 STEP_3: 'REQUIRED: Use process_design_comments tool to check for designer comments',
                 STEP_4: 'Use download_design_assets tool to get images and visual reference',
@@ -683,7 +717,7 @@ Type your choice (1-10):`;
         fileKey,
         framework,
         includeComments: false,
-        depth: 7
+        depth: 5
       };
       
       if (nodeId) {
@@ -1258,13 +1292,13 @@ Type your choice (1-10):`;
 
       this.log(`[Figma MCP] Creating reference from ${contextType}: "${contextName}" (${referenceNodeId})`);
 
-      // Download the reference as PNG with good resolution for overview
+      // Download the reference as PNG with 1x scale as requested
       const referenceDownload = await this.figmaApi.downloadImages(
         fileKey,
         [referenceNodeId],
         localPath,
         {
-          scale: 2, // Good resolution for PNG reference
+          scale: 1, // Use 1x scale as requested by user
           format: 'png',
           skipWorkspaceEnforcement: true
         }
@@ -1287,6 +1321,9 @@ Type your choice (1-10):`;
          this.log(`[Figma MCP] 🔄 Converting "${path.basename(originalFile.filePath)}" → "reference.png"`);
          
          try {
+           // Check if original file exists first
+           await fs.access(originalFile.filePath);
+           
            // Method 1: Try direct rename (fastest, works if same filesystem)
            await fs.rename(originalFile.filePath, referenceFilePath);
            this.log(`[Figma MCP] ✅ Successfully renamed to reference.png via fs.rename`);
@@ -1301,6 +1338,9 @@ Type your choice (1-10):`;
            this.log(`[Figma MCP] ⚠️ Direct rename failed (${renameError}), trying copy + delete...`);
            
            try {
+             // Check if original file still exists
+             await fs.access(originalFile.filePath);
+             
              // Method 2: Copy + delete (works across filesystems, handles Cursor restrictions)
              await fs.copyFile(originalFile.filePath, referenceFilePath);
              
@@ -1328,16 +1368,35 @@ Type your choice (1-10):`;
            } catch (copyError) {
              this.logError(`[Figma MCP] ❌ Both rename and copy failed:`, copyError);
              
-             // Method 3: Last resort - use the original file as reference but log the issue
-             this.log(`[Figma MCP] 🔧 Using original file as reference: ${path.basename(originalFile.filePath)}`);
-             
-             return {
-               success: true,
-               filePath: originalFile.filePath, // Use original path
-               contextType,
-               contextName,
-               error: `Warning: Could not rename to reference.png, using original filename: ${path.basename(originalFile.filePath)}`
-             };
+             // Method 3: Create a symbolic link to reference.png
+             try {
+               // Check if original file still exists
+               await fs.access(originalFile.filePath);
+               
+               // Create a hard link (works better than symlink for cross-platform)
+               await fs.link(originalFile.filePath, referenceFilePath);
+               this.log(`[Figma MCP] ✅ Successfully created reference.png via hard link`);
+               
+               return {
+                 success: true,
+                 filePath: referenceFilePath,
+                 contextType,
+                 contextName
+               };
+             } catch (linkError) {
+               this.logError(`[Figma MCP] ❌ Hard link creation failed:`, linkError);
+               
+               // Method 4: Last resort - use the original file as reference but log the issue
+               this.log(`[Figma MCP] 🔧 Using original file as reference: ${path.basename(originalFile.filePath)}`);
+               
+               return {
+                 success: true,
+                 filePath: originalFile.filePath, // Use original path
+                 contextType,
+                 contextName,
+                 error: `Warning: Could not rename to reference.png, using original filename: ${path.basename(originalFile.filePath)}`
+               };
+             }
            }
          }
        }

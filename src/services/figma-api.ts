@@ -1311,8 +1311,9 @@ export class FigmaApiService {
     const generateContentHash = (node: FigmaNode, exportSetting: FigmaExportSetting): string => {
       const hashComponents = [
         node.type,
-        node.id, // Add unique node ID to prevent different nodes from having same hash
-        node.name, // Add node name for additional uniqueness
+        // Don't include node.id for icons - we want to deduplicate identical icons regardless of their node ID
+        // node.id, // REMOVED - this was preventing icon deduplication
+        node.name, // Keep node name for uniqueness
         exportSetting.format,
         exportSetting.constraint?.type || 'none',
         exportSetting.constraint?.value || 1,
@@ -1330,7 +1331,7 @@ export class FigmaApiService {
         JSON.stringify(node.strokeDashes || [])
       ];
       
-      // Create a more robust hash that includes node identity
+      // Create a more robust hash that focuses on visual content, not node identity
       const hashString = hashComponents.join('|');
       return hashString.replace(/[^a-zA-Z0-9]/g, '').substring(0, 32); // Increased length for better uniqueness
     };
@@ -1383,7 +1384,7 @@ export class FigmaApiService {
     const generateUniqueFilename = (node: FigmaNode, baseName: string, extension: string, exportSetting: FigmaExportSetting): string => {
       const baseFilename = `${baseName}.${extension}`;
       
-      // Check if this is a reusable asset type
+      // Check if this is a reusable asset type (icons, etc.)
       if (isReusableAsset(node, baseName)) {
         // Generate content hash for deduplication
         const contentHash = generateContentHash(node, exportSetting);
@@ -1397,6 +1398,7 @@ export class FigmaApiService {
         
         // New unique content - register it for future deduplication
         contentHashes.set(contentHash, { filename: baseFilename, nodeId: node.id, nodeName: baseName });
+        console.error(`[Figma API] 🆕 New unique icon registered: "${baseName}" with hash ${contentHash.substring(0, 8)}...`);
       }
       
       // Standard filename uniqueness check
@@ -1405,8 +1407,8 @@ export class FigmaApiService {
         return baseFilename;
       }
       
-      // Generate incremental filename for true duplicates
-      const counter = filenameCounters.get(baseName) || 1;
+      // Generate incremental filename for true duplicates (different content but same name)
+      const counter = filenameCounters.get(baseName) || 0;
       let uniqueFilename: string;
       let currentCounter = counter + 1;
       
