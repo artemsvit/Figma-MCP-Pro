@@ -982,25 +982,25 @@ export class FigmaApiService {
       const name = sanitizedName.toLowerCase();
       const size = node.absoluteBoundingBox;
       
-      // Name-based detection for common reusable assets
-      const reusableKeywords = ['icon', 'logo', 'symbol', 'badge', 'tag', 'avatar', 'admin', 'user', 'date', 'time', 'category', 'star', 'heart', 'arrow', 'check', 'close', 'menu', 'search'];
-      const isReusableName = reusableKeywords.some(keyword => name.includes(keyword));
+      // Only treat as reusable if it has very specific characteristics
+      // This prevents different icons from being treated as the same content
       
-      // Size-based detection (small assets are typically reusable)
-      const isSmallAsset = size && size.width <= 64 && size.height <= 64;
+      // Must have identical name AND identical content to be considered reusable
+      // This is much more conservative than before
+      const isExactDuplicate = false; // We'll let the content hash handle this
       
-      // Vector/icon types are typically reusable
-      const isVectorType = node.type === 'VECTOR' || node.type === 'BOOLEAN_OPERATION' || 
-                          (node.type === 'FRAME' && Boolean(size && size.width <= 48 && size.height <= 48));
-      
-      return isReusableName || isSmallAsset || isVectorType;
+      // For now, disable content-based deduplication for icons to prevent overwrites
+      // Each icon should get its own file even if they look similar
+      return false;
     };
 
     /**
      * Enhanced filename generation with content-based deduplication
      */
     const generateUniqueFilename = (node: FigmaNode, baseName: string, extension: string, format: string, scale: number): string => {
-      const baseFilename = `${baseName}.${extension}`;
+      // Always add scale to filename for consistency with export settings
+      const baseNameWithScale = scale === 1 ? `${baseName}-x1` : `${baseName}-x${scale}`;
+      const baseFilename = `${baseNameWithScale}.${extension}`;
       
       // Check if this is a reusable asset type
       if (isReusableAsset(node, baseName)) {
@@ -1025,17 +1025,17 @@ export class FigmaApiService {
       }
       
       // Generate incremental filename for true duplicates
-      const counter = filenameCounters.get(baseName) || 1;
+      const counter = filenameCounters.get(baseNameWithScale) || 1;
       let uniqueFilename: string;
       let currentCounter = counter + 1;
       
       do {
-        uniqueFilename = `${baseName}-${currentCounter}.${extension}`;
+        uniqueFilename = `${baseNameWithScale}-${currentCounter}.${extension}`;
         currentCounter++;
       } while (usedFilenames.has(uniqueFilename));
       
       // Update counter and mark as used
-      filenameCounters.set(baseName, currentCounter - 1);
+      filenameCounters.set(baseNameWithScale, currentCounter - 1);
       usedFilenames.add(uniqueFilename);
       
       console.error(`[Figma API] 🔄 Filename duplicate resolved: "${baseFilename}" → "${uniqueFilename}"`);
@@ -1278,6 +1278,8 @@ export class FigmaApiService {
     const generateContentHash = (node: FigmaNode, exportSetting: FigmaExportSetting): string => {
       const hashComponents = [
         node.type,
+        node.id, // Add unique node ID to prevent different nodes from having same hash
+        node.name, // Add node name for additional uniqueness
         exportSetting.format,
         exportSetting.constraint?.type || 'none',
         exportSetting.constraint?.value || 1,
@@ -1288,10 +1290,16 @@ export class FigmaApiService {
         node.cornerRadius || 0,
         node.strokeWeight || 0,
         node.type === 'TEXT' ? node.characters || '' : '',
-        node.absoluteBoundingBox ? `${Math.round(node.absoluteBoundingBox.width)}x${Math.round(node.absoluteBoundingBox.height)}` : ''
+        node.absoluteBoundingBox ? `${Math.round(node.absoluteBoundingBox.width)}x${Math.round(node.absoluteBoundingBox.height)}` : '',
+        // Add more specific properties for better differentiation
+        node.blendMode || '',
+        node.opacity || 1,
+        JSON.stringify(node.strokeDashes || [])
       ];
       
-      return hashComponents.join('|').replace(/[^a-zA-Z0-9]/g, '').substring(0, 16);
+      // Create a more robust hash that includes node identity
+      const hashString = hashComponents.join('|');
+      return hashString.replace(/[^a-zA-Z0-9]/g, '').substring(0, 32); // Increased length for better uniqueness
     };
 
     /**
@@ -1301,18 +1309,16 @@ export class FigmaApiService {
       const name = sanitizedName.toLowerCase();
       const size = node.absoluteBoundingBox;
       
-      // Name-based detection for common reusable assets
-      const reusableKeywords = ['icon', 'logo', 'symbol', 'badge', 'tag', 'avatar', 'admin', 'user', 'date', 'time', 'category', 'star', 'heart', 'arrow', 'check', 'close', 'menu', 'search'];
-      const isReusableName = reusableKeywords.some(keyword => name.includes(keyword));
+      // Only treat as reusable if it has very specific characteristics
+      // This prevents different icons from being treated as the same content
       
-      // Size-based detection (small assets are typically reusable)
-      const isSmallAsset = size && size.width <= 64 && size.height <= 64;
+      // Must have identical name AND identical content to be considered reusable
+      // This is much more conservative than before
+      const isExactDuplicate = false; // We'll let the content hash handle this
       
-             // Vector/icon types are typically reusable
-       const isVectorType = node.type === 'VECTOR' || node.type === 'BOOLEAN_OPERATION' || 
-                           (node.type === 'FRAME' && Boolean(size && size.width <= 48 && size.height <= 48));
-      
-      return isReusableName || isSmallAsset || isVectorType;
+      // For now, disable content-based deduplication for icons to prevent overwrites
+      // Each icon should get its own file even if they look similar
+      return false;
     };
 
     /**
@@ -1374,7 +1380,8 @@ export class FigmaApiService {
         console.error(`[Figma API]   📋 Export settings: ${node.exportSettings ? node.exportSettings.length : 0} found`);
         if (node.exportSettings && node.exportSettings.length > 0) {
           node.exportSettings.forEach((setting, index) => {
-            console.error(`[Figma API]   📄 Setting ${index}: format=${setting.format}, suffix=${setting.suffix || 'none'}`);
+            const scale = setting.constraint?.type === 'SCALE' ? setting.constraint.value : 1;
+            console.error(`[Figma API]   📄 Setting ${index}: format=${setting.format}, scale=${scale}x, suffix=${setting.suffix || 'none'}`);
           });
         } else {
           console.error(`[Figma API]   ⚠️ No export settings found for icon "${node.name}"`);
@@ -1499,16 +1506,17 @@ export class FigmaApiService {
             const suffix = exportSetting.suffix || '';
             const extension = exportSetting.format.toLowerCase();
             
-            // Build base filename with proper suffix handling
+            // Build base filename with proper suffix and scale handling
             let baseFilename: string;
             if (suffix) {
+              // If there's a custom suffix, use it as-is
               baseFilename = `${sanitizedNodeName}${suffix}`;
             } else {
-              // If no suffix but scale > 1, add scale suffix
-              if (scale > 1) {
-                baseFilename = `${sanitizedNodeName}@${scale}x`;
+              // Always add scale to filename for clarity and consistency
+              if (scale === 1) {
+                baseFilename = `${sanitizedNodeName}-x1`;
               } else {
-                baseFilename = sanitizedNodeName;
+                baseFilename = `${sanitizedNodeName}-x${scale}`;
               }
             }
             

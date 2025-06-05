@@ -1,6 +1,6 @@
 {
   "name": "figma-mcp-pro",
-  "version": "3.26.0",
+  "version": "3.27.0",
   "description": "A Claude Desktop MCP server for Figma that retrieves design data, downloads assets, and processes designer comments for AI-powered design implementation",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
