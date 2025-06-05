@@ -10,13 +10,10 @@ import {
   FigmaFileResponse,
   FigmaNodeResponse,
   FigmaImageResponse,
-  FigmaProjectFilesResponse,
   FigmaError,
   FigmaNode,
   FigmaExportSetting,
-  FigmaCommentsResponse,
-  FigmaComment,
-  CommentInstruction
+  FigmaCommentsResponse
 } from '../types/figma.js';
 
 export interface FigmaApiConfig {
@@ -309,93 +306,13 @@ export class FigmaApiService {
     }
   }
 
-  /**
-   * Get files from a project
-   */
-  async getProjectFiles(projectId: string): Promise<FigmaProjectFilesResponse> {
-    if (!projectId || typeof projectId !== 'string') {
-      throw new FigmaApiError('Project ID is required and must be a string');
-    }
 
-    try {
-      return await this.makeRequest<FigmaProjectFilesResponse>(`/projects/${projectId}/files`);
-    } catch (error) {
-      if (error instanceof FigmaApiError) {
-        throw error;
-      }
-      throw new FigmaApiError(`Failed to get files from project ${projectId}: ${error}`);
-    }
-  }
 
-  /**
-   * Extract file key from Figma URL
-   */
-  static extractFileKeyFromUrl(url: string): string | null {
-    if (!url || typeof url !== 'string') {
-      return null;
-    }
 
-    // Match various Figma URL patterns
-    const patterns = [
-      /figma\.com\/(?:file|design)\/([a-zA-Z0-9]+)/,
-      /figma\.com\/proto\/([a-zA-Z0-9]+)/,
-      /figma\.com\/board\/([a-zA-Z0-9]+)/
-    ];
 
-    for (const pattern of patterns) {
-      const match = url.match(pattern);
-      if (match && match[1]) {
-        return match[1];
-      }
-    }
 
-    return null;
-  }
 
-  /**
-   * Extract node ID from Figma URL
-   */
-  static extractNodeIdFromUrl(url: string): string | null {
-    if (!url || typeof url !== 'string') {
-      return null;
-    }
 
-    const match = url.match(/node-id=([^&]+)/);
-    if (match && match[1]) {
-      // Decode URL-encoded node ID and convert format
-      let nodeId = decodeURIComponent(match[1]);
-      nodeId = nodeId.replace(/%3A/g, ':');
-      // Convert dash format to colon format (1459-57 -> 1459:57)
-      nodeId = nodeId.replace(/-/g, ':');
-      return nodeId;
-    }
-
-    return null;
-  }
-
-  /**
-   * Validate file key format
-   */
-  static isValidFileKey(fileKey: string): boolean {
-    if (!fileKey || typeof fileKey !== 'string') {
-      return false;
-    }
-
-    // Figma file keys are typically alphanumeric strings
-    return /^[a-zA-Z0-9]+$/.test(fileKey);
-  }
-
-  /**
-   * Validate node ID format
-   */
-  static isValidNodeId(nodeId: string): boolean {
-    if (!nodeId || typeof nodeId !== 'string') {
-      return false;
-    }
-
-    // Figma node IDs are in format "123:456"
-    return /^\d+:\d+$/.test(nodeId);
-  }
 
   /**
    * Get cache statistics
@@ -436,40 +353,9 @@ export class FigmaApiService {
     console.error('[Figma API] API key updated');
   }
 
-  /**
-   * Test API connection
-   */
-  async testConnection(): Promise<boolean> {
-    try {
-      // Try to get a minimal response to test the connection
-      await this.client.get('/files/test', {
-        validateStatus: (status) => status === 404 || status === 403 || status === 200
-      });
-      return true;
-    } catch (error) {
-      console.error('[Figma API] Connection test failed:', error);
-      return false;
-    }
-  }
 
-  /**
-   * Get API usage statistics
-   */
-  getUsageStats(): {
-    totalRequests: number;
-    cacheHitRate: number;
-    averageResponseTime: number;
-  } {
-    const cacheStats = this.getCacheStats();
-    const totalRequests = cacheStats.hits + cacheStats.misses;
-    const cacheHitRate = totalRequests > 0 ? (cacheStats.hits / totalRequests) * 100 : 0;
 
-    return {
-      totalRequests,
-      cacheHitRate,
-      averageResponseTime: 0 // TODO: Implement response time tracking
-    };
-  }
+
 
   /**
    * Robust IDE-aware path resolution for universal compatibility
@@ -1541,71 +1427,7 @@ export class FigmaApiService {
     }
   }
 
-  /**
-   * Filter comments by node ID
-   */
-  static filterCommentsByNode(comments: FigmaComment[], nodeId: string): FigmaComment[] {
-    return comments.filter(comment => 
-      comment.client_meta?.node_id === nodeId
-    );
-  }
 
-  /**
-   * Analyze comment for implementation instructions
-   */
-  static analyzeCommentForInstructions(comment: FigmaComment): CommentInstruction | null {
-    const message = comment.message.toLowerCase();
-    
-    // Keywords that suggest implementation instructions
-    const animationKeywords = ['animate', 'animation', 'transition', 'fade', 'slide', 'bounce', 'scale', 'rotate', 'duration', 'easing'];
-    const interactionKeywords = ['hover', 'click', 'tap', 'focus', 'active', 'disabled', 'press', 'interaction', 'state'];
-    const behaviorKeywords = ['behavior', 'behaviour', 'should', 'when', 'if', 'then', 'toggle', 'show', 'hide'];
-    
-    let type: 'animation' | 'interaction' | 'behavior' | 'general' = 'general';
-    let confidence = 0.1; // Base confidence for any comment
-    
-    // Check for animation instructions
-    const animationMatches = animationKeywords.filter(keyword => message.includes(keyword));
-    if (animationMatches.length > 0) {
-      type = 'animation';
-      confidence += animationMatches.length * 0.2;
-    }
-    
-    // Check for interaction instructions
-    const interactionMatches = interactionKeywords.filter(keyword => message.includes(keyword));
-    if (interactionMatches.length > 0) {
-      type = 'interaction';
-      confidence += interactionMatches.length * 0.2;
-    }
-    
-    // Check for behavior instructions
-    const behaviorMatches = behaviorKeywords.filter(keyword => message.includes(keyword));
-    if (behaviorMatches.length > 0) {
-      type = 'behavior';
-      confidence += behaviorMatches.length * 0.15;
-    }
-    
-    // Boost confidence for imperative language
-    if (message.includes('should') || message.includes('must') || message.includes('need')) {
-      confidence += 0.3;
-    }
-    
-    // Cap confidence at 1.0
-    confidence = Math.min(confidence, 1.0);
-    
-    // Only return instruction if confidence is reasonable
-    if (confidence < 0.3) {
-      return null;
-    }
-    
-    return {
-      type,
-      instruction: comment.message,
-      author: comment.user.handle,
-      timestamp: comment.created_at,
-      confidence
-    };
-  }
 
   /**
    * Get OS-specific dangerous paths that should never be used for asset downloads

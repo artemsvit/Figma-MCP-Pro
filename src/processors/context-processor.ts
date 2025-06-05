@@ -8,6 +8,7 @@ import {
   ComponentVariant,
   InteractionState,
   LayoutContext,
+  ComponentRelationships,
   FigmaColor,
   FigmaTypeStyle,
   FigmaComment,
@@ -98,7 +99,9 @@ export class ContextProcessor {
         designTokens: [],
         componentVariants: [],
         interactionStates: [],
-        layoutContext: this.createLayoutContext(node, context)
+        layoutContext: this.createLayoutContext(node, context),
+        // Add component relationships
+        componentRelationships: this.createComponentRelationships(node, context)
       };
 
       // Apply AI optimizations
@@ -207,6 +210,99 @@ export class ContextProcessor {
     };
   }
 
+  private createComponentRelationships(node: FigmaNode, context: ProcessingContext): ComponentRelationships {
+    const relationships: ComponentRelationships = {};
+
+    // Parent information
+    if (context.parentNode) {
+      relationships.parent = {
+        id: context.parentNode.id,
+        name: context.parentNode.name,
+        type: context.parentNode.type
+      };
+    }
+
+    // Children information (simplified for AI)
+    if (node.children && node.children.length > 0) {
+      relationships.children = node.children.slice(0, 10).map(child => ({
+        id: child.id,
+        name: child.name,
+        type: child.type,
+        role: this.detectChildRole(child, node)
+      }));
+    }
+
+    // Sibling information (limited to avoid bloat)
+    if (context.parentNode?.children && context.totalSiblings > 1) {
+      const siblings = context.parentNode.children
+        .filter(sibling => sibling.id !== node.id)
+        .slice(0, 5)
+        .map(sibling => ({
+          id: sibling.id,
+          name: sibling.name,
+          type: sibling.type
+        }));
+      
+      if (siblings.length > 0) {
+        relationships.siblings = siblings;
+      }
+    }
+
+    // Component instance information
+    if (node.componentId || node.type === 'INSTANCE') {
+      relationships.componentInstance = {
+        componentId: node.componentId,
+        overrides: node.componentProperties
+      };
+    }
+
+    // Export settings
+    if (node.exportSettings && node.exportSettings.length > 0) {
+      relationships.exportable = {
+        hasExportSettings: true,
+        formats: node.exportSettings.map(setting => setting.format.toLowerCase()),
+        category: this.detectExportCategory(node)
+      };
+    }
+
+    return relationships;
+  }
+
+  private detectChildRole(child: FigmaNode, _parent: FigmaNode): string | undefined {
+    const childName = child.name.toLowerCase();
+    
+    // Detect common child roles
+    if (child.type === 'TEXT') {
+      if (childName.includes('title') || childName.includes('heading')) return 'title';
+      if (childName.includes('description') || childName.includes('body')) return 'description';
+      if (childName.includes('label')) return 'label';
+      if (childName.includes('caption')) return 'caption';
+    }
+    
+    if (this.isButton(child, childName)) return 'action';
+    if (this.isImage(child, childName)) return 'visual';
+    if (child.type === 'FRAME' && childName.includes('content')) return 'content';
+    
+    return undefined;
+  }
+
+  private detectExportCategory(node: FigmaNode): 'icon' | 'image' | 'logo' | 'asset' {
+    const name = node.name.toLowerCase();
+    
+    if (name.includes('icon')) return 'icon';
+    if (name.includes('logo')) return 'logo';
+    if (name.includes('image') || name.includes('photo')) return 'image';
+    
+    // Size-based detection
+    if (node.absoluteBoundingBox) {
+      const { width, height } = node.absoluteBoundingBox;
+      if (width <= 32 && height <= 32) return 'icon';
+      if (width > 200 || height > 200) return 'image';
+    }
+    
+    return 'asset';
+  }
+
   private generateCSSProperties(node: FigmaNode, _context: ProcessingContext): CSSProperties {
     const css: CSSProperties = {};
 
@@ -243,11 +339,20 @@ export class ContextProcessor {
       css.padding = `${top}px ${right}px ${bottom}px ${left}px`;
     }
 
-    // Background
+    // Background (enhanced with gradient support)
     if (node.fills && node.fills.length > 0) {
       const fill = node.fills[0];
-      if (fill && fill.type === 'SOLID' && fill.color) {
-        css.backgroundColor = this.colorToCSS(fill.color);
+      if (fill && fill.visible !== false) {
+        if (fill.type === 'SOLID' && fill.color) {
+          css.backgroundColor = this.colorToCSS(fill.color);
+        } else if (fill.type.startsWith('GRADIENT_') && fill.gradientStops) {
+          css.background = this.generateGradientCSS(fill);
+        } else if (fill.type === 'IMAGE' && fill.imageRef) {
+          css.backgroundImage = `url(${fill.imageRef})`;
+          if (fill.scaleMode) {
+            css.backgroundSize = this.mapScaleMode(fill.scaleMode);
+          }
+        }
       }
     }
 
@@ -306,6 +411,37 @@ export class ContextProcessor {
     if (node.opacity !== undefined && node.opacity < 1) {
       css.opacity = node.opacity.toString();
     }
+    
+    // Blend mode
+    if (node.blendMode && node.blendMode !== 'NORMAL' && node.blendMode !== 'PASS_THROUGH') {
+      css.mixBlendMode = node.blendMode.toLowerCase().replace('_', '-');
+    }
+    
+    // Layout sizing (for auto layout children)
+    if (node.layoutSizingHorizontal === 'FILL') {
+      css.flexGrow = '1';
+    }
+    if (node.layoutSizingVertical === 'FILL') {
+      css.alignSelf = 'stretch';
+    }
+    
+    // Layout alignment
+    if (node.layoutAlign) {
+      switch (node.layoutAlign) {
+        case 'MIN':
+          css.alignSelf = 'flex-start';
+          break;
+        case 'CENTER':
+          css.alignSelf = 'center';
+          break;
+        case 'MAX':
+          css.alignSelf = 'flex-end';
+          break;
+        case 'STRETCH':
+          css.alignSelf = 'stretch';
+          break;
+      }
+    }
 
     // Text properties
     if (node.type === 'TEXT' && node.style) {
@@ -313,6 +449,45 @@ export class ContextProcessor {
       css.fontFamily = node.style.fontFamily;
       css.lineHeight = `${node.style.lineHeightPx}px`;
       css.letterSpacing = `${node.style.letterSpacing}px`;
+      
+      // Add missing typography properties
+      if (node.style.fontPostScriptName) {
+        css.fontFamily = `"${node.style.fontPostScriptName}", ${css.fontFamily}`;
+      }
+      
+      // Text decoration
+      if (node.style.textDecoration && node.style.textDecoration !== 'NONE') {
+        css.textDecoration = node.style.textDecoration.toLowerCase().replace('_', '-');
+      }
+      
+      // Text transform
+      if (node.style.textCase && node.style.textCase !== 'ORIGINAL') {
+        switch (node.style.textCase) {
+          case 'UPPER':
+            css.textTransform = 'uppercase';
+            break;
+          case 'LOWER':
+            css.textTransform = 'lowercase';
+            break;
+          case 'TITLE':
+            css.textTransform = 'capitalize';
+            break;
+          case 'SMALL_CAPS':
+          case 'SMALL_CAPS_FORCED':
+            css.fontVariant = 'small-caps';
+            break;
+        }
+      }
+      
+      // Paragraph spacing
+      if (node.style.paragraphSpacing) {
+        css.marginBottom = `${node.style.paragraphSpacing}px`;
+      }
+      
+      // Paragraph indent
+      if (node.style.paragraphIndent) {
+        css.textIndent = `${node.style.paragraphIndent}px`;
+      }
       
       if (node.style.fills && node.style.fills.length > 0) {
         const textFill = node.style.fills[0];
@@ -1637,6 +1812,38 @@ export class ContextProcessor {
       };
     }
 
+    // Component relationships (valuable for understanding structure)
+    if (node.componentRelationships) {
+      const relationships: any = {};
+      
+      if (node.componentRelationships.parent) {
+        relationships.parent = {
+          name: node.componentRelationships.parent.name,
+          type: node.componentRelationships.parent.type
+        };
+      }
+      
+      if (node.componentRelationships.children && node.componentRelationships.children.length > 0) {
+        relationships.children = node.componentRelationships.children.map(child => ({
+          name: child.name,
+          type: child.type,
+          role: child.role
+        }));
+      }
+      
+      if (node.componentRelationships.componentInstance) {
+        relationships.component = node.componentRelationships.componentInstance;
+      }
+      
+      if (node.componentRelationships.exportable?.hasExportSettings) {
+        relationships.exportable = node.componentRelationships.exportable;
+      }
+      
+      if (Object.keys(relationships).length > 0) {
+        optimized.relationships = relationships;
+      }
+    }
+
     // AI Instructions (the most valuable!)
     if (node.aiInstructions && node.aiInstructions.length > 0) {
       optimized.instructions = node.aiInstructions.map(inst => ({
@@ -1985,5 +2192,59 @@ export class ContextProcessor {
     );
     
     return hasAutoLayout || hasFlexibleSizing || hasResponsiveConstraints;
+  }
+
+  private generateGradientCSS(fill: any): string {
+    if (!fill.gradientStops || fill.gradientStops.length === 0) {
+      return '';
+    }
+
+    const stops = fill.gradientStops
+      .map((stop: any) => `${this.colorToCSS(stop.color)} ${Math.round(stop.position * 100)}%`)
+      .join(', ');
+
+    switch (fill.type) {
+      case 'GRADIENT_LINEAR':
+        // Calculate angle from gradient handle positions if available
+        let angle = '180deg'; // Default to top-to-bottom
+        if (fill.gradientHandlePositions && fill.gradientHandlePositions.length >= 2) {
+          const start = fill.gradientHandlePositions[0];
+          const end = fill.gradientHandlePositions[1];
+          if (start && end) {
+            const deltaX = end.x - start.x;
+            const deltaY = end.y - start.y;
+            const angleRad = Math.atan2(deltaY, deltaX);
+            angle = `${Math.round((angleRad * 180) / Math.PI + 90)}deg`;
+          }
+        }
+        return `linear-gradient(${angle}, ${stops})`;
+      
+      case 'GRADIENT_RADIAL':
+        return `radial-gradient(circle, ${stops})`;
+      
+      case 'GRADIENT_ANGULAR':
+        return `conic-gradient(${stops})`;
+      
+      case 'GRADIENT_DIAMOND':
+        return `radial-gradient(ellipse, ${stops})`;
+      
+      default:
+        return `linear-gradient(${stops})`;
+    }
+  }
+
+  private mapScaleMode(scaleMode: string): string {
+    switch (scaleMode) {
+      case 'FILL':
+        return 'cover';
+      case 'FIT':
+        return 'contain';
+      case 'TILE':
+        return 'repeat';
+      case 'STRETCH':
+        return '100% 100%';
+      default:
+        return 'cover';
+    }
   }
 } 

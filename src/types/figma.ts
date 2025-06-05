@@ -470,6 +470,7 @@ export interface EnhancedFigmaNode extends FigmaNode {
   componentVariants?: ComponentVariant[];
   interactionStates?: InteractionState[];
   layoutContext?: LayoutContext;
+  componentRelationships?: ComponentRelationships;
 }
 
 export interface CSSProperties {
@@ -601,6 +602,35 @@ export interface LayoutContext {
   position: 'first' | 'middle' | 'last' | 'only';
   gridArea?: string;
   flexOrder?: number;
+}
+
+export interface ComponentRelationships {
+  parent?: {
+    id: string;
+    name: string;
+    type: FigmaNodeType;
+  };
+  children?: Array<{
+    id: string;
+    name: string;
+    type: FigmaNodeType;
+    role?: string;
+  }>;
+  siblings?: Array<{
+    id: string;
+    name: string;
+    type: FigmaNodeType;
+  }>;
+  componentInstance?: {
+    mainComponent?: string;
+    componentId?: string;
+    overrides?: Record<string, any>;
+  };
+  exportable?: {
+    hasExportSettings: boolean;
+    formats?: string[];
+    category?: 'icon' | 'image' | 'logo' | 'asset';
+  };
 }
 
 // Comments API Types

@@ -30,7 +30,7 @@ const GetFigmaDataSchema = z.object({
   fileKey: z.string().optional().describe('The Figma file key (optional if url provided)'),
   url: z.string().optional().describe('Full Figma URL with file and node selection (alternative to fileKey + nodeId)'),
   nodeId: z.string().optional().describe('Specific node ID to fetch (optional, extracted from url if provided)'),
-  depth: z.number().min(1).max(10).default(5).describe('Maximum depth to traverse'),
+  depth: z.number().min(1).max(10).default(7).describe('Maximum depth to traverse'),
   framework: z.enum(['react', 'vue', 'angular', 'svelte', 'html', 'swiftui', 'uikit', 'electron', 'tauri', 'nwjs']).describe('Target framework - REQUIRED (use select_framework first)'),
   includeImages: z.boolean().default(false).describe('Whether to include image URLs'),
   customRules: z.record(z.any()).optional().describe('Custom processing rules')
@@ -413,7 +413,7 @@ Type your choice (1-10):`;
     }
     
     const { framework, customRules } = parsed;
-    const depth = parsed.depth || 5;
+    const depth = parsed.depth || 7;
 
     // Extract fileKey and nodeId from URL if provided, otherwise use direct parameters
     let fileKey: string;
@@ -683,7 +683,7 @@ Type your choice (1-10):`;
         fileKey,
         framework,
         includeComments: false,
-        depth: 5
+        depth: 7
       };
       
       if (nodeId) {
