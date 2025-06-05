@@ -1,0 +1,2 @@
+chmod +x scripts/publish-fix.sh
+./scripts/publish-fix.sh

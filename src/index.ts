@@ -75,6 +75,9 @@ class CustomFigmaMcpServer {
   private contextProcessor: ContextProcessor;
   private config: ServerConfig;
 
+  // Centralized workflow constants
+  private static readonly WORKFLOW_SEQUENCE = 'show_frameworks → Design data → Comments → Assets download → Reference analysis → Code generation';
+
   constructor(config: ServerConfig) {
     this.config = config;
     
@@ -109,6 +112,47 @@ class CustomFigmaMcpServer {
 
     this.setupToolHandlers();
     this.setupErrorHandling();
+  }
+
+  // Helper methods to reduce duplication
+  private parseFigmaUrl(url: string): { fileKey: string; nodeId?: string } {
+    try {
+      const urlObj = new URL(url);
+      
+      // Extract fileKey from URL path like /design/ZVnXdidh7cqIeJuI8e4c6g/...
+      const pathParts = urlObj.pathname.split('/');
+      const designIndex = pathParts.findIndex(part => part === 'design' || part === 'file');
+      
+      if (designIndex === -1 || designIndex >= pathParts.length - 1) {
+        throw new Error('Invalid Figma URL: could not extract file key');
+      }
+      
+      const extractedFileKey = pathParts[designIndex + 1];
+      if (!extractedFileKey) {
+        throw new Error('Invalid Figma URL: file key not found after design path');
+      }
+      
+      // Extract nodeId from query params like ?node-id=1530-166
+      const nodeIdParam = urlObj.searchParams.get('node-id');
+      
+      return {
+        fileKey: extractedFileKey,
+        nodeId: nodeIdParam || undefined
+      };
+    } catch (error) {
+      throw new McpError(
+        ErrorCode.InvalidParams,
+        `Invalid Figma URL: ${error instanceof Error ? error.message : String(error)}`
+      );
+    }
+  }
+
+  private generateWorkflowStatus(stepComplete: string, nextStep?: string): any {
+    return {
+      [`${stepComplete}_COMPLETE`]: `${stepComplete} completed successfully`,
+      ...(nextStep && { NEXT_STEP: nextStep }),
+      COMPLETE_WORKFLOW: CustomFigmaMcpServer.WORKFLOW_SEQUENCE
+    };
   }
 
   private log(...args: any[]): void {
@@ -314,52 +358,25 @@ class CustomFigmaMcpServer {
       );
     }
 
-    // Create human-readable text that works across all AI models
-    const frameworkText = `🎯 Choose Your Framework (Type the number 1-10):
+    // Framework options
+    const frameworks = [
+      { id: 1, name: 'React', desc: 'Modern web framework with TypeScript and hooks' },
+      { id: 2, name: 'Vue', desc: 'Progressive framework with Composition API' },
+      { id: 3, name: 'Angular', desc: 'Full-featured framework with TypeScript' },
+      { id: 4, name: 'Svelte', desc: 'Compile-time framework with reactive updates' },
+      { id: 5, name: 'HTML/CSS/JS', desc: 'Vanilla web technologies, no framework' },
+      { id: 6, name: 'SwiftUI', desc: 'Apple\'s declarative UI for iOS/macOS apps' },
+      { id: 7, name: 'UIKit', desc: 'Traditional Apple framework for iOS development' },
+      { id: 8, name: 'Electron', desc: 'Cross-platform desktop apps with web tech' },
+      { id: 9, name: 'Tauri', desc: 'Lightweight desktop apps with Rust backend' },
+      { id: 10, name: 'NW.js', desc: 'Desktop apps with Node.js and Chromium' }
+    ];
 
-Web Frameworks:
-1. React - Modern web framework with TypeScript and hooks
-2. Vue - Progressive framework with Composition API  
-3. Angular - Full-featured framework with TypeScript
-4. Svelte - Compile-time framework with reactive updates
-5. HTML/CSS/JS - Vanilla web technologies, no framework
+    const frameworkText = `Choose your framework:
 
-Mobile & Desktop:
-6. SwiftUI - Apple's declarative UI for iOS/macOS apps
-7. UIKit - Traditional Apple framework for iOS development
-8. Electron - Cross-platform desktop apps with web tech
-9. Tauri - Lightweight desktop apps with Rust backend
-10. NW.js - Desktop apps with Node.js and Chromium
+${frameworks.map(f => `${f.id}. ${f.name} - ${f.desc}`).join('\n')}
 
-⚠️ Please type the number (1-10) of your chosen framework so I can proceed with analyzing your Figma design and generating the appropriate code.
-
-Next Steps: After framework selection → Design data extraction → Comments analysis → Assets download → Reference analysis → Code generation`;
-
-    const jsonData = {
-      message: 'Choose your framework by typing the number:',
-      frameworks: {
-        '1': { name: 'React', description: 'Modern web framework with TypeScript and hooks' },
-        '2': { name: 'Vue', description: 'Progressive framework with Composition API' }, 
-        '3': { name: 'Angular', description: 'Full-featured framework with TypeScript' },
-        '4': { name: 'Svelte', description: 'Compile-time framework with reactive updates' },
-        '5': { name: 'HTML/CSS/JS', description: 'Vanilla web technologies, no framework' },
-        '6': { name: 'SwiftUI', description: 'Apple\'s declarative UI for iOS/macOS apps' },
-        '7': { name: 'UIKit', description: 'Traditional Apple framework for iOS development' },
-        '8': { name: 'Electron', description: 'Cross-platform desktop apps with web tech' },
-        '9': { name: 'Tauri', description: 'Lightweight desktop apps with Rust backend' },
-        '10': { name: 'NW.js', description: 'Desktop apps with Node.js and Chromium' }
-      },
-      AI_INSTRUCTIONS: {
-        CRITICAL: 'STOP HERE - DO NOT MAKE ANY MORE TOOL CALLS',
-        REQUIRED_ACTION: 'Wait for user to choose framework number (1-10)',
-        WORKFLOW_STEP: 'STEP 1 COMPLETE - User must choose framework before proceeding to STEP 2',
-        DO_NOT: [
-          'Do not call get_figma_data until user provides framework choice',
-          'Do not proceed to next step automatically',
-          'Do not assume or guess framework choice'
-        ]
-      }
-    };
+Type your choice (1-10):`;
 
     return {
       content: [
@@ -368,8 +385,14 @@ Next Steps: After framework selection → Design data extraction → Comments an
           text: frameworkText
         },
         {
-          type: 'text',
-          text: `\n\n**Technical Details (JSON):**\n\`\`\`json\n${JSON.stringify(jsonData, null, 2)}\n\`\`\``
+          type: 'text', 
+          text: `
+
+🚨 **CRITICAL AI INSTRUCTION**: 
+- Stop here - DO NOT make any more tool calls
+- Show framework options to user, short and clearly formatted, and wait for user to respond with framework number (1-10)
+- Do NOT proceed to get_figma_data until user chooses
+- STEP 1 COMPLETE - User must select framework first`
         }
       ]
     };
@@ -398,38 +421,10 @@ Next Steps: After framework selection → Design data extraction → Comments an
 
     if (parsed.url) {
       this.log(`[Figma MCP] Parsing URL: ${parsed.url}`);
-      try {
-        const urlObj = new URL(parsed.url);
-        
-        // Extract fileKey from URL path like /design/ZVnXdidh7cqIeJuI8e4c6g/...
-        const pathParts = urlObj.pathname.split('/');
-        const designIndex = pathParts.findIndex(part => part === 'design' || part === 'file');
-        
-        if (designIndex === -1 || designIndex >= pathParts.length - 1) {
-          throw new Error('Invalid Figma URL: could not extract file key');
-        }
-        
-        const extractedFileKey = pathParts[designIndex + 1];
-        if (!extractedFileKey) {
-          throw new Error('Invalid Figma URL: file key not found after design path');
-        }
-        fileKey = extractedFileKey;
-        
-        // Extract nodeId from query params like ?node-id=1530-166
-        const nodeIdParam = urlObj.searchParams.get('node-id');
-        if (nodeIdParam) {
-          nodeId = nodeIdParam;
-        }
-        
-        this.log(`[Figma MCP] Extracted from URL - fileKey: ${fileKey}, nodeId: ${nodeId}`);
-        
-      } catch (error) {
-        this.logError(`[Figma MCP] Error parsing Figma URL:`, error);
-        throw new McpError(
-          ErrorCode.InvalidParams,
-          `Invalid Figma URL: ${error instanceof Error ? error.message : String(error)}`
-        );
-      }
+      const urlData = this.parseFigmaUrl(parsed.url);
+      fileKey = urlData.fileKey;
+      nodeId = urlData.nodeId;
+      this.log(`[Figma MCP] Extracted from URL - fileKey: ${fileKey}, nodeId: ${nodeId}`);
     } else {
       // Use direct parameters
       if (!parsed.fileKey) {
@@ -551,7 +546,7 @@ Next Steps: After framework selection → Design data extraction → Comments an
                 STEP_3: 'Use process_design_comments tool if there are designer comments in Figma',
                 STEP_4: 'Use download_design_assets tool if you need images and visual reference',
                 STEP_5: 'Use check_reference tool to analyze reference.png before development',
-                COMPLETE_WORKFLOW: 'show_frameworks → User choice → Design data ✅ → Comments analysis → Image downloads → Reference analysis → THEN generate code',
+                COMPLETE_WORKFLOW: CustomFigmaMcpServer.WORKFLOW_SEQUENCE,
                 CURRENT_STATUS: 'STEP 2 COMPLETE - Design data extracted successfully'
               }
       };
@@ -599,41 +594,11 @@ Next Steps: After framework selection → Design data extraction → Comments an
     const { url, framework } = parsed;
 
     // Parse Figma URL to extract fileKey and nodeId
-    let fileKey: string;
-    let nodeId: string | undefined;
+    const urlData = this.parseFigmaUrl(url);
+    const fileKey = urlData.fileKey;
+    const nodeId = urlData.nodeId;
     
-    try {
-      const urlObj = new URL(url);
-      
-      // Extract fileKey from URL path like /design/ZVnXdidh7cqIeJuI8e4c6g/...
-      const pathParts = urlObj.pathname.split('/');
-      const designIndex = pathParts.findIndex(part => part === 'design' || part === 'file');
-      
-      if (designIndex === -1 || designIndex >= pathParts.length - 1) {
-        throw new Error('Invalid Figma URL: could not extract file key');
-      }
-      
-      const extractedFileKey = pathParts[designIndex + 1];
-      if (!extractedFileKey) {
-        throw new Error('Invalid Figma URL: file key not found after design path');
-      }
-      fileKey = extractedFileKey;
-      
-      // Extract nodeId from query params like ?node-id=1530-166
-      const nodeIdParam = urlObj.searchParams.get('node-id');
-      if (nodeIdParam) {
-        nodeId = nodeIdParam;
-      }
-      
-      this.log(`[Figma MCP] Parsed URL - fileKey: ${fileKey}, nodeId: ${nodeId}, framework: ${framework}`);
-      
-    } catch (error) {
-      this.logError(`[Figma MCP] Error parsing Figma URL:`, error);
-      throw new McpError(
-        ErrorCode.InvalidParams,
-        `Invalid Figma URL: ${error instanceof Error ? error.message : String(error)}`
-      );
-    }
+    this.log(`[Figma MCP] Parsed URL - fileKey: ${fileKey}, nodeId: ${nodeId}, framework: ${framework}`);
 
     try {
       // Fetch comments from Figma API
@@ -705,12 +670,7 @@ Next Steps: After framework selection → Design data extraction → Comments an
                 comments: [],
                 aiPrompts: [],
                 nodeSelection: nodeId ? `Checked for comments on node: ${nodeId}` : 'Checked entire file',
-                WORKFLOW_STATUS: {
-                  STEP_3_COMPLETE: '✅ Design comments check completed (no comments found)',
-                  NEXT_STEP: 'STEP 4: Use download_design_assets tool to get images and reference.png',
-                  THEN_STEP_5: 'Use check_reference tool to analyze reference.png before development',
-                  COMPLETE_WORKFLOW: 'show_frameworks → Design data → Comments ✅ → Assets download → Reference analysis → Code generation'
-                }
+                WORKFLOW_STATUS: this.generateWorkflowStatus('STEP_3', 'STEP 4: Use download_design_assets tool to get images and reference.png')
               }, null, 2)
             }
           ]
@@ -818,12 +778,7 @@ Next Steps: After framework selection → Design data extraction → Comments an
               implementations: implementations,
               framework: framework,
               nodeContext: nodeId ? `Comments for node: ${nodeId}` : 'Comments for entire file',
-              WORKFLOW_STATUS: {
-                STEP_3_COMPLETE: '✅ Design comments processed successfully',
-                NEXT_STEP: 'STEP 4: Use download_design_assets tool to get images and reference.png',
-                THEN_STEP_5: 'Use check_reference tool to analyze reference.png before development',
-                COMPLETE_WORKFLOW: 'show_frameworks → Design data → Comments ✅ → Assets download → Reference analysis → Code generation'
-              }
+              WORKFLOW_STATUS: this.generateWorkflowStatus('STEP_3', 'STEP 4: Use download_design_assets tool to get images and reference.png')
             }, null, 2)
           }
         ]
@@ -925,7 +880,7 @@ Next Steps: After framework selection → Design data extraction → Comments an
       );
     }
     
-    const { assetsPath, framework } = parsed;
+    const { assetsPath, framework: _framework } = parsed;
 
     try {
       // Simple path resolution
@@ -957,15 +912,15 @@ Next Steps: After framework selection → Design data extraction → Comments an
               type: 'text',
               text: JSON.stringify({
                 status: 'success',
-                message: 'Reference.png found and verified - ready for development',
+                message: 'reference.png found and verified',
                 reference: {
                   path: relativePath,
                   size: `${fileSizeKB} KB`,
                   verified: true
                 },
-                instruction: 'Open reference.png to understand the design before implementing code',
+                instruction: 'Analyze reference.png with all collected design data to understand layout, components, and visual context before code implementation',
                 STEP_5_COMPLETE: true,
-                NEXT_ACTION: 'Begin code implementation using the reference image and downloaded assets',
+                NEXT_ACTION: 'Implement code using reference.png analysis + design data + downloaded assets',
                 READY_FOR_DEVELOPMENT: true
               }, null, 2)
             }
@@ -974,7 +929,7 @@ Next Steps: After framework selection → Design data extraction → Comments an
         
       } catch (statError) {
         // File doesn't exist - need to run download_design_assets first
-        this.log(`[Figma MCP] ❌ Reference.png not found at: ${referencePath}`);
+        this.log(`[Figma MCP] ❌ reference.png not found at: ${referencePath}`);
         
         return {
           content: [
@@ -1024,38 +979,10 @@ Next Steps: After framework selection → Design data extraction → Comments an
 
     if (parsed.url) {
       this.log(`[Figma MCP] Parsing URL: ${parsed.url}`);
-      try {
-        const urlObj = new URL(parsed.url);
-        
-        // Extract fileKey from URL path like /design/ZVnXdidh7cqIeJuI8e4c6g/...
-        const pathParts = urlObj.pathname.split('/');
-        const designIndex = pathParts.findIndex(part => part === 'design' || part === 'file');
-        
-        if (designIndex === -1 || designIndex >= pathParts.length - 1) {
-          throw new Error('Invalid Figma URL: could not extract file key');
-        }
-        
-        const extractedFileKey = pathParts[designIndex + 1];
-        if (!extractedFileKey) {
-          throw new Error('Invalid Figma URL: file key not found after design path');
-        }
-        fileKey = extractedFileKey;
-        
-        // Extract nodeId from query params like ?node-id=1530-166
-        const nodeIdParam = urlObj.searchParams.get('node-id');
-        if (nodeIdParam) {
-          nodeId = nodeIdParam;
-        }
-        
-        this.log(`[Figma MCP] Extracted from URL - fileKey: ${fileKey}, nodeId: ${nodeId}`);
-        
-      } catch (error) {
-        this.logError(`[Figma MCP] Error parsing Figma URL:`, error);
-        throw new McpError(
-          ErrorCode.InvalidParams,
-          `Invalid Figma URL: ${error instanceof Error ? error.message : String(error)}`
-        );
-      }
+      const urlData = this.parseFigmaUrl(parsed.url);
+      fileKey = urlData.fileKey;
+      nodeId = urlData.nodeId;
+      this.log(`[Figma MCP] Extracted from URL - fileKey: ${fileKey}, nodeId: ${nodeId}`);
     } else {
       // Use direct parameters
       if (!parsed.fileKey) {
@@ -1170,8 +1097,6 @@ Next Steps: After framework selection → Design data extraction → Comments an
 
       // Step 5: Verify where files actually ended up
       this.log(`[Figma MCP] 🔍 DEBUG: Final verification of file locations:`);
-      const path = await import('path');
-      const fs = await import('fs/promises');
       
       for (const download of downloadResult.downloaded) {
         if (download.success) {
