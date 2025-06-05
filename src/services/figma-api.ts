@@ -938,6 +938,110 @@ export class FigmaApiService {
       error?: string;
     }> = [];
 
+    // INTELLIGENT ASSET DEDUPLICATION: Handle both filename and content duplicates
+    const usedFilenames = new Set<string>();
+    const filenameCounters = new Map<string, number>();
+    const contentHashes = new Map<string, { filename: string; nodeId: string; nodeName: string }>();
+
+    // Pre-populate with existing files in target directory
+    try {
+      const existingFiles = await fs.readdir(resolvedPath);
+      existingFiles.forEach(file => {
+        usedFilenames.add(file);
+        console.error(`[Figma API] 📁 Existing file detected: ${file}`);
+      });
+    } catch (error) {
+      // Directory doesn't exist yet or can't read it - that's fine
+      console.error(`[Figma API] 📁 Target directory empty or doesn't exist yet`);
+    }
+
+    /**
+     * Generate content hash for asset deduplication (simplified for downloadImages)
+     */
+    const generateContentHash = (node: FigmaNode, format: string, scale: number): string => {
+      const hashComponents = [
+        node.type,
+        format,
+        scale.toString(),
+        JSON.stringify(node.fills || []),
+        JSON.stringify(node.strokes || []),
+        JSON.stringify(node.effects || []),
+        node.cornerRadius || 0,
+        node.strokeWeight || 0,
+        node.type === 'TEXT' ? node.characters || '' : '',
+        node.absoluteBoundingBox ? `${Math.round(node.absoluteBoundingBox.width)}x${Math.round(node.absoluteBoundingBox.height)}` : ''
+      ];
+      
+      return hashComponents.join('|').replace(/[^a-zA-Z0-9]/g, '').substring(0, 16);
+    };
+
+    /**
+     * Check if asset should be treated as reusable (icons, logos, etc.)
+     */
+    const isReusableAsset = (node: FigmaNode, sanitizedName: string): boolean => {
+      const name = sanitizedName.toLowerCase();
+      const size = node.absoluteBoundingBox;
+      
+      // Name-based detection for common reusable assets
+      const reusableKeywords = ['icon', 'logo', 'symbol', 'badge', 'tag', 'avatar', 'admin', 'user', 'date', 'time', 'category', 'star', 'heart', 'arrow', 'check', 'close', 'menu', 'search'];
+      const isReusableName = reusableKeywords.some(keyword => name.includes(keyword));
+      
+      // Size-based detection (small assets are typically reusable)
+      const isSmallAsset = size && size.width <= 64 && size.height <= 64;
+      
+      // Vector/icon types are typically reusable
+      const isVectorType = node.type === 'VECTOR' || node.type === 'BOOLEAN_OPERATION' || 
+                          (node.type === 'FRAME' && Boolean(size && size.width <= 48 && size.height <= 48));
+      
+      return isReusableName || isSmallAsset || isVectorType;
+    };
+
+    /**
+     * Enhanced filename generation with content-based deduplication
+     */
+    const generateUniqueFilename = (node: FigmaNode, baseName: string, extension: string, format: string, scale: number): string => {
+      const baseFilename = `${baseName}.${extension}`;
+      
+      // Check if this is a reusable asset type
+      if (isReusableAsset(node, baseName)) {
+        // Generate content hash for deduplication
+        const contentHash = generateContentHash(node, format, scale);
+        
+        // Check if we already have an asset with identical content
+        if (contentHashes.has(contentHash)) {
+          const existingAsset = contentHashes.get(contentHash)!;
+          console.error(`[Figma API] 🔗 Content duplicate detected: "${baseName}" → reusing "${existingAsset.filename}" (same as ${existingAsset.nodeName})`);
+          return existingAsset.filename;
+        }
+        
+        // New unique content - register it for future deduplication
+        contentHashes.set(contentHash, { filename: baseFilename, nodeId: node.id, nodeName: baseName });
+      }
+      
+      // Standard filename uniqueness check
+      if (!usedFilenames.has(baseFilename)) {
+        usedFilenames.add(baseFilename);
+        return baseFilename;
+      }
+      
+      // Generate incremental filename for true duplicates
+      const counter = filenameCounters.get(baseName) || 1;
+      let uniqueFilename: string;
+      let currentCounter = counter + 1;
+      
+      do {
+        uniqueFilename = `${baseName}-${currentCounter}.${extension}`;
+        currentCounter++;
+      } while (usedFilenames.has(uniqueFilename));
+      
+      // Update counter and mark as used
+      filenameCounters.set(baseName, currentCounter - 1);
+      usedFilenames.add(uniqueFilename);
+      
+      console.error(`[Figma API] 🔄 Filename duplicate resolved: "${baseFilename}" → "${uniqueFilename}"`);
+      return uniqueFilename;
+    };
+
     try {
       // First, get the nodes to get their names
       const nodeResponse = await this.getFileNodes(fileKey, nodeIds, {
@@ -995,7 +1099,9 @@ export class FigmaApiService {
           .replace(/\s+/g, ' ') // Normalize spaces
           .trim();
         const extension = format;
-        const filename = `${sanitizedNodeName}.${extension}`;
+        
+        // Generate unique filename to prevent overwrites
+        const filename = generateUniqueFilename(nodeWrapper.document!, sanitizedNodeName, extension, format, scale);
         const filePath = path.join(resolvedPath, filename);
 
         // Debug logging to understand the filename issue
@@ -1149,14 +1255,137 @@ export class FigmaApiService {
       error?: string;
     }> = [];
 
+    // INTELLIGENT ASSET DEDUPLICATION: Handle both filename and content duplicates
+    const usedFilenames = new Set<string>();
+    const filenameCounters = new Map<string, number>();
+    const contentHashes = new Map<string, { filename: string; nodeId: string; nodeName: string }>();
+
+    // Pre-populate with existing files in target directory
+    try {
+      const existingFiles = await fs.readdir(resolvedPath);
+      existingFiles.forEach(file => {
+        usedFilenames.add(file);
+        console.error(`[Figma API] 📁 Existing file detected: ${file}`);
+      });
+    } catch (error) {
+      // Directory doesn't exist yet or can't read it - that's fine
+      console.error(`[Figma API] 📁 Target directory empty or doesn't exist yet`);
+    }
+
+    /**
+     * Generate content hash for asset deduplication
+     */
+    const generateContentHash = (node: FigmaNode, exportSetting: FigmaExportSetting): string => {
+      const hashComponents = [
+        node.type,
+        exportSetting.format,
+        exportSetting.constraint?.type || 'none',
+        exportSetting.constraint?.value || 1,
+        exportSetting.suffix || '',
+        JSON.stringify(node.fills || []),
+        JSON.stringify(node.strokes || []),
+        JSON.stringify(node.effects || []),
+        node.cornerRadius || 0,
+        node.strokeWeight || 0,
+        node.type === 'TEXT' ? node.characters || '' : '',
+        node.absoluteBoundingBox ? `${Math.round(node.absoluteBoundingBox.width)}x${Math.round(node.absoluteBoundingBox.height)}` : ''
+      ];
+      
+      return hashComponents.join('|').replace(/[^a-zA-Z0-9]/g, '').substring(0, 16);
+    };
+
+    /**
+     * Check if asset should be treated as reusable (icons, logos, etc.)
+     */
+    const isReusableAsset = (node: FigmaNode, sanitizedName: string): boolean => {
+      const name = sanitizedName.toLowerCase();
+      const size = node.absoluteBoundingBox;
+      
+      // Name-based detection for common reusable assets
+      const reusableKeywords = ['icon', 'logo', 'symbol', 'badge', 'tag', 'avatar', 'admin', 'user', 'date', 'time', 'category', 'star', 'heart', 'arrow', 'check', 'close', 'menu', 'search'];
+      const isReusableName = reusableKeywords.some(keyword => name.includes(keyword));
+      
+      // Size-based detection (small assets are typically reusable)
+      const isSmallAsset = size && size.width <= 64 && size.height <= 64;
+      
+             // Vector/icon types are typically reusable
+       const isVectorType = node.type === 'VECTOR' || node.type === 'BOOLEAN_OPERATION' || 
+                           (node.type === 'FRAME' && Boolean(size && size.width <= 48 && size.height <= 48));
+      
+      return isReusableName || isSmallAsset || isVectorType;
+    };
+
+    /**
+     * Enhanced filename generation with content-based deduplication
+     */
+    const generateUniqueFilename = (node: FigmaNode, baseName: string, extension: string, exportSetting: FigmaExportSetting): string => {
+      const baseFilename = `${baseName}.${extension}`;
+      
+      // Check if this is a reusable asset type
+      if (isReusableAsset(node, baseName)) {
+        // Generate content hash for deduplication
+        const contentHash = generateContentHash(node, exportSetting);
+        
+        // Check if we already have an asset with identical content
+        if (contentHashes.has(contentHash)) {
+          const existingAsset = contentHashes.get(contentHash)!;
+          console.error(`[Figma API] 🔗 Content duplicate detected: "${baseName}" → reusing "${existingAsset.filename}" (same as ${existingAsset.nodeName})`);
+          return existingAsset.filename;
+        }
+        
+        // New unique content - register it for future deduplication
+        contentHashes.set(contentHash, { filename: baseFilename, nodeId: node.id, nodeName: baseName });
+      }
+      
+      // Standard filename uniqueness check
+      if (!usedFilenames.has(baseFilename)) {
+        usedFilenames.add(baseFilename);
+        return baseFilename;
+      }
+      
+      // Generate incremental filename for true duplicates
+      const counter = filenameCounters.get(baseName) || 1;
+      let uniqueFilename: string;
+      let currentCounter = counter + 1;
+      
+      do {
+        uniqueFilename = `${baseName}-${currentCounter}.${extension}`;
+        currentCounter++;
+      } while (usedFilenames.has(uniqueFilename));
+      
+      // Update counter and mark as used
+      filenameCounters.set(baseName, currentCounter - 1);
+      usedFilenames.add(uniqueFilename);
+      
+      console.error(`[Figma API] 🔄 Filename duplicate resolved: "${baseFilename}" → "${uniqueFilename}"`);
+      return uniqueFilename;
+    };
+
     // Find all nodes with export settings
     const nodesToExport: Array<{ node: FigmaNode; exportSetting: FigmaExportSetting }> = [];
     
     const findExportableNodes = (node: FigmaNode) => {
+      // Enhanced debugging for icon detection
+      const nodeName = node.name.toLowerCase();
+      const isIconName = ['uis:', 'dashicons:', 'ci:', 'icon', 'svg'].some(keyword => nodeName.includes(keyword));
+      
+      if (isIconName) {
+        console.error(`[Figma API] 🔍 DEBUG: Found potential icon "${node.name}" (${node.type})`);
+        console.error(`[Figma API]   📋 Export settings: ${node.exportSettings ? node.exportSettings.length : 0} found`);
+        if (node.exportSettings && node.exportSettings.length > 0) {
+          node.exportSettings.forEach((setting, index) => {
+            console.error(`[Figma API]   📄 Setting ${index}: format=${setting.format}, suffix=${setting.suffix || 'none'}`);
+          });
+        } else {
+          console.error(`[Figma API]   ⚠️ No export settings found for icon "${node.name}"`);
+        }
+      }
+      
       if (node.exportSettings && node.exportSettings.length > 0) {
         // Add each export setting as a separate export task
         for (const exportSetting of node.exportSettings) {
           nodesToExport.push({ node, exportSetting });
+          console.error(`[Figma API] ✅ Added to export queue: "${node.name}" as ${exportSetting.format}`);
         }
       }
       
@@ -1169,18 +1398,26 @@ export class FigmaApiService {
     };
 
     // Find all exportable nodes
+    console.error(`[Figma API] 🔍 Scanning ${nodes.length} root nodes for export settings...`);
     for (const node of nodes) {
+      console.error(`[Figma API] 📁 Scanning node: "${node.name}" (${node.type})`);
       findExportableNodes(node);
     }
 
     if (nodesToExport.length === 0) {
+      console.error(`[Figma API] ❌ No nodes with export settings found!`);
+      console.error(`[Figma API] 💡 Make sure your icons have export settings configured in Figma:`);
+      console.error(`[Figma API]    1. Select the icon in Figma`);
+      console.error(`[Figma API]    2. In the right panel, scroll to "Export" section`);
+      console.error(`[Figma API]    3. Click "+" to add export settings`);
+      console.error(`[Figma API]    4. Choose SVG format for icons`);
       return {
         downloaded: [],
         summary: { total: 0, successful: 0, failed: 0, skipped: 0 }
       };
     }
 
-    console.error(`[Figma API] Found ${nodesToExport.length} export tasks from ${nodes.length} nodes`);
+    console.error(`[Figma API] ✅ Found ${nodesToExport.length} export tasks from ${nodes.length} nodes`);
 
     // Group exports by format and scale to batch API calls efficiently
     const exportGroups = new Map<string, Array<{ node: FigmaNode; exportSetting: FigmaExportSetting }>>();
@@ -1262,19 +1499,21 @@ export class FigmaApiService {
             const suffix = exportSetting.suffix || '';
             const extension = exportSetting.format.toLowerCase();
             
-            // Build filename with proper suffix handling
-            let filename: string;
+            // Build base filename with proper suffix handling
+            let baseFilename: string;
             if (suffix) {
-              filename = `${sanitizedNodeName}${suffix}.${extension}`;
+              baseFilename = `${sanitizedNodeName}${suffix}`;
             } else {
               // If no suffix but scale > 1, add scale suffix
               if (scale > 1) {
-                filename = `${sanitizedNodeName}@${scale}x.${extension}`;
+                baseFilename = `${sanitizedNodeName}@${scale}x`;
               } else {
-                filename = `${sanitizedNodeName}.${extension}`;
+                baseFilename = sanitizedNodeName;
               }
             }
             
+            // Generate unique filename to prevent overwrites
+            const filename = generateUniqueFilename(node, baseFilename, extension, exportSetting);
             const filePath = path.join(resolvedPath, filename);
 
             try {
