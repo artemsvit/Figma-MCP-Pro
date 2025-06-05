@@ -980,18 +980,41 @@ export class FigmaApiService {
      */
     const isReusableAsset = (node: FigmaNode, sanitizedName: string): boolean => {
       const name = sanitizedName.toLowerCase();
+      
+      // Check for common icon naming patterns
+      const iconPatterns = [
+        'akar-icons-',
+        'dashicons-',
+        'ci-',
+        'uis-',
+        'mdi-',
+        'ant-design-',
+        'feather-',
+        'heroicons-',
+        'lucide-',
+        'tabler-',
+        'phosphor-',
+        'icon-',
+        'ico-'
+      ];
+      
+      const isIcon = iconPatterns.some(pattern => name.includes(pattern));
+      
+      // Also check for small size (typical for icons)
       const size = node.absoluteBoundingBox;
+      const isSmallSize = size ? (size.width <= 100 && size.height <= 100) : false;
       
-      // Only treat as reusable if it has very specific characteristics
-      // This prevents different icons from being treated as the same content
+      // Check if it's an SVG type node (vector graphics)
+      const isVectorType = node.type === 'VECTOR' || node.type === 'BOOLEAN_OPERATION' || node.type === 'COMPONENT';
       
-      // Must have identical name AND identical content to be considered reusable
-      // This is much more conservative than before
-      const isExactDuplicate = false; // We'll let the content hash handle this
+      // Consider it reusable if it matches icon patterns OR is a small vector graphic
+      const shouldDeduplicate = isIcon || (isSmallSize && isVectorType);
       
-      // For now, disable content-based deduplication for icons to prevent overwrites
-      // Each icon should get its own file even if they look similar
-      return false;
+      if (shouldDeduplicate) {
+        console.error(`[Figma API] 🔗 Detected reusable asset: "${name}" (icon: ${isIcon}, small: ${isSmallSize}, vector: ${isVectorType})`);
+      }
+      
+      return shouldDeduplicate;
     };
 
     /**
@@ -1317,18 +1340,41 @@ export class FigmaApiService {
      */
     const isReusableAsset = (node: FigmaNode, sanitizedName: string): boolean => {
       const name = sanitizedName.toLowerCase();
+      
+      // Check for common icon naming patterns
+      const iconPatterns = [
+        'akar-icons-',
+        'dashicons-',
+        'ci-',
+        'uis-',
+        'mdi-',
+        'ant-design-',
+        'feather-',
+        'heroicons-',
+        'lucide-',
+        'tabler-',
+        'phosphor-',
+        'icon-',
+        'ico-'
+      ];
+      
+      const isIcon = iconPatterns.some(pattern => name.includes(pattern));
+      
+      // Also check for small size (typical for icons)
       const size = node.absoluteBoundingBox;
+      const isSmallSize = size ? (size.width <= 100 && size.height <= 100) : false;
       
-      // Only treat as reusable if it has very specific characteristics
-      // This prevents different icons from being treated as the same content
+      // Check if it's an SVG type node (vector graphics)
+      const isVectorType = node.type === 'VECTOR' || node.type === 'BOOLEAN_OPERATION' || node.type === 'COMPONENT';
       
-      // Must have identical name AND identical content to be considered reusable
-      // This is much more conservative than before
-      const isExactDuplicate = false; // We'll let the content hash handle this
+      // Consider it reusable if it matches icon patterns OR is a small vector graphic
+      const shouldDeduplicate = isIcon || (isSmallSize && isVectorType);
       
-      // For now, disable content-based deduplication for icons to prevent overwrites
-      // Each icon should get its own file even if they look similar
-      return false;
+      if (shouldDeduplicate) {
+        console.error(`[Figma API] 🔗 Detected reusable asset: "${name}" (icon: ${isIcon}, small: ${isSmallSize}, vector: ${isVectorType})`);
+      }
+      
+      return shouldDeduplicate;
     };
 
     /**
