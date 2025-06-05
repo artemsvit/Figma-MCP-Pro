@@ -1063,7 +1063,7 @@ Type your choice (1-10):`;
         fileKey,
         exportableNodes,
         localPath,
-        { skipWorkspaceEnforcement: true }
+        { skipWorkspaceEnforcement: true, overwriteExisting: true }
       );
 
       this.log(`[Figma MCP] 🔥 DEBUG: Export download completed!`);

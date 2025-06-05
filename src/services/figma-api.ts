@@ -1219,6 +1219,7 @@ export class FigmaApiService {
     localPath: string,
     options: {
       skipWorkspaceEnforcement?: boolean;
+      overwriteExisting?: boolean; // New option to control existing file behavior
     } = {}
   ): Promise<{
     downloaded: Array<{
@@ -1260,13 +1261,22 @@ export class FigmaApiService {
     const filenameCounters = new Map<string, number>();
     const contentHashes = new Map<string, { filename: string; nodeId: string; nodeName: string }>();
 
-    // Pre-populate with existing files in target directory
+    // Handle existing files based on overwriteExisting option
+    const existingFiles = new Set<string>();
     try {
-      const existingFiles = await fs.readdir(resolvedPath);
-      existingFiles.forEach(file => {
-        usedFilenames.add(file);
-        console.error(`[Figma API] 📁 Existing file detected: ${file}`);
-      });
+      const files = await fs.readdir(resolvedPath);
+      files.forEach(file => existingFiles.add(file));
+      
+      if (options.overwriteExisting) {
+        console.error(`[Figma API] 🔄 Overwrite mode: Will replace ${files.length} existing files if needed`);
+        // Don't add existing files to usedFilenames - allow overwrites
+      } else {
+        // Add existing files to usedFilenames to prevent overwrites (current behavior)
+        files.forEach(file => {
+          usedFilenames.add(file);
+          console.error(`[Figma API] 📁 Existing file detected: ${file} (will increment if duplicate)`);
+        });
+      }
     } catch (error) {
       // Directory doesn't exist yet or can't read it - that's fine
       console.error(`[Figma API] 📁 Target directory empty or doesn't exist yet`);
