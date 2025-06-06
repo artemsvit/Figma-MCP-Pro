@@ -1,5 +1,7 @@
 # Figma MCP PRO
 
+[![smithery badge](https://smithery.ai/badge/@artemsvit/figma-mcp-pro)](https://smithery.ai/server/@artemsvit/figma-mcp-pro)
+
 Professional Model Context Protocol (MCP) server for AI-optimized Figma design analysis. Clean 5-step workflow for comprehensive design-to-code conversion with smart comment processing and asset downloads.
 
 ## 🚀 Key Features
@@ -13,6 +15,15 @@ Professional Model Context Protocol (MCP) server for AI-optimized Figma design a
 
 ## 📦 Installation
 
+### Installing via Smithery
+
+To install figma-mcp-pro for Claude Desktop automatically via [Smithery](https://smithery.ai/server/@artemsvit/figma-mcp-pro):
+
+```bash
+npx -y @smithery/cli install @artemsvit/figma-mcp-pro --client claude
+```
+
+### Manual Installation
 ```bash
 npm install -g figma-mcp-pro
 ```
