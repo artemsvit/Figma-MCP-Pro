@@ -1,3 +1,5 @@
+[![MseeP.ai Security Assessment Badge](https://mseep.net/pr/artemsvit-figma-mcp-pro-badge.png)](https://mseep.ai/app/artemsvit-figma-mcp-pro)
+
 # Figma MCP PRO
 
 Professional Model Context Protocol (MCP) server for AI-optimized Figma design analysis. Clean 5-step workflow for comprehensive design-to-code conversion with smart comment processing and asset downloads.
