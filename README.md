@@ -1,3 +1,5 @@
+
+
 [![MseeP.ai Security Assessment Badge](https://mseep.net/pr/artemsvit-figma-mcp-pro-badge.png)](https://mseep.ai/app/artemsvit-figma-mcp-pro)
 
 # Figma MCP PRO
@@ -61,28 +63,20 @@ Get your API token from [Figma Account Settings](https://www.figma.com/settings)
 
 ### Core Tools
 
-#### `show_frameworks`
-Shows available frameworks. Call first to choose target framework.
+#### `analyze_figma_url`
+**PRIMARY** - Complete Figma URL analysis with framework-specific optimization.
+- **Input**: Figma URL + framework + optional flags (`includeComments`, `includeImages`)
+- **Output**: Optimized design structure, CSS properties, layout data, and AI-ready instructions
 
-#### `get_figma_data` 
-Extracts AI-optimized design data with framework-specific processing.
-- **Input**: Figma URL + framework
-- **Output**: Design structure, CSS properties, layout data
+#### `download_figma_images`
+**ADDITIONAL** - Downloads specific design assets beyond initial analysis.
+- **Input**: Figma URL/file key + local path + optional node IDs/format
+- **Output**: Exported asset files (SVG, PNG, JPG, PDF)
 
-#### `process_design_comments`
-Matches designer comments to design elements with AI implementation prompts.
-- **Input**: Figma URL + framework  
-- **Output**: Comment-to-element mapping with actionable instructions
-
-#### `download_design_assets`
-Downloads export-ready assets with original Figma settings + reference image.
-- **Input**: Figma URL + local path
-- **Output**: Asset files + reference.png for visual context
-
-#### `check_reference`
-Analyzes reference.png for design understanding and development guidance.
-- **Input**: Assets folder path + framework
-- **Output**: Design analysis and framework-specific development recommendations
+#### `optimize_for_framework`
+**SECONDARY** - Re-optimizes previously analyzed data for a different framework.
+- **Input**: File key + target framework
+- **Output**: Framework-optimized design data
 
 ## 🎯 What You Get
 
